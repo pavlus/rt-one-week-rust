@@ -4,6 +4,7 @@ use crate::hittable::Hit;
 
 use rand::prelude::thread_rng;
 use rand::Rng;
+use rand::distributions::{Standard, Distribution};
 
 pub trait Material {
     fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<Ray>;
@@ -56,6 +57,66 @@ impl Material for Metal {
     }
 }
 
+
+#[derive(PartialEq, Copy, Clone)]
+pub struct Dielectric {
+    albedo: V3,
+    ref_idx: f64,
+}
+
+impl Dielectric {
+    pub fn new(ref_idx: f64) -> Dielectric { Dielectric { albedo: V3::ones(), ref_idx } }
+    pub fn new_colored(albedo: V3, ref_idx: f64) -> Dielectric {
+        Dielectric { albedo, ref_idx }
+    }
+    fn schlick(self, cosine: f64) -> f64 {
+        let mut r0 = (1.0 - self.ref_idx) / (1.0 + self.ref_idx);
+        r0 *= r0;
+        return r0 + (1.0 - r0) * (1.0 - cosine).powf(5.0);
+    }
+
+
+    fn refract(v: V3, normal: V3, ni_over_nt: f64) -> Option<V3> {
+        let unit = v.unit();
+        let dt = unit.dot(normal);
+        let discriminant = 1.0 - ni_over_nt * ni_over_nt * (1.0 - dt * dt);
+        return if discriminant > 0.0 {
+            Some(ni_over_nt * (v - dt * normal) - discriminant.sqrt() * normal)
+        } else { None };
+    }
+}
+
+impl Material for Dielectric {
+    fn scatter(&self, ray: &Ray, &hit: &Hit) -> Option<Ray> {
+        let reflection_prob: f64;
+        let unit_direction = ray.direction().unit();
+
+        let cosine: f64;
+        let outward_normal: V3;
+        let ni_over_nt: f64;
+
+        let vector_cosine = unit_direction.dot(hit.normal());
+        if vector_cosine > 0.0 {
+            outward_normal = -hit.normal();
+            ni_over_nt = self.ref_idx;
+            cosine = (1.0 - self.ref_idx * self.ref_idx * (1.0 - vector_cosine * vector_cosine)).sqrt();
+        } else {
+            outward_normal = hit.normal();
+            ni_over_nt = 1.0 / self.ref_idx;
+            cosine = -vector_cosine;
+        }
+
+        let refracted: Option<V3> = Dielectric::refract(unit_direction, outward_normal, ni_over_nt);
+        let reflected = ray.direction().reflect(hit.normal());
+
+        refracted
+            .filter(|_| rnd_over(self.schlick(cosine)))
+            .map(|refracted| ray.produce(hit.point(), refracted, self.albedo))
+            .or_else(|| Some(ray.produce(hit.point(), reflected, V3::ones())))
+    }
+}
+
+
 fn rand_in_unit_sphere() -> V3 {
     let mut rand = rand::thread_rng();
     loop {
@@ -64,5 +125,10 @@ fn rand_in_unit_sphere() -> V3 {
             return v.unit();
         }
     }
+}
+
+fn rnd_over(chance: f64) -> bool {
+    let mut rand = rand::thread_rng();
+    chance < Standard.sample(&mut rand)
 }
 

@@ -12,7 +12,7 @@ use core::borrow::Borrow;
 use rand::distributions::{Normal, Distribution, Standard};
 use rand::prelude::thread_rng;
 use rand::Rng;
-use crate::material::{Lambertian, Metal};
+use crate::material::{Lambertian, Metal, Dielectric};
 
 fn main() {
     let nx = 400;
@@ -29,25 +29,27 @@ fn main() {
         V3::new(0.0, 0.0, 0.0),
         64,
     );
+
+    let aa = 100;
     let renderer = Renderer {
         hittable: &Stage::new(
             vec![
                 Box::new(Sphere::new(
-                    V3::new(-1.0, 0.0, -1.0), 0.5,
+                    V3::new(-1.0, 0.0, -1.2), 0.5,
                     Box::new(Metal::new_fuzzed(V3::new(0.8, 0.8, 0.8), 1.0)))),
                 Box::new(Sphere::new(
-                    V3::new(0.0, 0.0, -1.0), 0.5,
-                    Box::new(Lambertian::new(V3::new(0.8, 0.3, 0.3))))),
+                    V3::new(-0.3, 0.2, -0.8), 0.4,
+//                    Box::new(Dielectric::new_colored(V3::new(1.0, 1.0, 1.0), 1.5)))),
+                    Box::new(Dielectric::new_colored(V3::new(1.0, 0.6, 0.6), 1.5)))),
                 Box::new(Sphere::new(
-                    V3::new(1.0, 0.0, -1.0), 0.5,
-                    Box::new(Metal::new(V3::new(0.8, 0.6, 0.2))))),
+                    V3::new(1.0, 0.0, -1.2), 0.5,
+                    Box::new(Dielectric::new(1.5)))),
                 Box::new(Sphere::new(
                     V3::new(0.0, -100.5, -1.0), 100.0,
                     Box::new(Lambertian::new(V3::new(0.8, 0.8, 0.3))))),
             ]
         )
     };
-    let aa = 100;
     let mut rand = rand::thread_rng();
 //    let dist = Normal::new(0.0, 1.0);
     let dist = Standard;
