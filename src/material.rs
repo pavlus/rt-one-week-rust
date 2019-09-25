@@ -21,8 +21,8 @@ impl Lambertian {
 
 impl Material for Lambertian {
     fn scatter(&self, ray: &Ray, &hit: &Hit) -> Option<Ray> {
-        let target = hit.point() + hit.normal() + rand_in_unit_sphere();
-        Some(ray.produce(ray.origin(), target - ray.direction(), self.albedo))
+        let target = 0.5 * (hit.normal() + rand_in_unit_sphere());
+        Some(ray.produce(hit.point(), target, self.albedo))
     }
 }
 
