@@ -8,9 +8,10 @@ pub struct Camera {
     horizontal: V3,
     vertical: V3,
     origin: V3,
+    ttl: u32,
 }
 
-static DEFAULT_COLOR: V3 = V3 { x: 1.0, y: 1.0, z: 1.0 };
+static DEFAULT_COLOR: V3 = V3 { x: 0.0, y: 0.0, z: 0.0 };
 const TTL: u32 = 16;
 
 impl Camera {
@@ -18,12 +19,15 @@ impl Camera {
         lower_left: V3,
         horizontal: V3,
         vertical: V3,
-        origin: V3) -> Camera {
+        origin: V3,
+        ttl: u32,
+    ) -> Camera {
         Camera {
             lower_left,
             horizontal,
             vertical,
             origin,
+            ttl,
         }
     }
 
@@ -33,6 +37,7 @@ impl Camera {
             horizontal: V3::new(4.0, 0.0, 0.0),
             vertical: V3::new(0.0, 2.0, 0.0),
             origin: V3::new(0.0, 0.0, 0.0),
+            ttl: 16,
         }
     }
     pub fn get_ray(&self, u: f64, v: f64) -> Ray {

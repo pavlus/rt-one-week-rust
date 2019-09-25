@@ -10,7 +10,7 @@ use core::borrow::Borrow;
 pub struct Hit<'a> {
     dist: f64,
     p: V3,
-    n: V3,
+    normal: V3,
     material: &'a Box<dyn Material>,
 }
 
@@ -18,13 +18,13 @@ pub struct Hit<'a> {
 
 impl<'a> Hit<'a> {
     pub fn new(dist: f64, p: V3, n: V3, material: &'a Box<dyn Material>) -> Hit<'a> {
-        return Hit { dist, p, n, material };
+        return Hit { dist, p, normal: n, material };
     }
-    pub fn p(self) -> V3 {
+    pub fn point(self) -> V3 {
         self.p
     }
-    pub fn n(self) -> V3 {
-        self.n
+    pub fn normal(self) -> V3 {
+        self.normal
     }
     pub fn dist(self) -> f64 {
         self.dist

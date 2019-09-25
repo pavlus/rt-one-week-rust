@@ -9,10 +9,10 @@ use ray::Ray;
 use camera::Camera;
 use crate::hittable::{Sphere, Hittable, Stage};
 use core::borrow::Borrow;
-use rand::distributions::{Normal, Distribution};
+use rand::distributions::{Normal, Distribution, Standard};
 use rand::prelude::thread_rng;
 use rand::Rng;
-use crate::material::Lambertian;
+use crate::material::{Lambertian, Metal};
 
 fn main() {
     let nx = 400;
@@ -23,26 +23,34 @@ fn main() {
     println!("255");
 
     let cam = Camera::new(
-        V3::new(-2.0, -1.0, 1.0),
+        V3::new(-2.0, -1.0, -1.0),
         V3::new(4.0, 0.0, 0.0),
         V3::new(0.0, 2.0, 0.0),
-        V3::new(0.0, 0.0, 2.0),
+        V3::new(0.0, 0.0, 0.0),
+        64,
     );
     let renderer = Renderer {
         hittable: &Stage::new(
             vec![
                 Box::new(Sphere::new(
-                    V3::new(0.0, 1.5, -2.0), 0.5,
-                    Box::new(Lambertian::new(V3::new(0.9, 0.5, 0.5))))),
+                    V3::new(-1.0, 0.0, -1.0), 0.5,
+                    Box::new(Metal::new(V3::new(0.8, 0.8, 0.8))))),
                 Box::new(Sphere::new(
-                    V3::new(0.0, -102.0, -1.0), 100.0,
-                    Box::new(Lambertian::new(V3::new(0.6, 0.7, 0.5)))))
+                    V3::new(0.0, 0.0, -1.0), 0.5,
+                    Box::new(Lambertian::new(V3::new(0.8, 0.3, 0.3))))),
+                Box::new(Sphere::new(
+                    V3::new(1.0, 0.0, -1.0), 0.5,
+                    Box::new(Metal::new(V3::new(0.8, 0.6, 0.2))))),
+                Box::new(Sphere::new(
+                    V3::new(0.0, -100.5, -1.0), 100.0,
+                    Box::new(Lambertian::new(V3::new(0.8, 0.8, 0.8))))),
             ]
         )
     };
     let aa = 100;
     let mut rand = rand::thread_rng();
-    let dist = Normal::new(0.0, 1.0);
+//    let dist = Normal::new(0.0, 1.0);
+    let dist = Standard;
 
     for j in (0..ny).rev() {
         for i in 0..nx {
@@ -59,9 +67,17 @@ fn main() {
             }
 
             col = col / aa as f64;
+            // non gamma-corrected
             let ir: u32 = (255.99 * col.x) as u32;
             let ig: u32 = (255.99 * col.y) as u32;
             let ib: u32 = (255.99 * col.z) as u32;
+            assert![ir < 256];
+            assert![ig < 256];
+            assert![ib < 256];
+            /*let ir: u32 = (255.99 * col.x.sqrt()) as u32;
+            let ig: u32 = (255.99 * col.y.sqrt()) as u32;
+            let ib: u32 = (255.99 * col.z.sqrt()) as u32;
+            */
             print!("{} {} {} ", ir, ig, ib);
         }
         println!();
@@ -75,7 +91,7 @@ struct Renderer<'a> {
 
 impl Renderer<'_> {
     fn color(&self, r: &Ray) -> V3 {
-        match self.hittable.hit(&r, 0.0, 99999.0) {
+        match self.hittable.hit(&r, 0.0001, 99999.0) {
             Some(hit) => {
                 return match hit
                     .material()
@@ -83,12 +99,12 @@ impl Renderer<'_> {
                     .and_then(Ray::validate) {
                     Some(scattered) => { scattered.attenuation() * self.color(&scattered) }
                     None => r.attenuation()
-                }
+                };
             }
             None => {
                 let unit_direction = r.direction().unit();
                 let t: f64 = 0.5 * (unit_direction.y + 1.0);
-                return (1.0 - t) * V3::ones() + t * V3::new(0.5, 0.7, 1.0);
+                return V3::new(1.0, 1.0, 1.0);//(1.0 - t) * V3::ones() + t * V3::new(0.5, 0.7, 1.0);
             }
         };
     }

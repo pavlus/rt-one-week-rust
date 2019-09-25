@@ -9,6 +9,7 @@ pub trait Material {
     fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<Ray>;
 }
 
+
 #[derive(PartialEq, Copy, Clone)]
 pub struct Lambertian {
     albedo: V3
@@ -20,8 +21,30 @@ impl Lambertian {
 
 impl Material for Lambertian {
     fn scatter(&self, ray: &Ray, &hit: &Hit) -> Option<Ray> {
-        let target = hit.p() + hit.n() + rand_in_unit_sphere();
-        ray.produce(ray.origin(), target - ray.direction(), self.albedo).validate()
+        let target = hit.point() + hit.normal() + rand_in_unit_sphere();
+        Some(ray.produce(ray.origin(), target - ray.direction(), self.albedo))
+    }
+}
+
+
+#[derive(PartialEq, Copy, Clone)]
+pub struct Metal {
+    albedo: V3
+}
+
+impl Metal {
+    pub fn new(albedo: V3) -> Metal { Metal { albedo } }
+}
+
+impl Material for Metal {
+    fn scatter(&self, ray: &Ray, &hit: &Hit) -> Option<Ray> {
+        let unit_direction = ray.direction().unit();
+        let reflected = unit_direction.reflect(hit.normal());
+        if reflected.dot(hit.normal()) > 0.0 {
+            Some(ray.produce(hit.point(), reflected, self.albedo))
+        } else {
+            None
+        }
     }
 }
 
