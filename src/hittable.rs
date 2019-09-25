@@ -56,7 +56,7 @@ impl Hittable for Sphere {
     fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
         let oc = ray.origin() - self.center;
         let a = ray.direction().sqr_length();
-        let b = 2.0 * oc.dot(ray.direction());
+        let b = oc.dot(ray.direction());
         let c = oc.sqr_length() - (self.radius * self.radius) as f64;
         let discr_sqr = b * b - a * c;
 
