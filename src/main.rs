@@ -34,7 +34,7 @@ fn main() {
             vec![
                 Box::new(Sphere::new(
                     V3::new(-1.0, 0.0, -1.0), 0.5,
-                    Box::new(Metal::new(V3::new(0.8, 0.8, 0.8))))),
+                    Box::new(Metal::new_fuzzed(V3::new(0.8, 0.8, 0.8), 1.0)))),
                 Box::new(Sphere::new(
                     V3::new(0.0, 0.0, -1.0), 0.5,
                     Box::new(Lambertian::new(V3::new(0.8, 0.3, 0.3))))),
@@ -43,7 +43,7 @@ fn main() {
                     Box::new(Metal::new(V3::new(0.8, 0.6, 0.2))))),
                 Box::new(Sphere::new(
                     V3::new(0.0, -100.5, -1.0), 100.0,
-                    Box::new(Lambertian::new(V3::new(0.8, 0.8, 0.8))))),
+                    Box::new(Lambertian::new(V3::new(0.8, 0.8, 0.3))))),
             ]
         )
     };
@@ -104,7 +104,8 @@ impl Renderer<'_> {
             None => {
                 let unit_direction = r.direction().unit();
                 let t: f64 = 0.5 * (unit_direction.y + 1.0);
-                return V3::new(1.0, 1.0, 1.0);//(1.0 - t) * V3::ones() + t * V3::new(0.5, 0.7, 1.0);
+//                return V3::new(1.0, 1.0, 1.0);
+                return (1.0 - t) * V3::ones() + t * V3::new(0.5, 0.7, 1.0);
             }
         };
     }
