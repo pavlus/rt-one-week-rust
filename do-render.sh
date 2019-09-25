@@ -2,7 +2,7 @@
 
 mkdir -p renders
 PPMNAME=`date +%Y.%m.%d-%H.%M.%S`
-RPATH=`pwd`/renders/
+RPATH=`pwd`/renders
 PPMPATH=$RPATH/$PPMNAME.ppm
 echo "Started rendering $PPMNAME"
 
