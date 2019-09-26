@@ -1,5 +1,7 @@
 use crate::ray::Ray;
 use crate::vec::V3;
+use std::f64::consts::PI;
+use std::alloc::handle_alloc_error;
 
 
 #[derive(Copy, Clone, Debug)]
@@ -37,6 +39,29 @@ impl Camera {
             horizontal: V3::new(4.0, 0.0, 0.0),
             vertical: V3::new(0.0, 2.0, 0.0),
             origin: V3::new(0.0, 0.0, 0.0),
+            ttl: 16,
+        }
+    }
+
+    pub fn new_look(from: V3, at: V3, up: V3, vfov: f64, aspect: f64) -> Camera {
+        let theta = vfov * PI / 180.0;
+        let height = (theta / 2.0).tan();
+        let width = aspect * height;
+
+        // normalized vector from origin to POI
+        let w = (from - at).unit();
+        // cross-product of upwards vector and w will give us normal to plane they are in.
+        // it's also normal to both of them, being normal to upwards direction makes it horizontal
+        let u = up.cross(w);
+        // given that we have u and w is normal to plane of viewport -- v is their cross-product
+        let v = w.cross(u);
+        Camera {
+            // from origin substruct half of horizontal viewport and half of vertival viewport,
+            // then offset by w
+            lower_left: from - (width / 2.0) * u - (height / 2.0) * v - w,
+            horizontal: width * u,
+            vertical: height * v,
+            origin: from,
             ttl: 16,
         }
     }
