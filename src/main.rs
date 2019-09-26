@@ -13,24 +13,25 @@ use rand::distributions::{Normal, Distribution, Standard};
 use rand::prelude::thread_rng;
 use rand::Rng;
 use crate::material::{Lambertian, Metal, Dielectric};
+use std::f64::consts::PI;
 
 fn main() {
-    let nx = 400;
-    let ny = 200;
+    let nx = 1024;
+    let ny = 768;
+    let aa = 400;
 
     println!("P3");
     println!("{} {}", nx, ny);
     println!("255");
 
-    let cam = Camera::new(
-        V3::new(-2.0, -1.0, -1.0),
-        V3::new(4.0, 0.0, 0.0),
-        V3::new(0.0, 2.0, 0.0),
-        V3::new(0.0, 0.0, 0.0),
-        64,
+    let aspect =(nx as f64) / (ny as f64);
+    let cam = Camera::new_look(
+        /*  from*/ V3::new(-2.0, 2.0, 1.0),
+        /*    at*/ V3::new(0.0, 0.0, -1.0),
+        /*    up*/ V3::new(0.0, 1.0, 0.0),
+        /*  vfov*/ 90.0,
+        /*aspect*/ aspect,
     );
-
-    let aa = 100;
     let renderer = Renderer {
         hittable: &Stage::new(
             vec![
@@ -58,10 +59,10 @@ fn main() {
         for i in 0..nx {
             let mut col: V3 = V3::zeros();
             for _ in 0..aa {
-                let du: f64 = dist.sample(&mut rand);
-                let dv: f64 = dist.sample(&mut rand);
-//                let du: f64 = rand.gen::<f64>() - 0.5;
-//                let dv: f64 = rand.gen::<f64>() - 0.5;
+//                let du: f64 = dist.sample(&mut rand);
+//                let dv: f64 = dist.sample(&mut rand);
+                let du: f64 = rand.gen::<f64>() - 0.5;
+                let dv: f64 = rand.gen::<f64>() - 0.5;
                 let u = (i as f64 + du) / (nx as f64);
                 let v = (j as f64 + dv) / (ny as f64);
                 let r = cam.get_ray(u, v);
