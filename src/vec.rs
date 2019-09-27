@@ -86,6 +86,18 @@ impl Mul<V3> for f64 {
     }
 }
 
+impl Mul<V3> for f32 {
+    type Output = V3;
+
+    fn mul(self, other: V3) -> V3 {
+        V3 {
+            x: (self * other.x as f32) as f64,
+            y: (self * other.y as f32) as f64,
+            z: (self * other.z as f32) as f64,
+        }
+    }
+}
+
 impl Mul<V3> for V3 {
     type Output = V3;
 

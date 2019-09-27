@@ -1,36 +1,42 @@
+use std::f64::consts::PI;
+
+use rand::prelude::thread_rng;
+use rand::Rng;
+
+use camera::Camera;
+use ray::Ray;
+use vec::V3;
+
+use crate::hittable::{Hittable, Sphere, Stage};
+use crate::material::{Dielectric, Lambertian, Metal};
+
 mod vec;
 mod ray;
 mod hittable;
 mod camera;
 mod material;
 
-use vec::V3;
-use ray::Ray;
-use camera::Camera;
-use crate::hittable::{Sphere, Hittable, Stage};
-use core::borrow::Borrow;
-use rand::distributions::{Normal, Distribution, Standard};
-use rand::prelude::thread_rng;
-use rand::Rng;
-use crate::material::{Lambertian, Metal, Dielectric};
-use std::f64::consts::PI;
-
 fn main() {
-    let nx = 1024;
-    let ny = 768;
-    let aa = 400;
+    let nx = 400;
+    let ny = 200;
+    let aa = 100;
 
     println!("P3");
     println!("{} {}", nx, ny);
     println!("255");
 
-    let aspect =(nx as f64) / (ny as f64);
+    let aspect = (nx as f64) / (ny as f64);
+    let from = V3::new(-3.0, 3.0, 2.0);
+    let at = V3::new(0.0, 0.0, -1.0);
+    let dist_to_focus = (from - at).length();
+    let aperture = 2.0;
     let cam = Camera::new_look(
-        /*  from*/ V3::new(-2.0, 2.0, 1.0),
-        /*    at*/ V3::new(0.0, 0.0, -1.0),
+        from, at,
         /*    up*/ V3::new(0.0, 1.0, 0.0),
         /*  vfov*/ 90.0,
-        /*aspect*/ aspect,
+        aspect,
+        dist_to_focus,
+        aperture,
     );
     let renderer = Renderer {
         hittable: &Stage::new(
@@ -51,18 +57,14 @@ fn main() {
             ]
         )
     };
-    let mut rand = rand::thread_rng();
-//    let dist = Normal::new(0.0, 1.0);
-    let dist = Standard;
-
     for j in (0..ny).rev() {
         for i in 0..nx {
             let mut col: V3 = V3::zeros();
             for _ in 0..aa {
 //                let du: f64 = dist.sample(&mut rand);
 //                let dv: f64 = dist.sample(&mut rand);
-                let du: f64 = rand.gen::<f64>() - 0.5;
-                let dv: f64 = rand.gen::<f64>() - 0.5;
+                let du: f64 = rand::thread_rng().gen::<f64>() - 0.5;
+                let dv: f64 = rand::thread_rng().gen::<f64>() - 0.5;
                 let u = (i as f64 + du) / (nx as f64);
                 let v = (j as f64 + dv) / (ny as f64);
                 let r = cam.get_ray(u, v);

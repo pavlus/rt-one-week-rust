@@ -1,8 +1,10 @@
+use std::f64::consts::PI;
+
+use rand::distributions::Standard;
+use rand::Rng;
+
 use crate::ray::Ray;
 use crate::vec::V3;
-use std::f64::consts::PI;
-use std::alloc::handle_alloc_error;
-
 
 #[derive(Copy, Clone, Debug)]
 pub struct Camera {
@@ -10,6 +12,10 @@ pub struct Camera {
     horizontal: V3,
     vertical: V3,
     origin: V3,
+    u: V3,
+    v: V3,
+    w: V3,
+    lens_radius: f32,
     ttl: u32,
 }
 
@@ -17,33 +23,11 @@ static DEFAULT_COLOR: V3 = V3 { x: 0.0, y: 0.0, z: 0.0 };
 const TTL: u32 = 16;
 
 impl Camera {
-    pub fn new(
-        lower_left: V3,
-        horizontal: V3,
-        vertical: V3,
-        origin: V3,
-        ttl: u32,
+    pub fn new_look(
+        from: V3, at: V3, up: V3,
+        vfov: f64, aspect: f64,
+        focus_distance: f64, aperture: f32,
     ) -> Camera {
-        Camera {
-            lower_left,
-            horizontal,
-            vertical,
-            origin,
-            ttl,
-        }
-    }
-
-    pub fn new_default() -> Camera {
-        Camera {
-            lower_left: V3::new(-2.0, -1.0, -0.8),
-            horizontal: V3::new(4.0, 0.0, 0.0),
-            vertical: V3::new(0.0, 2.0, 0.0),
-            origin: V3::new(0.0, 0.0, 0.0),
-            ttl: 16,
-        }
-    }
-
-    pub fn new_look(from: V3, at: V3, up: V3, vfov: f64, aspect: f64) -> Camera {
         let theta = vfov * PI / 180.0;
         let height = (theta / 2.0).tan();
         let width = aspect * height;
@@ -56,24 +40,42 @@ impl Camera {
         // given that we have u and w is normal to plane of viewport -- v is their cross-product
         let v = w.cross(u);
         Camera {
-            // from origin substruct half of horizontal viewport and half of vertival viewport,
-            // then offset by w
-            lower_left: from - (width / 2.0) * u - (height / 2.0) * v - w,
-            horizontal: width * u,
-            vertical: height * v,
+            // from origin subtract half of horizontal viewport and half of vertical viewport,
+            // then offset by w; todo: research focus distance impact on values
+            lower_left: from - focus_distance * ((width / 2.0) * u + (height / 2.0) * v + w),
+            horizontal: focus_distance * width * u,
+            vertical: focus_distance * height * v,
             origin: from,
+            u,
+            v,
+            w,
+            lens_radius: aperture / 2.0,
             ttl: 16,
         }
     }
-    pub fn get_ray(&self, u: f64, v: f64) -> Ray {
+    pub fn get_ray(&self, s: f64, t: f64) -> Ray {
+        let rd = self.lens_radius * rand_in_unit_sphere();
+        let offset = rd.x * self.u + rd.y * self.v;
+        let tmp_origin = self.origin + offset;
         Ray::new(
-            self.origin,
+            tmp_origin,
             self.lower_left
-                + ((u * self.horizontal)
-                + (v * self.vertical))
-                - self.origin,
+                + ((s * self.horizontal)
+                + (t * self.vertical))
+                - tmp_origin,
             DEFAULT_COLOR,
             TTL,
         )
+    }
+}
+
+
+fn rand_in_unit_sphere() -> V3 {
+    let mut rand = rand::thread_rng();
+    loop {
+        let v: V3 = 2.0 * V3::new(rand.sample(Standard), rand.sample(Standard), 0.0);
+        if v.sqr_length() <= 1 as f64 {
+            return v;
+        }
     }
 }
