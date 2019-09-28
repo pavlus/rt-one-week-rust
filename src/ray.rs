@@ -6,11 +6,11 @@ pub struct Ray {
     direction: V3,
     attenuation: V3,
     time: f32,
-    ttl: u32,
+    ttl: i32,
 }
 
 impl Ray {
-    pub fn new(origin: V3, direction: V3, attenuation: V3, time: f32, ttl: u32) -> Ray {
+    pub fn new(origin: V3, direction: V3, attenuation: V3, time: f32, ttl: i32) -> Ray {
         Ray { origin, direction, attenuation, time, ttl }
     }
 

@@ -21,7 +21,7 @@ pub struct Camera {
 }
 
 static DEFAULT_COLOR: V3 = V3 { x: 0.0, y: 0.0, z: 0.0 };
-const TTL: u32 = 16;
+const TTL: i32 = 16;
 
 impl Camera {
     pub fn new_look(
@@ -68,7 +68,7 @@ impl Camera {
                 + ((s * self.horizontal)
                 + (t * self.vertical))
                 - tmp_origin,
-            DEFAULT_COLOR, interpolation::lerp(&self.t0, &self.t1, &random::next_f32(Uniform::new(0.0, 1.0))),
+            DEFAULT_COLOR, interpolation::lerp(&self.t0, &self.t1, &random::next_std_f32()),
             TTL,
         )
     }
