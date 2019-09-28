@@ -6,6 +6,7 @@ use rand::distributions::{Distribution, Standard, Uniform};
 use rand::SeedableRng;
 use rand_xoshiro::Xoshiro256Plus;
 use rand::distributions::uniform::UniformFloat;
+use crate::vec::V3;
 
 thread_local! {
     static RND: RefCell<Xoshiro256Plus> =
@@ -31,5 +32,9 @@ pub fn next_std_f32() -> f32 {
 pub fn next_f32<D: Distribution<f32>>(d: D) -> f32 {
     RND.with(|rnd_cell|
         d.sample((*rnd_cell.borrow_mut()).borrow_mut()))
+}
+
+pub fn next_color() -> V3{
+    V3::new(next_std_f64(), next_std_f64(), next_std_f64())
 }
 
