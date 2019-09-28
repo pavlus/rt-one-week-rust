@@ -2,9 +2,8 @@ use crate::vec::V3;
 use crate::ray::Ray;
 use crate::hittable::Hit;
 
-use rand::prelude::thread_rng;
-use rand::Rng;
 use rand::distributions::{Standard, Distribution};
+use crate::random;
 
 pub trait Material {
     fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<Ray>;
@@ -110,7 +109,7 @@ impl Material for Dielectric {
         let reflected = ray.direction().reflect(hit.normal());
 
         refracted
-            .filter(|_| rnd_over(self.schlick(cosine)))
+            .filter(|_| self.schlick(cosine) < random::next_std_f64())
             .map(|refracted| ray.produce(hit.point(), refracted, self.albedo))
             .or_else(|| Some(ray.produce(hit.point(), reflected, V3::ones())))
     }
@@ -118,17 +117,12 @@ impl Material for Dielectric {
 
 
 fn rand_in_unit_sphere() -> V3 {
-    let mut rand = rand::thread_rng();
     loop {
-        let v = V3::new(rand.gen(), rand.gen(), rand.gen());
+        let v = V3::new(random::next_std_f64(), random::next_std_f64(), random::next_std_f64());
         if v.sqr_length() >= 1 as f64 {
             return v.unit();
         }
     }
 }
 
-fn rnd_over(chance: f64) -> bool {
-    let mut rand = rand::thread_rng();
-    chance < Standard.sample(&mut rand)
-}
 

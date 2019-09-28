@@ -46,24 +46,39 @@ pub struct Sphere {
     material: Box<dyn Material>,
 }
 
+trait SphereT {
+    fn center(&self, time: f32) -> V3;
+    fn radius(&self) -> f64;
+    fn material<'a>(&'a self) -> &'a Box<dyn Material>;
+}
+
+
 impl Sphere {
     pub fn new(center: V3, radius: f64, material: Box<dyn Material>) -> Sphere {
         Sphere { center, radius, material }
     }
 }
 
-impl Hittable for Sphere {
+impl SphereT for Sphere {
+    fn center(&self, time: f32) -> V3 {
+        self.center
+    }
+    fn radius(&self) -> f64 { self.radius }
+    fn material<'a>(&'a self) -> &'a Box<dyn Material> { &self.material }
+}
+
+impl<T: SphereT> Hittable for T {
     fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
-        let oc = ray.origin() - self.center;
+        let oc = ray.origin() - self.center(ray.time());
         let a = ray.direction().sqr_length();
         let b = oc.dot(ray.direction());
-        let c = oc.sqr_length() - (self.radius * self.radius) as f64;
+        let c = oc.sqr_length() - (self.radius() * self.radius()) as f64;
         let discr_sqr = b * b - a * c;
 
         let get_hit = |ray: &Ray, dist: f64| -> Hit {
             let p = ray.point_at(dist);
-            let n = (p - self.center) / self.radius;
-            return Hit::new(dist, p, n, &self.material);
+            let n = (p - self.center(ray.time())) / self.radius();
+            return Hit::new(dist, p, n, &self.material());
         };
 
         if discr_sqr > 0.0 {
@@ -83,12 +98,36 @@ impl Hittable for Sphere {
     }
 }
 
+pub struct MovingSphere {
+    center_t0: V3,
+    center_t1: V3,
+    time0: f32,
+    duration: f32,
+    radius: f64,
+    material: Box<dyn Material>,
+}
+
+impl MovingSphere {
+    pub fn new(center_t0: V3, center_t1: V3, time0: f32, time1: f32, radius: f64, material: Box<dyn Material>) -> MovingSphere {
+        MovingSphere { center_t0, center_t1, time0, duration: time1 - time0, radius, material }
+    }
+}
+
+impl SphereT for MovingSphere {
+    fn center(&self, time: f32) -> V3 {
+        let scale = (time - self.time0) / self.duration;
+        self.center_t0 + scale * (self.center_t1 - self.center_t0)
+    }
+    fn radius(&self) -> f64 { self.radius }
+    fn material<'a>(&'a self) -> &'a Box<dyn Material> { &self.material }
+}
+
 pub struct Stage {
     objects: Vec<Box<dyn Hittable>>
 }
 
 impl Stage {
-    pub fn new(objects: Vec<Box<Hittable>>) -> Stage {
+    pub fn new(objects: Vec<Box<dyn Hittable>>) -> Stage {
         Stage { objects }
     }
 }

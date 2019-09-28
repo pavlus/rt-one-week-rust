@@ -1,13 +1,10 @@
 use std::f64::consts::PI;
 
-use rand::prelude::thread_rng;
-use rand::Rng;
-
 use camera::Camera;
 use ray::Ray;
 use vec::V3;
 
-use crate::hittable::{Hittable, Sphere, Stage};
+use crate::hittable::{Hittable, Sphere, MovingSphere, Stage};
 use crate::material::{Dielectric, Lambertian, Metal};
 
 mod vec;
@@ -15,37 +12,29 @@ mod ray;
 mod hittable;
 mod camera;
 mod material;
+mod random;
 
 fn main() {
-    let nx = 400;
-    let ny = 200;
-    let aa = 100;
+    let nx = 800;
+    let ny = 400;
+    let aa = 600;
 
     println!("P3");
     println!("{} {}", nx, ny);
     println!("255");
 
-    let aspect = (nx as f64) / (ny as f64);
-    let from = V3::new(-3.0, 3.0, 2.0);
-    let at = V3::new(0.0, 0.0, -1.0);
-    let dist_to_focus = (from - at).length();
-    let aperture = 2.0;
-    let cam = Camera::new_look(
-        from, at,
-        /*    up*/ V3::new(0.0, 1.0, 0.0),
-        /*  vfov*/ 90.0,
-        aspect,
-        dist_to_focus,
-        aperture,
-    );
+    let cam = get_cam(nx, ny, 0.0);
     let renderer = Renderer {
         hittable: &Stage::new(
             vec![
                 Box::new(Sphere::new(
                     V3::new(-1.0, 0.0, -1.2), 0.5,
                     Box::new(Metal::new_fuzzed(V3::new(0.8, 0.8, 0.8), 1.0)))),
-                Box::new(Sphere::new(
-                    V3::new(-0.3, 0.2, -0.8), 0.4,
+                Box::new(MovingSphere::new(
+                    V3::new(-0.3, 0.2, -0.8),
+                    V3::new(-0.3, 1.2, -0.8),
+                    0.0, 1.0,
+                    0.4,
 //                    Box::new(Dielectric::new_colored(V3::new(1.0, 1.0, 1.0), 1.5)))),
                     Box::new(Dielectric::new_colored(V3::new(1.0, 0.6, 0.6), 1.5)))),
                 Box::new(Sphere::new(
@@ -63,8 +52,8 @@ fn main() {
             for _ in 0..aa {
 //                let du: f64 = dist.sample(&mut rand);
 //                let dv: f64 = dist.sample(&mut rand);
-                let du: f64 = rand::thread_rng().gen::<f64>() - 0.5;
-                let dv: f64 = rand::thread_rng().gen::<f64>() - 0.5;
+                let du: f64 = random::next_std_f64() - 0.5;
+                let dv: f64 = random::next_std_f64() - 0.5;
                 let u = (i as f64 + du) / (nx as f64);
                 let v = (j as f64 + dv) / (ny as f64);
                 let r = cam.get_ray(u, v);
@@ -89,6 +78,22 @@ fn main() {
     }
 }
 
+fn get_cam(nx: u32, ny: u32, t_off: f32) -> Camera {
+    let aspect = (nx as f64) / (ny as f64);
+    let from = V3::new(-3.0, 3.0, 2.0);
+    let at = V3::new(0.0, 0.0, -1.0);
+    let dist_to_focus = (from - at).length();
+    let aperture = 0.01;
+    Camera::new_look(
+        from, at,
+        /*    up*/ V3::new(0.0, 1.0, 0.0),
+        /*  vfov*/ 90.0,
+        aspect,
+        dist_to_focus,
+        aperture,
+        t_off, t_off + 0.2,
+    )
+}
 
 struct Renderer<'a> {
     pub hittable: &'a Stage

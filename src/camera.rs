@@ -1,10 +1,9 @@
 use std::f64::consts::PI;
 
-use rand::distributions::Standard;
-use rand::Rng;
-
 use crate::ray::Ray;
 use crate::vec::V3;
+use crate::random;
+use rand::distributions::Uniform;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Camera {
@@ -16,6 +15,8 @@ pub struct Camera {
     v: V3,
     w: V3,
     lens_radius: f32,
+    t0: f32,
+    t1: f32,
     ttl: u32,
 }
 
@@ -27,6 +28,7 @@ impl Camera {
         from: V3, at: V3, up: V3,
         vfov: f64, aspect: f64,
         focus_distance: f64, aperture: f32,
+        t0: f32, t1: f32,
     ) -> Camera {
         let theta = vfov * PI / 180.0;
         let height = (theta / 2.0).tan();
@@ -50,9 +52,12 @@ impl Camera {
             v,
             w,
             lens_radius: aperture / 2.0,
+            t0,
+            t1,
             ttl: 16,
         }
     }
+
     pub fn get_ray(&self, s: f64, t: f64) -> Ray {
         let rd = self.lens_radius * rand_in_unit_sphere();
         let offset = rd.x * self.u + rd.y * self.v;
@@ -63,7 +68,7 @@ impl Camera {
                 + ((s * self.horizontal)
                 + (t * self.vertical))
                 - tmp_origin,
-            DEFAULT_COLOR,
+            DEFAULT_COLOR, interpolation::lerp(&self.t0, &self.t1, &random::next_f32(Uniform::new(0.0, 1.0))),
             TTL,
         )
     }
@@ -71,9 +76,8 @@ impl Camera {
 
 
 fn rand_in_unit_sphere() -> V3 {
-    let mut rand = rand::thread_rng();
     loop {
-        let v: V3 = 2.0 * V3::new(rand.sample(Standard), rand.sample(Standard), 0.0);
+        let v: V3 = 2.0 * V3::new(random::next_std_f64(), random::next_std_f64(), 0.0);
         if v.sqr_length() <= 1 as f64 {
             return v;
         }
