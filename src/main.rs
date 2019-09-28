@@ -4,8 +4,9 @@ use camera::Camera;
 use ray::Ray;
 use vec::V3;
 
-use crate::hittable::{Hittable, Sphere, MovingSphere, Stage};
+use crate::hittable::{Hittable, MovingSphere, Sphere, Stage};
 use crate::material::{Dielectric, Lambertian, Metal};
+use crate::random::{next_color, next_std_f64};
 
 mod vec;
 mod ray;
@@ -17,34 +18,15 @@ mod random;
 fn main() {
     let nx = 800;
     let ny = 400;
-    let aa = 600;
+    let aa = 100;
 
     println!("P3");
     println!("{} {}", nx, ny);
     println!("255");
 
-    let cam = get_cam(nx, ny, 0.0);
+    let cam = get_cam(nx, ny, 0.0, 0.2);
     let renderer = Renderer {
-        hittable: &Stage::new(
-            vec![
-                Box::new(Sphere::new(
-                    V3::new(-1.0, 0.0, -1.2), 0.5,
-                    Box::new(Metal::new_fuzzed(V3::new(0.8, 0.8, 0.8), 1.0)))),
-                Box::new(MovingSphere::new(
-                    V3::new(-0.3, 0.2, -0.8),
-                    V3::new(-0.3, 1.2, -0.8),
-                    0.0, 1.0,
-                    0.4,
-//                    Box::new(Dielectric::new_colored(V3::new(1.0, 1.0, 1.0), 1.5)))),
-                    Box::new(Dielectric::new_colored(V3::new(1.0, 0.6, 0.6), 1.5)))),
-                Box::new(Sphere::new(
-                    V3::new(1.0, 0.0, -1.2), 0.5,
-                    Box::new(Dielectric::new(1.5)))),
-                Box::new(Sphere::new(
-                    V3::new(0.0, -100.5, -1.0), 100.0,
-                    Box::new(Lambertian::new(V3::new(0.8, 0.8, 0.3))))),
-            ]
-        )
+        hittable: &Stage::new(rnd_scene())
     };
     for j in (0..ny).rev() {
         for i in 0..nx {
@@ -78,7 +60,65 @@ fn main() {
     }
 }
 
-fn get_cam(nx: u32, ny: u32, t_off: f32) -> Camera {
+// naive took 6m12s with 800x600xaa100
+fn rnd_scene() -> Vec<Box<dyn Hittable>> {
+    let mut objs: Vec<Box<dyn Hittable>> = Vec::new();
+
+    objs.push(Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(Lambertian::new(V3::new(0.8, 0.8, 0.9))))));
+
+    objs.push(Box::new(Sphere::new(V3::new(4.0, 1.0, 0.0), 1.0, Box::new(Metal::new(V3::new(0.7, 0.6, 0.5))))));
+    objs.push(Box::new(Sphere::new(V3::new(0.0, 1.0, 0.0), 1.0, Box::new(Dielectric::new(1.5)))));
+    objs.push(Box::new(Sphere::new(V3::new(-4.0, 1.0, 0.0), 1.0, Box::new(Lambertian::new(V3::new(0.8, 0.8, 0.9))))));
+
+    for a in -10..=10 {
+        for b in -10..=10 {
+            let center = V3::new(0.9 * next_std_f64() + a as f64,
+                                 0.2,
+                                 0.9 * next_std_f64() + b as f64);
+
+            if (center - V3::new(4.0, 0.2, 0.0)).length() > 0.9 {
+                objs.push(
+                    match random::next_std_f32() {
+                        0.0..=0.8 => Box::new(MovingSphere::new(
+                            center,
+                            center + V3::new(0.0, 0.5 * next_std_f64(), 0.0),
+                            0.0, 1.0, 0.2,
+                            Box::new(Lambertian::new(next_color() * next_color())),
+                        )),
+                        0.8..=0.95 => Box::new(Sphere::new(
+                            center,
+                            0.2,
+                            Box::new(Metal::new(0.5 * (next_color() + 1.0))),
+                        )),
+                        _ => Box::new(Sphere::new(center, 0.2,
+                                                  Box::new(Dielectric::new(1.5))))
+                    });
+            }
+        }
+    }
+    objs
+}
+
+fn get_cam(nx: u32, ny: u32, t_off: f32, t_span: f32) -> Camera {
+    let aspect = (nx as f64) / (ny as f64);
+    let from = V3::new(13.0, 2.0, 3.0);
+    let at = V3::new(0.0, 0.0, 0.0);
+
+    let dist_to_focus = 10.0;
+    let aperture = 0.0;
+    let vfov = 40.0;
+    Camera::new_look(
+        from, at,
+        /*    up*/ V3::new(0.0, 1.0, 0.0),
+        vfov,
+        aspect,
+        dist_to_focus,
+        aperture,
+        t_off, t_span,
+    )
+}
+
+fn get_camxx(nx: u32, ny: u32, t_off: f32, t_span: f32) -> Camera {
     let aspect = (nx as f64) / (ny as f64);
     let from = V3::new(-3.0, 3.0, 2.0);
     let at = V3::new(0.0, 0.0, -1.0);
@@ -91,7 +131,7 @@ fn get_cam(nx: u32, ny: u32, t_off: f32) -> Camera {
         aspect,
         dist_to_focus,
         aperture,
-        t_off, t_off + 0.2,
+        t_off, t_span,
     )
 }
 

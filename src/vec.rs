@@ -66,6 +66,18 @@ impl Add for V3 {
     }
 }
 
+impl Add<f64> for V3 {
+    type Output = V3;
+
+    fn add(self, other: f64) -> V3 {
+        V3 {
+            x: self.x + other,
+            y: self.y + other,
+            z: self.z + other,
+        }
+    }
+}
+
 impl AddAssign for V3 {
     fn add_assign(&mut self, other: V3) {
         self.x += other.x;
