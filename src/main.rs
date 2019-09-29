@@ -60,7 +60,7 @@ fn main() {
     }
 }
 
-// naive took 6m12s with 800x600xaa100
+// naive took 6m12s with 800x400xaa100
 fn rnd_scene() -> Vec<Box<dyn Hittable>> {
     let mut objs: Vec<Box<dyn Hittable>> = Vec::new();
 
