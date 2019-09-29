@@ -13,6 +13,10 @@ impl V3 {
         V3 { x, y, z }
     }
 
+    pub fn x(self) -> f64 { self.x }
+    pub fn y(self) -> f64 { self.y }
+    pub fn z(self) -> f64 { self.z }
+
     pub fn ones() -> V3 {
         V3::new(1.0, 1.0, 1.0)
     }
@@ -157,6 +161,19 @@ impl Sub for V3 {
             x: self.x - other.x,
             y: self.y - other.y,
             z: self.z - other.z,
+        }
+    }
+}
+
+
+impl Sub<f64> for V3 {
+    type Output = V3;
+
+    fn sub(self, rhs: f64) -> V3 {
+        V3 {
+            x: self.x - rhs,
+            y: self.y - rhs,
+            z: self.z - rhs,
         }
     }
 }

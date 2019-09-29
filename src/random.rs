@@ -1,11 +1,10 @@
-use core::borrow::Borrow;
 use std::borrow::BorrowMut;
 use std::cell::RefCell;
 
-use rand::distributions::{Distribution, Standard, Uniform};
+use rand::seq::SliceRandom;
+use rand::distributions::{Distribution, Standard};
 use rand::SeedableRng;
 use rand_xoshiro::Xoshiro256Plus;
-use rand::distributions::uniform::UniformFloat;
 use crate::vec::V3;
 
 thread_local! {
@@ -34,7 +33,11 @@ pub fn next_f32<D: Distribution<f32>>(d: D) -> f32 {
         d.sample((*rnd_cell.borrow_mut()).borrow_mut()))
 }
 
-pub fn next_color() -> V3{
+pub fn next_color() -> V3 {
     V3::new(next_std_f64(), next_std_f64(), next_std_f64())
 }
 
+pub fn random_axis() -> &'static dyn (Fn(V3) -> f64) {
+    RND.with(|rnd_cell|
+        [V3::x, V3::y, V3::z].choose((*rnd_cell.borrow_mut()).borrow_mut())).unwrap()
+}
