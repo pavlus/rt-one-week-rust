@@ -6,6 +6,7 @@ use rand::distributions::{Distribution, Standard};
 use rand::SeedableRng;
 use rand_xoshiro::Xoshiro256Plus;
 use crate::vec::V3;
+use rand_distr::UnitSphere;
 
 thread_local! {
     static RND: RefCell<Xoshiro256Plus> =
@@ -40,4 +41,12 @@ pub fn next_color() -> V3 {
 pub fn random_axis() -> &'static dyn (Fn(V3) -> f64) {
     RND.with(|rnd_cell|
         [V3::x, V3::y, V3::z].choose((*rnd_cell.borrow_mut()).borrow_mut())).unwrap()
+}
+
+pub fn rand_in_unit_sphere() -> V3 {
+    RND.with(|rnd_cell| {
+        let arr = UnitSphere.sample((*rnd_cell.borrow_mut()).borrow_mut());
+        V3 { x: arr[0], y: arr[1], z: arr[2] }
+    }
+    )
 }
