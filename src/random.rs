@@ -5,7 +5,7 @@ use rand::seq::SliceRandom;
 use rand::distributions::{Distribution, Standard};
 use rand::SeedableRng;
 use rand_xoshiro::Xoshiro256Plus;
-use crate::vec::V3;
+use crate::vec::{V3, Axis};
 use rand_distr::UnitSphere;
 
 thread_local! {
@@ -38,9 +38,9 @@ pub fn next_color() -> V3 {
     V3::new(next_std_f64(), next_std_f64(), next_std_f64())
 }
 
-pub fn random_axis() -> &'static dyn (Fn(V3) -> f64) {
+pub fn random_axis() -> &'static Axis{
     RND.with(|rnd_cell|
-        [V3::x, V3::y, V3::z].choose((*rnd_cell.borrow_mut()).borrow_mut())).unwrap()
+        Axis::random((*rnd_cell.borrow_mut()).borrow_mut()))
 }
 
 pub fn rand_in_unit_sphere() -> V3 {

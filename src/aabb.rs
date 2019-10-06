@@ -1,3 +1,4 @@
+use crate::vec::Axis;
 use crate::vec::V3;
 use std::ops::Add;
 use crate::ray::Ray;
@@ -14,35 +15,12 @@ impl AABB {
     }
 
     pub fn hit(self, ray: &Ray, d_min: f64, d_max: f64) -> bool {
-         {
-            let inv_d = 1.0 / ray.direction().x;
-            let start = ray.origin().x;
-            let mut d0 = (self.min.x - start) * inv_d;
-            let mut d1 = (self.max.x - start) * inv_d;
-            if inv_d.is_sign_negative() {
-                std::mem::swap(&mut d0, &mut d1);
-            }
-            let min = if d_min < d0 { d0 } else { d_min };
-            let max = if d1 < d_max { d1 } else { d_max };
-            if max <= min { return false; };
-        }
-        {
-            let inv_d = 1.0 / ray.direction().y;
-            let start = ray.origin().y;
-            let mut d0 = (self.min.y - start) * inv_d;
-            let mut d1 = (self.max.y - start) * inv_d;
-            if inv_d.is_sign_negative() {
-                std::mem::swap(&mut d0, &mut d1);
-            }
-            let min = if d_min < d0 { d0 } else { d_min };
-            let max = if d1 < d_max { d1 } else { d_max };
-            if max <= min { return false; };
-        }
-        {
-            let inv_d = 1.0 / ray.direction().z;
-            let start = ray.origin().z;
-            let mut d0 = (self.min.z - start) * inv_d;
-            let mut d1 = (self.max.z - start) * inv_d;
+        for axis in Axis::xyz().iter() {
+            let direction = ray.direction()[axis];
+            let inv_d = 1.0 / direction;
+            let start = ray.origin()[axis];
+            let mut d0 = (self.min[axis] - start) * inv_d;
+            let mut d1 = (self.max[axis] - start) * inv_d;
             if inv_d.is_sign_negative() {
                 std::mem::swap(&mut d0, &mut d1);
             }
