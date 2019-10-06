@@ -42,14 +42,12 @@ pub trait Hittable: Debug {
 pub struct Sphere {
     center: V3,
     radius: f64,
-    aabb: AABB,
     material: Box<dyn Material>,
 }
 
 impl Sphere {
     pub fn new(center: V3, radius: f64, material: Box<dyn Material>) -> Sphere {
-        let aabb = AABB::new(center - radius, center + radius);
-        Sphere { center, radius, aabb, material }
+        Sphere { center, radius, material }
     }
     fn center(&self, time: f32) -> V3 {
         self.center
@@ -68,21 +66,17 @@ pub struct MovingSphere {
     center_t1: V3,
     time0: f32,
     duration: f32,
-    aabb: AABB,
     radius: f64,
     material: Box<dyn Material>,
 }
 
 impl MovingSphere {
     pub fn new(center_t0: V3, center_t1: V3, time0: f32, time1: f32, radius: f64, material: Box<dyn Material>) -> MovingSphere {
-        let aabb0 = AABB::new(center_t0 - radius, center_t0 + radius);
-        let aabb1 = AABB::new(center_t1 - radius, center_t1 + radius);
         MovingSphere {
             center_t0,
             center_t1,
             time0,
             duration: time1 - time0,
-            aabb: aabb0 + aabb1,
             radius,
             material,
         }
@@ -93,17 +87,13 @@ impl MovingSphere {
     }
     fn radius(&self) -> f64 { self.radius }
     fn material<'a>(&'a self) -> &'a Box<dyn Material> { &self.material }
-    fn aabb(&self, t0: f32, t1: f32) -> AABB {
-        self.aabb
-//        let aabb_t0 = AABB::new(self.center(t0) - self.radius(), self.center(t0) + self.radius());
-//        let aabb_t1 = AABB::new(self.center(t1) - self.radius(), self.center(t0) + self.radius());
-//        aabb_t0 + aabb_t1
+    fn aabb(&self, t: f32) -> AABB {
+        AABB::new(self.center(t) - self.radius(), self.center(t) + self.radius())
     }
 }
 
 impl Hittable for Sphere {
     fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
-//        if !self.aabb.hit(ray, dist_min, dist_max) { return None; }
         let oc = ray.origin() - self.center(ray.time());
         let a = ray.direction().sqr_length();
         let b = oc.dot(ray.direction());
@@ -171,7 +161,7 @@ impl Hittable for MovingSphere {
     }
 
     fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
-        Some(self.aabb(t_min, t_max))
+        Some(self.aabb(t_min) + self.aabb(t_max))
     }
 }
 
