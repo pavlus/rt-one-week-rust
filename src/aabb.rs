@@ -5,8 +5,8 @@ use crate::ray::Ray;
 
 #[derive(Copy, Clone, Debug)]
 pub struct AABB {
-    min: V3,
-    max: V3,
+    pub min: V3,
+    pub max: V3,
 }
 
 impl AABB {
@@ -31,8 +31,6 @@ impl AABB {
         true
     }
 
-    pub fn min(self) -> V3 { self.min }
-    pub fn max(self) -> V3 { self.max }
 }
 
 impl Add for AABB {

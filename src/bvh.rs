@@ -21,8 +21,8 @@ impl BVH {
         let axis = random_axis();
         objs.sort_by(|a, b| {
             // TIME!!!!
-            a.bounding_box(0.0, 1.0).unwrap().min()[axis]
-                .partial_cmp(&b.bounding_box(0.0, 1.0).unwrap().min()[axis])
+            a.bounding_box(0.0, 1.0).unwrap().min[axis]
+                .partial_cmp(&b.bounding_box(0.0, 1.0).unwrap().min[axis])
                 .unwrap()
         });
         let mut a = objs;
