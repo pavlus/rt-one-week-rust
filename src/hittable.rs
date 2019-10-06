@@ -173,16 +173,11 @@ pub struct Stage {
 
 impl Stage {
     pub fn new(objects: Vec<Box<dyn Hittable>>) -> Stage {
-        let aabb = match objects.len() {
-            0 => None,
-            1 => objects.first().and_then(|h| h.bounding_box(0.0, 1.0)),
-            _ => {
-                let mut aabbs = objects.iter().map(|o| o.bounding_box(0.0, 1.0));
-                let first = aabbs.next().unwrap();
-                aabbs.fold(first, |a, b| a.and_then(|a| b.map(|b| a + b)).or(b))
-            }
-        };
-
+        let aabb = (|| {
+            let mut aabbs = objects.iter().flat_map(|o| o.bounding_box(0.0, 1.0));
+            let first = aabbs.next()?;
+            Some(aabbs.fold(first, |a, b| a + b))
+        })();
         Stage { objects, aabb: aabb.unwrap() }
     }
 }
@@ -197,8 +192,7 @@ impl Hittable for Stage {
 //                .unwrap_or(true)
 //            )
             .map(|h| h.hit(ray, dist_min, dist_max))
-            .filter(Option::is_some)
-            .map(Option::unwrap)
+            .filter_map(std::convert::identity)
             .min_by(|s, o| s.dist().partial_cmp(&o.dist()).unwrap())
     }
 
