@@ -1,5 +1,3 @@
-use std::f64::consts::PI;
-
 use camera::Camera;
 use ray::Ray;
 use vec::V3;
@@ -7,6 +5,7 @@ use vec::V3;
 use crate::hittable::{Hittable, MovingSphere, Sphere, Stage};
 use crate::material::{Dielectric, Lambertian, Metal};
 use crate::random::{next_color, next_std_f64};
+use crate::bvh::BVH;
 
 mod vec;
 mod ray;
@@ -14,6 +13,8 @@ mod hittable;
 mod camera;
 mod material;
 mod random;
+mod aabb;
+mod bvh;
 
 fn main() {
     let nx = 800;
@@ -26,8 +27,10 @@ fn main() {
 
     let cam = get_cam(nx, ny, 0.0, 0.2);
     let renderer = Renderer {
-        hittable: &Stage::new(rnd_scene())
+//        hittable: &Stage::new(rnd_scene())
+        hittable: BVH::new(rnd_scene())
     };
+//    dbg!(&renderer.hittable);
     for j in (0..ny).rev() {
         for i in 0..nx {
             let mut col: V3 = V3::zeros();
@@ -78,6 +81,7 @@ fn rnd_scene() -> Vec<Box<dyn Hittable>> {
 
             if (center - V3::new(4.0, 0.2, 0.0)).length() > 0.9 {
                 objs.push(
+                    // todo: #41620
                     match random::next_std_f32() {
                         0.0..=0.8 => Box::new(MovingSphere::new(
                             center,
@@ -118,7 +122,7 @@ fn get_cam(nx: u32, ny: u32, t_off: f32, t_span: f32) -> Camera {
     )
 }
 
-fn get_camxx(nx: u32, ny: u32, t_off: f32, t_span: f32) -> Camera {
+fn _get_cam(nx: u32, ny: u32, t_off: f32, t_span: f32) -> Camera {
     let aspect = (nx as f64) / (ny as f64);
     let from = V3::new(-3.0, 3.0, 2.0);
     let at = V3::new(0.0, 0.0, -1.0);
@@ -135,11 +139,11 @@ fn get_camxx(nx: u32, ny: u32, t_off: f32, t_span: f32) -> Camera {
     )
 }
 
-struct Renderer<'a> {
-    pub hittable: &'a Stage
+struct Renderer {
+    pub hittable: Box<dyn Hittable>
 }
 
-impl Renderer<'_> {
+impl Renderer {
     fn color(&self, r: &Ray) -> V3 {
         match self.hittable.hit(&r, 0.0001, 99999.0) {
             Some(hit) => {

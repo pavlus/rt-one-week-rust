@@ -2,15 +2,15 @@ use crate::vec::V3;
 use crate::ray::Ray;
 use crate::hittable::Hit;
 
-use rand::distributions::{Standard, Distribution};
 use crate::random;
+use std::fmt::Debug;
 
-pub trait Material {
+pub trait Material: Debug {
     fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<Ray>;
 }
 
 
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Copy, Clone, Debug)]
 pub struct Lambertian {
     albedo: V3
 }
@@ -27,7 +27,7 @@ impl Material for Lambertian {
 }
 
 
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Copy, Clone, Debug)]
 pub struct Metal {
     albedo: V3,
     fuzz: f64,
@@ -57,7 +57,7 @@ impl Material for Metal {
 }
 
 
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Copy, Clone, Debug)]
 pub struct Dielectric {
     albedo: V3,
     ref_idx: f64,
@@ -87,7 +87,6 @@ impl Dielectric {
 
 impl Material for Dielectric {
     fn scatter(&self, ray: &Ray, &hit: &Hit) -> Option<Ray> {
-        let reflection_prob: f64;
         let unit_direction = ray.direction().unit();
 
         let cosine: f64;

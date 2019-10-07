@@ -59,7 +59,7 @@ impl Camera {
     }
 
     pub fn get_ray(&self, s: f64, t: f64) -> Ray {
-        let rd = self.lens_radius * rand_in_unit_sphere();
+        let rd = self.lens_radius * random::rand_in_unit_sphere();
         let offset = rd.x * self.u + rd.y * self.v;
         let tmp_origin = self.origin + offset;
         Ray::new(
@@ -71,15 +71,5 @@ impl Camera {
             DEFAULT_COLOR, interpolation::lerp(&self.t0, &self.t1, &random::next_std_f32()),
             TTL,
         )
-    }
-}
-
-
-fn rand_in_unit_sphere() -> V3 {
-    loop {
-        let v: V3 = 2.0 * V3::new(random::next_std_f64(), random::next_std_f64(), 0.0);
-        if v.sqr_length() <= 1 as f64 {
-            return v;
-        }
     }
 }

@@ -1,11 +1,36 @@
-use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub};
-
+use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub, Index};
+use rand::Rng;
+use rand::seq::SliceRandom;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct V3 {
     pub x: f64,
     pub y: f64,
     pub z: f64,
+}
+
+pub enum Axis { X, Y, Z }
+
+impl Axis {
+    pub fn xyz() -> [Axis; 3] {
+        [Axis::X, Axis::Y, Axis::Z]
+    }
+
+    pub fn random<R: Rng + ?Sized>(rnd: &mut R) -> &'static Axis {
+        [Axis::X, Axis::Y, Axis::Z].choose(rnd).unwrap()
+    }
+}
+
+impl Index<&Axis> for V3 {
+    type Output = f64;
+
+    fn index(&self, axis: &Axis) -> &Self::Output {
+        match axis {
+            Axis::X => &self.x,
+            Axis::Y => &self.y,
+            Axis::Z => &self.z,
+        }
+    }
 }
 
 impl V3 {
@@ -51,6 +76,18 @@ impl V3 {
 
     pub fn reflect(&self, normal: V3) -> V3 {
         *self - 2.0 * self.dot(normal) * normal
+    }
+}
+
+impl From<[f64; 3]> for V3 {
+    fn from(vec: [f64; 3]) -> Self {
+        V3 { x: vec[0], y: vec[1], z: vec[2] }
+    }
+}
+
+impl From<V3> for [f64; 3] {
+    fn from(v3: V3) -> Self {
+        [v3.x, v3.y, v3.z]
     }
 }
 
@@ -157,6 +194,19 @@ impl Sub for V3 {
             x: self.x - other.x,
             y: self.y - other.y,
             z: self.z - other.z,
+        }
+    }
+}
+
+
+impl Sub<f64> for V3 {
+    type Output = V3;
+
+    fn sub(self, rhs: f64) -> V3 {
+        V3 {
+            x: self.x - rhs,
+            y: self.y - rhs,
+            z: self.z - rhs,
         }
     }
 }

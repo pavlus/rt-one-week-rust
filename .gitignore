@@ -2,3 +2,5 @@
 **/*.rs.bk
 **.png
 **.ppm
+!doc/*.png
+perf.data
