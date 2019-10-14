@@ -1,6 +1,7 @@
 use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub, Index};
 use rand::Rng;
 use rand::seq::SliceRandom;
+use std::prelude::v1;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct V3 {
