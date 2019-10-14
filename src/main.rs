@@ -6,6 +6,7 @@ use crate::hittable::{Hittable, MovingSphere, Sphere, Stage};
 use crate::material::{Dielectric, Lambertian, Metal};
 use crate::random::{next_color, next_std_f64};
 use crate::bvh::BVH;
+use crate::texture::{Color, Checker};
 
 mod vec;
 mod ray;
@@ -15,6 +16,7 @@ mod material;
 mod random;
 mod aabb;
 mod bvh;
+mod texture;
 
 fn main() {
     let nx = 800;
@@ -64,14 +66,19 @@ fn main() {
 }
 
 // naive took 6m12s with 800x400xaa100
+// BVH took 5m20s with 800x400xaa100
 fn rnd_scene() -> Vec<Box<dyn Hittable>> {
     let mut objs: Vec<Box<dyn Hittable>> = Vec::new();
 
-    objs.push(Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(Lambertian::new(V3::new(0.8, 0.8, 0.9))))));
+    objs.push(Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(
+        Lambertian::texture(Box::new(Checker::new(
+            Color::new(0.2, 0.3, 0.1),
+            Color::new(0.9, 0.9, 0.9), 10.0,
+        )))))));
 
     objs.push(Box::new(Sphere::new(V3::new(4.0, 1.0, 0.0), 1.0, Box::new(Metal::new(V3::new(0.7, 0.6, 0.5))))));
     objs.push(Box::new(Sphere::new(V3::new(0.0, 1.0, 0.0), 1.0, Box::new(Dielectric::new(1.5)))));
-    objs.push(Box::new(Sphere::new(V3::new(-4.0, 1.0, 0.0), 1.0, Box::new(Lambertian::new(V3::new(0.8, 0.8, 0.9))))));
+    objs.push(Box::new(Sphere::new(V3::new(-4.0, 1.0, 0.0), 1.0, Box::new(Lambertian::color(Color::new(0.8, 0.8, 0.9))))));
 
     for a in -10..=10 {
         for b in -10..=10 {

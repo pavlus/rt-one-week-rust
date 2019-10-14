@@ -1,28 +1,33 @@
 use crate::vec::V3;
 use crate::ray::Ray;
 use crate::hittable::Hit;
+use crate::texture::{Texture, Color};
 
 use crate::random;
 use std::fmt::Debug;
+use std::alloc::handle_alloc_error;
 
 pub trait Material: Debug {
     fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<Ray>;
 }
 
 
-#[derive(PartialEq, Copy, Clone, Debug)]
+#[derive(Debug)]
 pub struct Lambertian {
-    albedo: V3
+    texture: Box<dyn Texture>
 }
 
 impl Lambertian {
-    pub fn new(albedo: V3) -> Lambertian { Lambertian { albedo } }
+    #[deprecated]
+    pub fn new(albedo: V3) -> Lambertian { Lambertian { texture: Box::new(Color(albedo)) } }
+    pub fn color(albedo: Color) -> Lambertian { Lambertian { texture: Box::new(albedo) } }
+    pub fn texture(texture: Box<dyn Texture>) -> Lambertian { Lambertian { texture } }
 }
 
 impl Material for Lambertian {
     fn scatter(&self, ray: &Ray, &hit: &Hit) -> Option<Ray> {
         let target = 0.5 * (hit.normal() + rand_in_unit_sphere());
-        Some(ray.produce(hit.point(), target, self.albedo))
+        Some(ray.produce(hit.point(), target, self.texture.value(0.0, 0.0, hit.point()).0))
     }
 }
 
