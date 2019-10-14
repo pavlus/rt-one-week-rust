@@ -6,7 +6,8 @@ use crate::hittable::{Hittable, MovingSphere, Sphere, Stage};
 use crate::material::{Dielectric, Lambertian, Metal};
 use crate::random::{next_color, next_std_f64};
 use crate::bvh::BVH;
-use crate::texture::{Color, Checker};
+use crate::texture::{Color, Checker, PerlinTexture};
+use crate::noise::Perlin;
 
 mod vec;
 mod ray;
@@ -17,11 +18,12 @@ mod random;
 mod aabb;
 mod bvh;
 mod texture;
+mod noise;
 
 fn main() {
     let nx = 800;
     let ny = 400;
-    let aa = 100;
+    let aa = 500;
 
     println!("P3");
     println!("{} {}", nx, ny);
@@ -29,8 +31,9 @@ fn main() {
 
     let cam = get_cam(nx, ny, 0.0, 0.2);
     let renderer = Renderer {
-//        hittable: &Stage::new(rnd_scene())
-        hittable: BVH::new(rnd_scene())
+        hittable: Box::new(Stage::new(perlin_scene()))
+//        hittable:&Stage::new(rnd_scene())
+//        hittable: BVH::new(rnd_scene())
     };
 //    dbg!(&renderer.hittable);
     for j in (0..ny).rev() {
@@ -48,21 +51,61 @@ fn main() {
             }
 
             col = col / aa as f64;
-            // non gamma-corrected
-            let ir: u32 = (255.99 * col.x) as u32;
-            let ig: u32 = (255.99 * col.y) as u32;
-            let ib: u32 = (255.99 * col.z) as u32;
+            let ir: u32;
+            let ig: u32;
+            let ib: u32;
+            let gamma_correct = true;
+//            dbg![col];
+            if gamma_correct {
+                ir = (255.99 * col.x.powf(1.0 / 2.2)) as u32;
+                ig = (255.99 * col.y.powf(1.0 / 2.2)) as u32;
+                ib = (255.99 * col.z.powf(1.0 / 2.2)) as u32;
+            } else {
+                // non gamma-corrected
+                ir = (255.99 * col.x) as u32;
+                ig = (255.99 * col.y) as u32;
+                ib = (255.99 * col.z) as u32;
+            }
+
             assert![ir < 256];
             assert![ig < 256];
             assert![ib < 256];
-            /*let ir: u32 = (255.99 * col.x.sqrt()) as u32;
-            let ig: u32 = (255.99 * col.y.sqrt()) as u32;
-            let ib: u32 = (255.99 * col.z.sqrt()) as u32;
-            */
+
+            assert![ir >= 0];
+            assert![ig >= 0];
+            assert![ib >= 0];
             print!("{} {} {} ", ir, ig, ib);
         }
         println!();
     }
+}
+
+
+fn perlin_scene() -> Vec<Box<dyn Hittable>> {
+    let mut objs: Vec<Box<dyn Hittable>> = Vec::new();
+//    dbg!("{}", &perlin);
+    let perlin = random::with_rnd(|rnd| Perlin::new(rnd));
+
+    objs.push(Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(
+        Lambertian::texture(Box::new(PerlinTexture::new(
+            Box::new(move |p, scale| perlin.noise(scale * p) * 0.5 + 0.5), 4.0,
+        )))))));
+
+    objs.push(Box::new(Sphere::new(V3::new(0.0, 2.0, 0.0), 2.0, Box::new(
+        Lambertian::texture(Box::new(PerlinTexture::new(
+            Box::new(move |p, scale| perlin.turb(scale * p)), 4.0,
+        )))))));
+
+    objs.push(Box::new(Sphere::new(V3::new(0.0, 2.0, 4.0), 2.0, Box::new(
+        Lambertian::texture(Box::new(PerlinTexture::new(
+            Box::new(move |p, scale| 0.5 * (1.0 + perlin.turb(scale * p))), 4.0,
+        )))))));
+
+    objs.push(Box::new(Sphere::new(V3::new(0.0, 2.0, -4.0), 2.0, Box::new(
+        Lambertian::texture(Box::new(PerlinTexture::new(
+            Box::new(move |p, scale| 0.5 * (1.0 + (scale * p.z + 10.0 * perlin.turb(p)).sin())), 5.0,
+        )))))));
+    objs
 }
 
 // naive took 6m12s with 800x400xaa100

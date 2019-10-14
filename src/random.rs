@@ -3,7 +3,7 @@ use std::cell::RefCell;
 
 use rand::seq::SliceRandom;
 use rand::distributions::{Distribution, Standard};
-use rand::SeedableRng;
+use rand::{SeedableRng, Rng, RngCore};
 use rand_xoshiro::Xoshiro256Plus;
 use crate::vec::{V3, Axis};
 use rand_distr::UnitSphere;
@@ -38,7 +38,7 @@ pub fn next_color() -> V3 {
     V3::new(next_std_f64(), next_std_f64(), next_std_f64())
 }
 
-pub fn random_axis() -> &'static Axis{
+pub fn random_axis() -> &'static Axis {
     RND.with(|rnd_cell|
         Axis::random((*rnd_cell.borrow_mut()).borrow_mut()))
 }
@@ -49,4 +49,9 @@ pub fn rand_in_unit_sphere() -> V3 {
         V3 { x: arr[0], y: arr[1], z: arr[2] }
     }
     )
+}
+
+pub fn with_rnd<T, F>(op: F) -> T
+    where F: FnOnce(&mut RngCore) -> T {
+    RND.with(|rnd_cell| op((*rnd_cell.borrow_mut()).borrow_mut()))
 }
