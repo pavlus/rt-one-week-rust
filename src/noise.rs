@@ -45,8 +45,8 @@ impl Perlin {
                 for dk in 0..=1 {
                     c[di][dj][dk] = self.ranvec[
                         (self.permx[(i + di) & 255]
-                            ^ self.permx[(j + dj) & 255]
-                            ^ self.permx[(k + dk) & 255]
+                            ^ self.permy[(j + dj) & 255]
+                            ^ self.permz[(k + dk) & 255]
                         ) as usize
                         ];
                 }
