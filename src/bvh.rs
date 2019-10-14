@@ -47,7 +47,7 @@ impl Hittable for BVH {
         match (left, right) {
             (Some(hit), None) => Some(hit),
             (None, Some(hit)) => Some(hit),
-            (Some(l_hit), Some(r_hit)) => if l_hit.dist() < r_hit.dist() { left } else { right },
+            (Some(l_hit), Some(r_hit)) => if l_hit.dist < r_hit.dist { left } else { right },
             _ => None
         }
     }

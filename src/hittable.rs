@@ -3,32 +3,23 @@ use crate::vec::V3;
 use crate::material::Material;
 use crate::aabb::AABB;
 use std::fmt::Debug;
+use std::f64::consts;
 
 #[derive(Copy, Clone)]
 pub struct Hit<'a> {
-    dist: f64,
-    p: V3,
-    normal: V3,
-    material: &'a Box<dyn Material>,
+    pub point: V3,
+    pub normal: V3,
+    pub u: f64,
+    pub v: f64,
+    pub material: &'a Box<dyn Material>,
+    pub dist: f64,
 }
 
 //impl Eq for Hit {}
 
 impl<'a> Hit<'a> {
-    pub fn new(dist: f64, p: V3, n: V3, material: &'a Box<dyn Material>) -> Hit<'a> {
-        return Hit { dist, p, normal: n, material };
-    }
-    pub fn point(self) -> V3 {
-        self.p
-    }
-    pub fn normal(self) -> V3 {
-        self.normal
-    }
-    pub fn dist(self) -> f64 {
-        self.dist
-    }
-    pub fn material(self) -> &'a Box<dyn Material> {
-        &self.material
+    pub fn new(dist: f64, p: V3, n: V3, material: &'a Box<dyn Material>, u: f64, v: f64) -> Hit<'a> {
+        return Hit { dist, point: p, normal: n, material, u, v };
     }
 }
 
@@ -53,10 +44,19 @@ impl Sphere {
         self.center
     }
     fn radius(&self) -> f64 { self.radius }
-    fn material<'a>(&'a self) -> &'a Box<dyn Material> { &self.material }
+    fn material(&self) -> &Box<dyn Material> { &self.material }
 
     fn aabb(&self, t0: f32, t1: f32) -> AABB {
         AABB::new(self.center - self.radius, self.center + self.radius)
+    }
+
+    fn uv(unit_point: V3) -> (f64, f64) {
+        let phi = f64::atan2(unit_point.z, unit_point.x);
+        let theta = unit_point.y.asin();
+
+        let u = 1.0 - (phi + consts::PI) / (2.0 * consts::PI);
+        let v = (theta + consts::FRAC_PI_2) / consts::PI;
+        (u, v)
     }
 }
 
@@ -103,7 +103,8 @@ impl Hittable for Sphere {
         let get_hit = |ray: &Ray, dist: f64| -> Hit {
             let p = ray.point_at(dist);
             let n = (p - self.center(ray.time())) / self.radius();
-            return Hit::new(dist, p, n, &self.material());
+            let (u, v) = Sphere::uv(n);
+            return Hit::new(dist, p, n, &self.material(), u, v);
         };
 
         if discr_sqr > 0.0 {
@@ -141,7 +142,8 @@ impl Hittable for MovingSphere {
         let get_hit = |ray: &Ray, dist: f64| -> Hit {
             let p = ray.point_at(dist);
             let n = (p - self.center(ray.time())) / self.radius();
-            return Hit::new(dist, p, n, &self.material());
+            let (u, v) = Sphere::uv(n);
+            return Hit::new(dist, p, n, &self.material(), u, v);
         };
 
         if discr_sqr > 0.0 {
@@ -193,7 +195,7 @@ impl Hittable for Stage {
 //            )
             .map(|h| h.hit(ray, dist_min, dist_max))
             .filter_map(std::convert::identity)
-            .min_by(|s, o| s.dist().partial_cmp(&o.dist()).unwrap())
+            .min_by(|s, o| s.dist.partial_cmp(&o.dist).unwrap())
     }
 
     fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
