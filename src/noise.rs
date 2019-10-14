@@ -1,10 +1,14 @@
-use crate::vec::V3;
-use rand::{Rng, RngCore};
-use rand::seq::SliceRandom;
-use std::fmt::{Display, Formatter, Error, Debug};
-use crate::random;
-use rand::distributions::{Standard, Distribution};
+use std::cell::Cell;
+use std::fmt::{Debug, Display, Error, Formatter};
 
+use rand::{Rng, RngCore};
+use rand::distributions::{Distribution, Standard};
+use rand::seq::SliceRandom;
+
+use crate::random;
+use crate::vec::V3;
+
+#[derive(Copy, Clone)]
 pub struct Perlin {
     ranvec: [V3; 256],
     permx: [u8; 256],
@@ -14,7 +18,6 @@ pub struct Perlin {
 
 impl Perlin {
     pub fn new<R: Rng + ?Sized>(rnd: &mut R) -> Perlin {
-
         Perlin {
             ranvec: Perlin::generate(rnd),
             permx: Perlin::generate_permutations(rnd),
@@ -71,19 +74,20 @@ impl Perlin {
         (&mut result).shuffle(rnd);
         result
     }
-}
 
-/*impl Debug for Perlin {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        let rf_str = self.ranvec.iter().fold(String::from("["), |acc, val| acc + format!("{}, ", val).as_str()) + "]";
-        let px_str = self.permx.iter().fold(String::from("["), |acc, val| acc + format!("{}, ", val).as_str()) + "]";
-        let py_str = self.permy.iter().fold(String::from("["), |acc, val| acc + format!("{}, ", val).as_str()) + "]";
-        let pz_str = self.permz.iter().fold(String::from("["), |acc, val| acc + format!("{}, ", val).as_str()) + "]";
-        write!(f, "Perlin {{\n  ranvec: {},\n  permx: {},\n  permy: {},\n  permz: {}\n}}",
-               rf_str, px_str, py_str, pz_str);
-        Ok(())
+    pub fn turb(&self, p:V3)-> f64{
+        let mut acc = 0.0;
+        let mut temp = p;
+        let mut weight = 1.0;
+        for i in 0..7 {
+            acc += weight * self.noise(temp);
+            weight *= 0.5;
+            temp = 2.0 * temp;
+        }
+        let result = acc.abs();
+        result
     }
-}*/
+}
 
 fn trilerp(c: &[[[V3; 2]; 2]; 2], u: f64, v: f64, w: f64) -> f64 {
     let uu = u * u * (3.0 - 2.0 * u);
@@ -95,7 +99,6 @@ fn trilerp(c: &[[[V3; 2]; 2]; 2], u: f64, v: f64, w: f64) -> f64 {
         for j in 0..=1 {
             for k in 0..=1 {
                 let weight = V3::new(u - i as f64, v - j as f64, w - k as f64);
-//                dbg![weight];
                 acc += (i as f64 * uu + (1.0 - i as f64) * (1.0 - uu))
                     * (j as f64 * vv + (1.0 - j as f64) * (1.0 - vv))
                     * (k as f64 * ww + (1.0 - k as f64) * (1.0 - ww))
@@ -103,7 +106,5 @@ fn trilerp(c: &[[[V3; 2]; 2]; 2], u: f64, v: f64, w: f64) -> f64 {
             }
         }
     }
-//    dbg![c, acc, u, v, w, uu, vv, ww];
-
     acc
 }

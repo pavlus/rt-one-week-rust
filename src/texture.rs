@@ -45,24 +45,28 @@ impl Texture for Checker {
     }
 }
 
-pub struct NoiseTexture {
-    noise: Box<Perlin>,
+pub struct PerlinTexture {
+    noise: Box<dyn Fn(V3, f64)->f64>,
+    scale: f64,
 }
 
-impl Debug for NoiseTexture {
+impl Debug for PerlinTexture {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         Err(Error)
     }
 }
 
-impl NoiseTexture {
-    pub fn new(noise: Box<Perlin>) -> NoiseTexture {
-        NoiseTexture { noise }
+impl PerlinTexture {
+    pub fn new(noise: Box<dyn Fn(V3, f64)->f64>, scale: f64) -> PerlinTexture {
+        PerlinTexture { noise , scale}
     }
 }
 
-impl Texture for NoiseTexture {
+impl Texture for PerlinTexture {
     fn value(&self, u: f64, v: f64, point: V3) -> Color {
-        Color((self.noise.noise(point)*0.5 + 0.5) * V3::ones())
+        let noise =((self.noise)(point, self.scale));
+        assert!(noise<=1.0);
+        assert!(noise>=0.0);
+        Color(noise * V3::ones())
     }
 }
