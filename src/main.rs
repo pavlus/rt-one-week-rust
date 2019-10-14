@@ -31,7 +31,7 @@ fn main() {
 
     let cam = get_cam(nx, ny, 0.0, 0.2);
     let renderer = Renderer {
-        hittable: Box::new(Stage::new(simple_scene()))
+        hittable: Box::new(Stage::new(perlin_scene()))
 //        hittable:&Stage::new(rnd_scene())
 //        hittable: BVH::new(rnd_scene())
     };
@@ -81,7 +81,7 @@ fn main() {
 }
 
 
-fn simple_scene() -> Vec<Box<dyn Hittable>> {
+fn perlin_scene() -> Vec<Box<dyn Hittable>> {
     let mut objs: Vec<Box<dyn Hittable>> = Vec::new();
 //    dbg!("{}", &perlin);
     let perlin = random::with_rnd(|rnd| Perlin::new(rnd));
@@ -105,18 +105,6 @@ fn simple_scene() -> Vec<Box<dyn Hittable>> {
         Lambertian::texture(Box::new(PerlinTexture::new(
             Box::new(move |p, scale| 0.5 * (1.0 + (scale * p.z + 10.0 * perlin.turb(p)).sin())), 5.0,
         )))))));
-    /*
-
-        objs.push(Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(
-            Lambertian::texture(Box::new(Checker::new(
-                Color::new(0.2, 0.3, 0.1),
-                Color::new(0.9, 0.9, 0.9), 10.0,
-            )))))));
-
-        objs.push(Box::new(Sphere::new(V3::new(4.0, 1.0, 0.0), 1.0, Box::new(Metal::new(V3::new(0.7, 0.6, 0.5))))));
-        objs.push(Box::new(Sphere::new(V3::new(0.0, 1.0, 0.0), 1.0, Box::new(Dielectric::new(1.5)))));
-        objs.push(Box::new(Sphere::new(V3::new(-4.0, 1.0, 0.0), 1.0, Box::new(Lambertian::color(Color::new(0.8, 0.8, 0.9))))));
-    */
     objs
 }
 

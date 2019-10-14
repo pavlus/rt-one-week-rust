@@ -26,15 +26,19 @@ impl Perlin {
         }
     }
 
+    /// returns values in range [-1.0, 1.0)
     pub fn noise(&self, point: V3) -> f64 {
+        // offsets inside cell
         let u = point.x - point.x.floor();
         let v = point.y - point.y.floor();
         let w = point.z - point.z.floor();
 
+        // cell coordinates
         let i = point.x.floor() as usize & 255;
         let j = point.y.floor() as usize & 255;
         let k = point.z.floor() as usize & 255;
 
+        // cell corner vectors
         let mut c: [[[V3; 2]; 2]; 2] = [[[V3::zeros(); 2]; 2]; 2];
         for di in 0..=1 {
             for dj in 0..=1 {
@@ -48,10 +52,7 @@ impl Perlin {
                 }
             }
         }
-        let tri = trilerp(&c, u, v, w);
-        let val = self.ranvec[
-            (self.permx[i & 255] ^ self.permy[j & 255] ^ self.permz[k & 255]) as usize & 255];
-        tri
+        trilerp(&c, u, v, w)
     }
 
     fn generate<R: RngCore + ?Sized>(rnd: &mut R) -> [V3; 256] {
@@ -75,7 +76,7 @@ impl Perlin {
         result
     }
 
-    pub fn turb(&self, p:V3)-> f64{
+    pub fn turb(&self, p: V3) -> f64 {
         let mut acc = 0.0;
         let mut temp = p;
         let mut weight = 1.0;
@@ -89,7 +90,11 @@ impl Perlin {
     }
 }
 
+/// trilinear cubic inerpolated values of Perlin noise
+/// c -- cell corner vectors
+/// u, v, w -- coordinates inside cell
 fn trilerp(c: &[[[V3; 2]; 2]; 2], u: f64, v: f64, w: f64) -> f64 {
+    // Cubic Hermite spline h01:
     let uu = u * u * (3.0 - 2.0 * u);
     let vv = v * v * (3.0 - 2.0 * v);
     let ww = w * w * (3.0 - 2.0 * w);
