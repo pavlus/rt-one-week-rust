@@ -98,7 +98,11 @@ impl Texture for ImageTexture {
         let j = (h * (1.0 - v) - 0.001).clamp(0.0, h - 1.0);
 
         let color = self.buffer.get_pixel(i as u32, j as u32);
-        Color(V3::new(color[0] as f64 / 255.0, color[1] as f64 / 255.0, color[2] as f64 / 255.0))
+        let r = color[0] as f64 / 255.0;
+        let g = color[1] as f64 / 255.0;
+        let b = color[2] as f64 / 255.0;
+
+        Color(V3::new(r.powf(2.2), g.powf(2.2), b.powf(2.2)))
     }
 }
 
