@@ -3,4 +3,5 @@
 **.png
 **.ppm
 !doc/*.png
+!textures/*.png
 perf.data

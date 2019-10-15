@@ -1,3 +1,6 @@
+#![feature(clamp)]
+
+
 use camera::Camera;
 use ray::Ray;
 use vec::V3;
@@ -6,8 +9,9 @@ use crate::hittable::{Hittable, MovingSphere, Sphere, Stage};
 use crate::material::{Dielectric, Lambertian, Metal};
 use crate::random::{next_color, next_std_f64};
 use crate::bvh::BVH;
-use crate::texture::{Color, Checker, PerlinTexture};
+use crate::texture::{Color, Checker, PerlinTexture, ImageTexture};
 use crate::noise::Perlin;
+use std::path::Path;
 
 mod vec;
 mod ray;
@@ -31,7 +35,8 @@ fn main() {
 
     let cam = get_cam(nx, ny, 0.0, 0.2);
     let renderer = Renderer {
-        hittable: Box::new(Stage::new(perlin_scene()))
+//        hittable: Box::new(Stage::new(perlin_scene()))
+        hittable: Box::new(Stage::new(img_scene()))
 //        hittable:&Stage::new(rnd_scene())
 //        hittable: BVH::new(rnd_scene())
     };
@@ -71,9 +76,6 @@ fn main() {
             assert![ig < 256];
             assert![ib < 256];
 
-            assert![ir >= 0];
-            assert![ig >= 0];
-            assert![ib >= 0];
             print!("{} {} {} ", ir, ig, ib);
         }
         println!();
@@ -105,6 +107,19 @@ fn perlin_scene() -> Vec<Box<dyn Hittable>> {
         Lambertian::texture(Box::new(PerlinTexture::new(
             Box::new(move |p, scale| 0.5 * (1.0 + (scale * p.z + 10.0 * perlin.turb(p)).sin())), 5.0,
         )))))));
+    objs
+}
+
+fn img_scene() -> Vec<Box<dyn Hittable>> {
+    let mut objs: Vec<Box<dyn Hittable>> = Vec::new();
+//    dbg!("{}", &perlin);
+
+    objs.push(Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(
+        Lambertian::texture(Box::new(Checker::new(Color::new(0.0, 0.0, 0.0), Color::new(1.0, 1.0, 1.0), 10.0)))))));
+
+    objs.push(Box::new(Sphere::new(V3::new(0.0, 2.0, 0.0), 2.0, Box::new(
+        Lambertian::texture(Box::new(ImageTexture::load("./textures/stone.png")))))));
+
     objs
 }
 
@@ -198,7 +213,7 @@ impl Renderer {
         match self.hittable.hit(&r, 0.0001, 99999.0) {
             Some(hit) => {
                 return match hit
-                    .material()
+                    .material
                     .scatter(r, &hit)
                     .and_then(Ray::validate) {
                     Some(scattered) => { scattered.attenuation() * self.color(&scattered) }

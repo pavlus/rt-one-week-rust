@@ -26,8 +26,8 @@ impl Lambertian {
 
 impl Material for Lambertian {
     fn scatter(&self, ray: &Ray, &hit: &Hit) -> Option<Ray> {
-        let target = 0.5 * (hit.normal() + rand_in_unit_sphere());
-        Some(ray.produce(hit.point(), target, self.texture.value(0.0, 0.0, hit.point()).0))
+        let target = 0.5 * (hit.normal + rand_in_unit_sphere());
+        Some(ray.produce(hit.point, target, self.texture.value(hit.u, hit.v, hit.point).0))
     }
 }
 
@@ -52,9 +52,9 @@ impl Metal {
 impl Material for Metal {
     fn scatter(&self, ray: &Ray, &hit: &Hit) -> Option<Ray> {
         let unit_direction = ray.direction().unit();
-        let reflected = unit_direction.reflect(hit.normal());
-        if reflected.dot(hit.normal()) > 0.0 {
-            Some(ray.produce(hit.point(), self.fuzz(reflected), self.albedo))
+        let reflected = unit_direction.reflect(hit.normal);
+        if reflected.dot(hit.normal) > 0.0 {
+            Some(ray.produce(hit.point, self.fuzz(reflected), self.albedo))
         } else {
             None
         }
@@ -98,24 +98,24 @@ impl Material for Dielectric {
         let outward_normal: V3;
         let ni_over_nt: f64;
 
-        let vector_cosine = unit_direction.dot(hit.normal());
+        let vector_cosine = unit_direction.dot(hit.normal);
         if vector_cosine > 0.0 {
-            outward_normal = -hit.normal();
+            outward_normal = -hit.normal;
             ni_over_nt = self.ref_idx;
             cosine = (1.0 - self.ref_idx * self.ref_idx * (1.0 - vector_cosine * vector_cosine)).sqrt();
         } else {
-            outward_normal = hit.normal();
+            outward_normal = hit.normal;
             ni_over_nt = 1.0 / self.ref_idx;
             cosine = -vector_cosine;
         }
 
         let refracted: Option<V3> = Dielectric::refract(unit_direction, outward_normal, ni_over_nt);
-        let reflected = ray.direction().reflect(hit.normal());
+        let reflected = ray.direction().reflect(hit.normal);
 
         refracted
             .filter(|_| self.schlick(cosine) < random::next_std_f64())
-            .map(|refracted| ray.produce(hit.point(), refracted, self.albedo))
-            .or_else(|| Some(ray.produce(hit.point(), reflected, V3::ones())))
+            .map(|refracted| ray.produce(hit.point, refracted, self.albedo))
+            .or_else(|| Some(ray.produce(hit.point, reflected, V3::ones())))
     }
 }
 
