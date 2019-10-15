@@ -94,8 +94,8 @@ impl Texture for ImageTexture {
         let w = self.buffer.width() as f64;
         let h = self.buffer.height() as f64;
 
-        let i = (w * u).clamp(0.0, w - 1.0);
-        let j = (h * (1.0 - v) - 0.001).clamp(0.0, h - 1.0);
+        let i = clamp((w * u), 0.0, w - 1.0);
+        let j = clamp((h * (1.0 - v) - 0.001), 0.0, h - 1.0);
 
         let color = self.buffer.get_pixel(i as u32, j as u32);
         let r = color[0] as f64 / 255.0;
@@ -105,4 +105,10 @@ impl Texture for ImageTexture {
         Color(V3::new(r.powf(2.2), g.powf(2.2), b.powf(2.2)))
     }
 }
+
+#[inline(always)]
+fn clamp(this: f64, lo: f64, hi: f64) -> f64 {
+    if this < lo { lo } else if this > hi { hi } else { this }
+}
+
 

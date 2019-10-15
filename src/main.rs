@@ -1,6 +1,3 @@
-#![feature(clamp)]
-
-
 use camera::Camera;
 use ray::Ray;
 use vec::V3;
