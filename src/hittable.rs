@@ -94,15 +94,15 @@ impl MovingSphere {
 
 impl Hittable for Sphere {
     fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
-        let oc = ray.origin() - self.center(ray.time());
-        let a = ray.direction().sqr_length();
-        let b = oc.dot(ray.direction());
+        let oc = ray.origin - self.center(ray.time);
+        let a = ray.direction.sqr_length();
+        let b = oc.dot(ray.direction);
         let c = oc.sqr_length() - (self.radius() * self.radius()) as f64;
         let discr_sqr = b * b - a * c;
 
         let get_hit = |ray: &Ray, dist: f64| -> Hit {
             let p = ray.point_at(dist);
-            let n = (p - self.center(ray.time())) / self.radius();
+            let n = (p - self.center(ray.time)) / self.radius();
             let (u, v) = Sphere::uv(n);
             return Hit::new(dist, p, n, &self.material(), u, v);
         };
@@ -133,15 +133,15 @@ impl Hittable for MovingSphere {
 //        if !self.bounding_box(ray.time(), ray.time())
 //            .unwrap().hit(ray, dist_min, dist_max) { return None; }
 
-        let oc = ray.origin() - self.center(ray.time());
-        let a = ray.direction().sqr_length();
-        let b = oc.dot(ray.direction());
+        let oc = ray.origin - self.center(ray.time);
+        let a = ray.direction.sqr_length();
+        let b = oc.dot(ray.direction);
         let c = oc.sqr_length() - (self.radius() * self.radius()) as f64;
         let discr_sqr = b * b - a * c;
 
         let get_hit = |ray: &Ray, dist: f64| -> Hit {
             let p = ray.point_at(dist);
-            let n = (p - self.center(ray.time())) / self.radius();
+            let n = (p - self.center(ray.time)) / self.radius();
             let (u, v) = Sphere::uv(n);
             return Hit::new(dist, p, n, &self.material(), u, v);
         };

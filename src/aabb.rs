@@ -16,8 +16,8 @@ impl AABB {
 
     pub fn hit(self, ray: &Ray, d_min: f64, d_max: f64) -> bool {
         for axis in Axis::xyz().iter() {
-            let direction = ray.direction()[axis];
-            let start = ray.origin()[axis];
+            let direction = ray.direction[axis];
+            let start = ray.origin[axis];
             let mut d0 = (self.min[axis] - start) / direction;
             let mut d1 = (self.max[axis] - start) / direction;
             if direction.is_sign_negative() {

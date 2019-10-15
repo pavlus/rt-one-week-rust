@@ -51,11 +51,11 @@ impl Metal {
 
 impl Material for Metal {
     fn scatter(&self, ray: &Ray, &hit: &Hit) -> Option<Ray> {
-        let unit_direction = ray.direction().unit();
+        let unit_direction = ray.direction.unit();
         let reflected = unit_direction.reflect(hit.normal);
         if reflected.dot(hit.normal) > 0.0 {
             Some(ray.produce(hit.point, self.fuzz(reflected), self.albedo))
-        } else {
+        } else  {
             None
         }
     }
@@ -92,7 +92,7 @@ impl Dielectric {
 
 impl Material for Dielectric {
     fn scatter(&self, ray: &Ray, &hit: &Hit) -> Option<Ray> {
-        let unit_direction = ray.direction().unit();
+        let unit_direction = ray.direction.unit();
 
         let cosine: f64;
         let outward_normal: V3;
@@ -110,7 +110,7 @@ impl Material for Dielectric {
         }
 
         let refracted: Option<V3> = Dielectric::refract(unit_direction, outward_normal, ni_over_nt);
-        let reflected = ray.direction().reflect(hit.normal);
+        let reflected = ray.direction.reflect(hit.normal);
 
         refracted
             .filter(|_| self.schlick(cosine) < random::next_std_f64())
