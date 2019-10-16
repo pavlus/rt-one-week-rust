@@ -26,7 +26,7 @@ impl Lambertian {
 
 impl Material for Lambertian {
     fn scatter(&self, ray: &Ray, &hit: &Hit) -> Option<Ray> {
-        let target = 0.5 * (hit.normal + rand_in_unit_sphere());
+        let target = 0.5 * (hit.normal + random::rand_in_unit_sphere());
         Some(ray.produce(hit.point, target, self.texture.value(hit.u, hit.v, hit.point).0))
     }
 }
@@ -45,7 +45,7 @@ impl Metal {
     }
 
     fn fuzz(self, vector: V3) -> V3 {
-        self.fuzz * rand_in_unit_sphere() + vector
+        self.fuzz * random::rand_in_unit_sphere() + vector
     }
 }
 
