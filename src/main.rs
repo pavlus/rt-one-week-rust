@@ -9,6 +9,7 @@ use crate::bvh::BVH;
 use crate::texture::{Color, Checker, PerlinTexture, ImageTexture};
 use crate::noise::Perlin;
 use std::path::Path;
+use rayon::prelude::*;
 
 mod vec;
 mod ray;
@@ -42,22 +43,18 @@ fn main() {
 //    dbg!(&renderer.hittable);
     for j in (0..ny).rev() {
         for i in 0..nx {
-            let mut col: V3 = V3::zeros();
-            for _ in 0..aa {
-//                let du: f64 = dist.sample(&mut rand);
+            let col: V3 = rayon::iter::repeatn((), aa).map(|_|{
+//                let du: sf64 = dist.sample(&mut rand);
 //                let dv: f64 = dist.sample(&mut rand);
                 let du: f64 = random::next_std_f64() - 0.5;
                 let dv: f64 = random::next_std_f64() - 0.5;
                 let u = (i as f64 + du) / (nx as f64);
                 let v = (j as f64 + dv) / (ny as f64);
                 let r = cam.get_ray(u, v);
-                col = col + renderer.color(&r);
-            }
+                renderer.color(&r)
+            }).sum();
 
-            col = col / aa as f64;
-            let ir: u32;
-            let ig: u32;
-            let ib: u32;
+            let mut col = col / aa as f64;
             let gamma_correct = true;
             let clamp_color = true;
 
