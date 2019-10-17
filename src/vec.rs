@@ -1,6 +1,7 @@
 use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub, Index};
 use rand::Rng;
 use rand::seq::SliceRandom;
+use std::iter::Sum;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct V3 {
@@ -120,6 +121,12 @@ impl AddAssign for V3 {
         self.x += other.x;
         self.y += other.y;
         self.z += other.z;
+    }
+}
+
+impl Sum for V3{
+    fn sum<I: Iterator<Item=Self>>(iter: I) -> Self {
+        iter.fold(V3::zeros(), V3::add)
     }
 }
 

@@ -107,7 +107,7 @@ impl Texture for ImageTexture {
 }
 
 #[inline(always)]
-fn clamp(this: f64, lo: f64, hi: f64) -> f64 {
+pub fn clamp(this: f64, lo: f64, hi: f64) -> f64 {
     if this < lo { lo } else if this > hi { hi } else { this }
 }
 

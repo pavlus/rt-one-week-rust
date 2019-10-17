@@ -8,7 +8,8 @@ use std::fmt::Debug;
 use std::alloc::handle_alloc_error;
 
 pub trait Material: Debug {
-    fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<Ray>;
+    fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<Ray> { None }
+    fn emmit(&self, hit: &Hit) -> Color { Color(V3::zeros()) }
 }
 
 
@@ -55,7 +56,7 @@ impl Material for Metal {
         let reflected = unit_direction.reflect(hit.normal);
         if reflected.dot(hit.normal) > 0.0 {
             Some(ray.produce(hit.point, self.fuzz(reflected), self.albedo))
-        } else  {
+        } else {
             None
         }
     }
@@ -120,13 +121,20 @@ impl Material for Dielectric {
 }
 
 
-fn rand_in_unit_sphere() -> V3 {
-    loop {
-        let v = V3::new(random::next_std_f64(), random::next_std_f64(), random::next_std_f64());
-        if v.sqr_length() >= 1 as f64 {
-            return v.unit();
-        }
+#[derive(Debug)]
+pub struct DiffuseLight {
+    texture: Box<dyn Texture>,
+    intensity_scale: f64,
+}
+
+impl DiffuseLight {
+    pub fn new(texture: Box<dyn Texture>, scale: f64) -> DiffuseLight {
+        DiffuseLight { texture, intensity_scale: scale }
     }
 }
 
-
+impl Material for DiffuseLight {
+    fn emmit(&self, hit: &Hit) -> Color {
+        Color(self.intensity_scale * self.texture.value(hit.u, hit.v, hit.point).0)
+    }
+}
