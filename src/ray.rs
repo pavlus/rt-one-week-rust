@@ -2,10 +2,10 @@ use crate::vec::V3;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Ray {
-    origin: V3,
-    direction: V3,
-    attenuation: V3,
-    time: f32,
+    pub origin: V3,
+    pub direction: V3,
+    pub attenuation: V3,
+    pub time: f32,
     ttl: i32,
 }
 
@@ -18,22 +18,8 @@ impl Ray {
         Ray::new(origin, direction, attenuation, self.time, self.ttl - 1)
     }
 
-    pub fn time(self) -> f32 { self.time }
-
     pub fn validate(self) -> Option<Ray> {
         if self.ttl > 0 { Some(self) } else { None }
-    }
-
-    pub fn origin(self) -> V3 {
-        self.origin
-    }
-
-    pub fn direction(self) -> V3 {
-        self.direction
-    }
-
-    pub fn attenuation(self) -> V3 {
-        self.attenuation
     }
 
     pub fn point_at(self, p: f64) -> V3 {

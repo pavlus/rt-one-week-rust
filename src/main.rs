@@ -3,7 +3,7 @@ use ray::Ray;
 use vec::V3;
 
 use crate::hittable::{Hittable, MovingSphere, Sphere, Stage};
-use crate::material::{Dielectric, Lambertian, Metal};
+use crate::material::{Dielectric, Lambertian, Metal, DiffuseLight};
 use crate::random::{next_color, next_std_f64};
 use crate::bvh::BVH;
 use crate::texture::{Color, Checker, PerlinTexture, ImageTexture};
@@ -33,7 +33,8 @@ fn main() {
     let cam = get_cam(nx, ny, 0.0, 0.2);
     let renderer = Renderer {
 //        hittable: Box::new(Stage::new(perlin_scene()))
-        hittable: Box::new(Stage::new(img_scene()))
+//        hittable: Box::new(Stage::new(img_scene()))
+        hittable: Box::new(Stage::new(img_lit_scene()))
 //        hittable:&Stage::new(rnd_scene())
 //        hittable: BVH::new(rnd_scene())
     };
@@ -57,17 +58,19 @@ fn main() {
             let ig: u32;
             let ib: u32;
             let gamma_correct = true;
-//            dbg![col];
-            if gamma_correct {
-                ir = (255.99 * col.x.powf(1.0 / 2.2)) as u32;
-                ig = (255.99 * col.y.powf(1.0 / 2.2)) as u32;
-                ib = (255.99 * col.z.powf(1.0 / 2.2)) as u32;
-            } else {
-                // non gamma-corrected
-                ir = (255.99 * col.x) as u32;
-                ig = (255.99 * col.y) as u32;
-                ib = (255.99 * col.z) as u32;
+            let clamp_color = true;
+
+            if clamp_color {
+                col = clamp(col)
             }
+
+            if gamma_correct {
+                col = gamma(col)
+            }
+
+            let ir: u32 = (255.99 * col.x) as u32;
+            let ig: u32 = (255.99 * col.y) as u32;
+            let ib: u32 = (255.99 * col.z) as u32;
 
             assert![ir < 256];
             assert![ig < 256];
@@ -79,6 +82,21 @@ fn main() {
     }
 }
 
+fn clamp(color: V3) -> V3 {
+    V3::new(
+        texture::clamp(color.x, 0.0, 1.0),
+        texture::clamp(color.y, 0.0, 1.0),
+        texture::clamp(color.z, 0.0, 1.0),
+    )
+}
+
+fn gamma(color: V3) -> V3 {
+    V3::new(
+        color.x.powf(1.0 / 2.2),
+        color.y.powf(1.0 / 2.2),
+        color.z.powf(1.0 / 2.2),
+    )
+}
 
 fn perlin_scene() -> Vec<Box<dyn Hittable>> {
     let mut objs: Vec<Box<dyn Hittable>> = Vec::new();
@@ -116,6 +134,22 @@ fn img_scene() -> Vec<Box<dyn Hittable>> {
 
     objs.push(Box::new(Sphere::new(V3::new(0.0, 2.0, 0.0), 2.0, Box::new(
         Lambertian::texture(Box::new(ImageTexture::load("./textures/stone.png")))))));
+
+    objs
+}
+
+fn img_lit_scene() -> Vec<Box<dyn Hittable>> {
+    let mut objs: Vec<Box<dyn Hittable>> = Vec::new();
+    let perlin = random::with_rnd(|rnd| Perlin::new(rnd));
+
+    objs.push(Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(
+        Lambertian::texture(Box::new(Checker::new(Color::new(0.0, 0.0, 0.0), Color::new(1.0, 1.0, 1.0), 10.0)))))));
+
+    objs.push(Box::new(Sphere::new(V3::new(0.0, 2.0, 2.0), 2.0, Box::new(
+        Lambertian::texture(Box::new(ImageTexture::load("./textures/stone.png")))))));
+
+    objs.push(Box::new(Sphere::new(V3::new(0.0, 3.0, -2.0), 2.0, Box::new(
+        DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 0.99)), 2.0)))));
 
     objs
 }
@@ -209,19 +243,20 @@ impl Renderer {
     fn color(&self, r: &Ray) -> V3 {
         match self.hittable.hit(&r, 0.0001, 99999.0) {
             Some(hit) => {
+                let emitted = hit.material.emmit(&hit);
                 return match hit
                     .material
                     .scatter(r, &hit)
                     .and_then(Ray::validate) {
-                    Some(scattered) => { scattered.attenuation() * self.color(&scattered) }
-                    None => r.attenuation()
+                    Some(scattered) => { emitted.0 + scattered.attenuation * self.color(&scattered) }
+                    None => emitted.0
                 };
             }
             None => {
-                let unit_direction = r.direction().unit();
-                let t: f64 = 0.5 * (unit_direction.y + 1.0);
-//                return V3::new(1.0, 1.0, 1.0);
-                return (1.0 - t) * V3::ones() + t * V3::new(0.5, 0.7, 1.0);
+//                let unit_direction = r.direction.unit();
+//                let t: f64 = 0.5 * (unit_direction.y + 1.0);
+                return V3::new(0.0, 0.0, 0.01);
+//                return (1.0 - t) * V3::ones() + t * V3::new(0.5, 0.7, 1.0);
             }
         };
     }
