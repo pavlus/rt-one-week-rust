@@ -165,10 +165,10 @@ fn img_lit_rect_scene() -> Vec<Box<dyn Hittable>> {
     objs.push(Box::new(Sphere::new(V3::new(0.0, 1.0, 0.0), 1.0, Box::new(
         Lambertian::texture(Box::new(ImageTexture::load("./textures/stone.png")))))));
 
-    objs.push(Box::new(XZRect::new(-1.0, 1.0, -1.0, 1.0, 2.5, Box::new(
+    objs.push(Box::new(XZRect::new(-1.0..1.0, -1.0..1.0, 2.5, Box::new(
         DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 0.99)), 4.0)))));
 
-    objs.push(Box::new(XYRect::new(-1.0, 1.0, 0.5, 1.5, -1.5, Box::new(
+    objs.push(Box::new(XYRect::new(-1.0..1.0, 0.5..1.5, -1.5, Box::new(
         DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 0.99)), 4.0)))));
 
     objs

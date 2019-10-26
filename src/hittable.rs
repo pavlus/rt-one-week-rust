@@ -4,6 +4,7 @@ use crate::material::Material;
 use crate::aabb::AABB;
 use std::fmt::Debug;
 use std::f64::consts;
+use std::ops::Range;
 
 #[derive(Copy, Clone)]
 pub struct Hit<'a> {
@@ -167,16 +168,16 @@ impl Hittable for MovingSphere {
     }
 }
 
-macro_rules! aarect_aabb_min {
-    {$slf:ident, x, y, $off:expr} => {V3::new($slf.x0, $slf.y0, $off)};
-    {$slf:ident, x, z, $off:expr} => {V3::new($slf.x0, $off, $slf.z0)};
-    {$slf:ident, y, z, $off:expr} => {V3::new($off, $slf.y0, $slf.z0)};
-}
-
-macro_rules! aarect_aabb_max {
-    {$slf:ident, x, y, $off:expr} => {V3::new($slf.x1, $slf.y1, $off)};
-    {$slf:ident, x, z, $off:expr} => {V3::new($slf.x1, $off, $slf.z1)};
-    {$slf:ident, y, z, $off:expr} => {V3::new($off, $slf.y1, $slf.z1)};
+macro_rules! aarect_aabb {
+    {$slf:ident, $a:tt, $b:tt, $off:expr} => {
+        AABB::new(
+            aarect_aabb!($slf, start, $a, $b, $off - 0.001),
+            aarect_aabb!($slf, end  , $a, $b, $off + 0.001)
+        )
+    };
+    {$slf:ident, $bound:ident, x, y, $off:expr} => {V3::new($slf.x.$bound, $slf.y.$bound, $off)};
+    {$slf:ident, $bound:ident, x, z, $off:expr} => {V3::new($slf.x.$bound, $off, $slf.z.$bound)};
+    {$slf:ident, $bound:ident, y, z, $off:expr} => {V3::new($off, $slf.y.$bound, $slf.z.$bound)};
 }
 
 macro_rules! norm_vec {
@@ -185,22 +186,22 @@ macro_rules! norm_vec {
     {y, z} => {V3::new(1.0,0.0,0.0)};
 }
 macro_rules! aarect {
-    {$name:tt, $a:tt, $b:tt, $a0:tt, $a1:tt, $b0:tt, $b1:tt, normal: $k:tt} =>{
+    {$name:tt, $a:tt, $b:tt, normal: $k:tt} =>{
         #[derive(Debug)]
         pub struct $name {
-            $a0: f64, $a1: f64,
-            $b0: f64, $b1: f64,
+            $a: Range<f64>,
+            $b: Range<f64>,
             k: f64,
             material: Box<dyn Material>
         }
         impl $name {
-            pub fn new($a0:f64, $a1:f64, $b0:f64, $b1:f64, k:f64, material: Box<dyn Material>) -> $name {
-                $name { $a0, $a1, $b0, $b1, k, material }
+            pub fn new($a: Range<f64>, $b:Range<f64>, k:f64, material: Box<dyn Material>) -> $name {
+                $name { $a, $b, k, material }
             }
 
             fn uv(&self, $a:f64, $b: f64) -> (f64, f64) {
-                let u = ($a - self.$a0)/(self.$a1-self.$a0);
-                let v = ($b - self.$b0)/(self.$b1-self.$b0);
+                let u = ($a - self.$a.start)/(self.$a.end-self.$a.start);
+                let v = ($b - self.$b.start)/(self.$b.end-self.$b.start);
                 (u, v)
             }
         }
@@ -213,7 +214,7 @@ macro_rules! aarect {
                 let $a = ray.origin.$a + dist * ray.direction.$a;
                 let $b = ray.origin.$b + dist * ray.direction.$b;
 
-                if !((self.$a0..self.$a1).contains(&$a) && (self.$b0..self.$b1).contains(&$b)) {
+                if !(self.$a.contains(&$a) && self.$b.contains(&$b)) {
                     return None;
                 };
 
@@ -222,19 +223,16 @@ macro_rules! aarect {
             }
 
             fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
-                Some(AABB::new(
-                    aarect_aabb_min!(self, $a, $b, self.k - 0.001),
-                    aarect_aabb_max!(self, $a, $b, self.k + 0.001),
-                ))
+                Some(aarect_aabb!(self, $a, $b, self.k))
             }
         }
 
     };
 }
 
-aarect!(XYRect, x, y, x0, x1, y0, y1, normal: z);
-aarect!(XZRect, x, z, x0, x1, z0, z1, normal: y);
-aarect!(YZRect, y, z, y0, y1, z0, z1, normal: x);
+aarect!(XYRect, x, y, normal: z);
+aarect!(XZRect, x, z, normal: y);
+aarect!(YZRect, y, z, normal: x);
 
 
 #[derive(Debug)]
@@ -245,7 +243,6 @@ pub struct Stage {
 
 impl Stage {
     pub fn new(objects: Vec<Box<dyn Hittable>>) -> Stage {
-        let r: Rab
         let aabb = (|| {
             let mut aabbs = objects.iter().flat_map(|o| o.bounding_box(0.0, 1.0));
             let first = aabbs.next()?;
