@@ -101,24 +101,19 @@ fn gamma(color: V3) -> V3 {
 
 fn perlin_scene() -> Vec<Box<dyn Hittable>> {
     let mut objs: Vec<Box<dyn Hittable>> = Vec::new();
-//    dbg!("{}", &perlin);
     let perlin = random::with_rnd(|rnd| Perlin::new(rnd));
-
     objs.push(Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(
         Lambertian::texture(Box::new(PerlinTexture::new(
             Box::new(move |p, scale| perlin.noise(scale * p) * 0.5 + 0.5), 4.0,
         )))))));
-
     objs.push(Box::new(Sphere::new(V3::new(0.0, 2.0, 0.0), 2.0, Box::new(
         Lambertian::texture(Box::new(PerlinTexture::new(
             Box::new(move |p, scale| perlin.turb(scale * p)), 4.0,
         )))))));
-
     objs.push(Box::new(Sphere::new(V3::new(0.0, 2.0, 4.0), 2.0, Box::new(
         Lambertian::texture(Box::new(PerlinTexture::new(
             Box::new(move |p, scale| 0.5 * (1.0 + perlin.turb(scale * p))), 4.0,
         )))))));
-
     objs.push(Box::new(Sphere::new(V3::new(0.0, 2.0, -4.0), 2.0, Box::new(
         Lambertian::texture(Box::new(PerlinTexture::new(
             Box::new(move |p, scale| 0.5 * (1.0 + (scale * p.z + 10.0 * perlin.turb(p)).sin())), 5.0,
@@ -128,49 +123,34 @@ fn perlin_scene() -> Vec<Box<dyn Hittable>> {
 
 fn img_scene() -> Vec<Box<dyn Hittable>> {
     let mut objs: Vec<Box<dyn Hittable>> = Vec::new();
-//    dbg!("{}", &perlin);
-
     objs.push(Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(
         Lambertian::texture(Box::new(Checker::new(Color::new(0.0, 0.0, 0.0), Color::new(1.0, 1.0, 1.0), 10.0)))))));
-
     objs.push(Box::new(Sphere::new(V3::new(0.0, 2.0, 0.0), 2.0, Box::new(
         Lambertian::texture(Box::new(ImageTexture::load("./textures/stone.png")))))));
-
     objs
 }
 
 fn img_lit_scene() -> Vec<Box<dyn Hittable>> {
     let mut objs: Vec<Box<dyn Hittable>> = Vec::new();
-    let perlin = random::with_rnd(|rnd| Perlin::new(rnd));
-
     objs.push(Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(
         Lambertian::texture(Box::new(Checker::new(Color::new(0.0, 0.0, 0.0), Color::new(1.0, 1.0, 1.0), 10.0)))))));
-
     objs.push(Box::new(Sphere::new(V3::new(0.0, 2.0, 2.0), 2.0, Box::new(
         Lambertian::texture(Box::new(ImageTexture::load("./textures/stone.png")))))));
-
     objs.push(Box::new(Sphere::new(V3::new(0.0, 3.0, -2.0), 2.0, Box::new(
         DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 0.99)), 2.0)))));
-
     objs
 }
 
 fn img_lit_rect_scene() -> Vec<Box<dyn Hittable>> {
     let mut objs: Vec<Box<dyn Hittable>> = Vec::new();
-    let perlin = random::with_rnd(|rnd| Perlin::new(rnd));
-
     objs.push(Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(
         Lambertian::texture(Box::new(Checker::new(Color::new(0.0, 0.0, 0.0), Color::new(1.0, 1.0, 1.0), 10.0)))))));
-
     objs.push(Box::new(Sphere::new(V3::new(0.0, 1.0, 0.0), 1.0, Box::new(
         Lambertian::texture(Box::new(ImageTexture::load("./textures/stone.png")))))));
-
     objs.push(Box::new(XZRect::new(-1.0..1.0, -1.0..1.0, 2.5, Box::new(
         DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 0.99)), 4.0)))));
-
     objs.push(Box::new(XYRect::new(-1.0..1.0, 0.5..1.5, -1.5, Box::new(
         DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 0.99)), 4.0)))));
-
     objs
 }
 
