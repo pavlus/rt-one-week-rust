@@ -2,7 +2,7 @@ use camera::Camera;
 use ray::Ray;
 use vec::V3;
 
-use crate::hittable::{Hittable, MovingSphere, Sphere, Stage};
+use crate::hittable::{Hittable, MovingSphere, Sphere, Stage, XYRect, XZRect};
 use crate::material::{Dielectric, Lambertian, Metal, DiffuseLight};
 use crate::random::{next_color, next_std_f64};
 use crate::bvh::BVH;
@@ -34,7 +34,8 @@ fn main() {
     let renderer = Renderer {
 //        hittable: Box::new(Stage::new(perlin_scene()))
 //        hittable: Box::new(Stage::new(img_scene()))
-        hittable: Box::new(Stage::new(img_lit_scene()))
+//        hittable: Box::new(Stage::new(img_lit_scene()))
+        hittable: Box::new(Stage::new(img_lit_rect_scene()))
 //        hittable:&Stage::new(rnd_scene())
 //        hittable: BVH::new(rnd_scene())
     };
@@ -154,6 +155,25 @@ fn img_lit_scene() -> Vec<Box<dyn Hittable>> {
     objs
 }
 
+fn img_lit_rect_scene() -> Vec<Box<dyn Hittable>> {
+    let mut objs: Vec<Box<dyn Hittable>> = Vec::new();
+    let perlin = random::with_rnd(|rnd| Perlin::new(rnd));
+
+    objs.push(Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(
+        Lambertian::texture(Box::new(Checker::new(Color::new(0.0, 0.0, 0.0), Color::new(1.0, 1.0, 1.0), 10.0)))))));
+
+    objs.push(Box::new(Sphere::new(V3::new(0.0, 1.0, 0.0), 1.0, Box::new(
+        Lambertian::texture(Box::new(ImageTexture::load("./textures/stone.png")))))));
+
+    objs.push(Box::new(XZRect::new(-1.0..1.0, -1.0..1.0, 2.5, Box::new(
+        DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 0.99)), 4.0)))));
+
+    objs.push(Box::new(XYRect::new(-1.0..1.0, 0.5..1.5, -1.5, Box::new(
+        DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 0.99)), 4.0)))));
+
+    objs
+}
+
 // naive took 6m12s with 800x400xaa100
 // BVH took 5m20s with 800x400xaa100
 fn rnd_scene() -> Vec<Box<dyn Hittable>> {
@@ -227,7 +247,7 @@ fn _get_cam(nx: u32, ny: u32, t_off: f32, t_span: f32) -> Camera {
     Camera::new_look(
         from, at,
         /*    up*/ V3::new(0.0, 1.0, 0.0),
-        /*  vfov*/ 90.0,
+        /*  vfov*/ 120.0,
         aspect,
         dist_to_focus,
         aperture,
