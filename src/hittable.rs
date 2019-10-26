@@ -136,14 +136,14 @@ impl Hittable for MovingSphere {
         let oc = ray.origin - self.center(ray.time);
         let a = ray.direction.sqr_length();
         let b = oc.dot(ray.direction);
-        let c = oc.sqr_length() - (self.radius() * self.radius()) as f64;
+        let c = oc.sqr_length() - (self.radius * self.radius) as f64;
         let discr_sqr = b * b - a * c;
 
         let get_hit = |ray: &Ray, dist: f64| -> Hit {
             let p = ray.point_at(dist);
-            let n = (p - self.center(ray.time)) / self.radius();
+            let n = (p - self.center(ray.time)) / self.radius;
             let (u, v) = Sphere::uv(n);
-            return Hit::new(dist, p, n, &self.material(), u, v);
+            return Hit::new(dist, p, n, &self.material, u, v);
         };
 
         if discr_sqr > 0.0 {
@@ -167,6 +167,76 @@ impl Hittable for MovingSphere {
     }
 }
 
+macro_rules! aarect_aabb_min {
+    {$slf:ident, x, y, $off:expr} => {V3::new($slf.x0, $slf.y0, $off)};
+    {$slf:ident, x, z, $off:expr} => {V3::new($slf.x0, $off, $slf.z0)};
+    {$slf:ident, y, z, $off:expr} => {V3::new($off, $slf.y0, $slf.z0)};
+}
+
+macro_rules! aarect_aabb_max {
+    {$slf:ident, x, y, $off:expr} => {V3::new($slf.x1, $slf.y1, $off)};
+    {$slf:ident, x, z, $off:expr} => {V3::new($slf.x1, $off, $slf.z1)};
+    {$slf:ident, y, z, $off:expr} => {V3::new($off, $slf.y1, $slf.z1)};
+}
+
+macro_rules! norm_vec {
+    {x, y} => {V3::new(0.0,0.0,1.0)};
+    {x, z} => {V3::new(0.0,1.0,0.0)};
+    {y, z} => {V3::new(1.0,0.0,0.0)};
+}
+macro_rules! aarect {
+    {$name:tt, $a:tt, $b:tt, $a0:tt, $a1:tt, $b0:tt, $b1:tt, normal: $k:tt} =>{
+        #[derive(Debug)]
+        pub struct $name {
+            $a0: f64, $a1: f64,
+            $b0: f64, $b1: f64,
+            k: f64,
+            material: Box<dyn Material>
+        }
+        impl $name {
+            pub fn new($a0:f64, $a1:f64, $b0:f64, $b1:f64, k:f64, material: Box<dyn Material>) -> $name {
+                $name { $a0, $a1, $b0, $b1, k, material }
+            }
+
+            fn uv(&self, $a:f64, $b: f64) -> (f64, f64) {
+                let u = ($a - self.$a0)/(self.$a1-self.$a0);
+                let v = ($b - self.$b0)/(self.$b1-self.$b0);
+                (u, v)
+            }
+        }
+
+        impl Hittable for $name {
+            fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
+                let dist = (self.k - ray.origin.$k) / ray.direction.$k;
+                if !(dist_min..dist_max).contains(&dist) { return None; };
+
+                let $a = ray.origin.$a + dist * ray.direction.$a;
+                let $b = ray.origin.$b + dist * ray.direction.$b;
+
+                if !((self.$a0..self.$a1).contains(&$a) && (self.$b0..self.$b1).contains(&$b)) {
+                    return None;
+                };
+
+                let (u, v) = self.uv($a, $b);
+                Some(Hit::new(dist, ray.point_at(dist), norm_vec!($a, $b), &self.material, u, v))
+            }
+
+            fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
+                Some(AABB::new(
+                    aarect_aabb_min!(self, $a, $b, self.k - 0.001),
+                    aarect_aabb_max!(self, $a, $b, self.k + 0.001),
+                ))
+            }
+        }
+
+    };
+}
+
+aarect!(XYRect, x, y, x0, x1, y0, y1, normal: z);
+aarect!(XZRect, x, z, x0, x1, z0, z1, normal: y);
+aarect!(YZRect, y, z, y0, y1, z0, z1, normal: x);
+
+
 #[derive(Debug)]
 pub struct Stage {
     objects: Vec<Box<dyn Hittable>>,
@@ -175,6 +245,7 @@ pub struct Stage {
 
 impl Stage {
     pub fn new(objects: Vec<Box<dyn Hittable>>) -> Stage {
+        let r: Rab
         let aabb = (|| {
             let mut aabbs = objects.iter().flat_map(|o| o.bounding_box(0.0, 1.0));
             let first = aabbs.next()?;
