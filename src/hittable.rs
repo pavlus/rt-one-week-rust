@@ -270,3 +270,31 @@ impl Hittable for Stage {
         Some(self.aabb)
     }
 }
+
+#[derive(Debug)]
+pub struct FlipNormals {
+    hittable: Box<dyn Hittable>,
+}
+
+impl FlipNormals {
+    pub fn new(hittable: Box<dyn Hittable>) -> Box<Self> {
+        Box::new(FlipNormals { hittable })
+    }
+}
+
+
+impl Hittable for FlipNormals {
+    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
+        match self.hittable.hit(ray, dist_min, dist_max) {
+            Some(h) => Some(Hit {
+                normal: -h.normal,
+                ..h
+            }),
+            None => None
+        }
+    }
+
+    fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
+        self.hittable.bounding_box(t_min, t_max)
+    }
+}
