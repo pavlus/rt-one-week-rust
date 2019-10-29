@@ -24,7 +24,7 @@ impl<'a> Hit<'a> {
     }
 }
 
-pub trait Hittable: Debug {
+pub trait Hittable: Debug+Sync {
     fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit>;
     fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> { None }
 }
