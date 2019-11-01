@@ -2,7 +2,7 @@ use camera::Camera;
 use ray::Ray;
 use vec::V3;
 
-use crate::hittable::{Hittable, MovingSphere, Sphere, HittableList, XYRect, XZRect, YZRect, FlipNormals};
+use crate::hittable::{Hittable, MovingSphere, Sphere, HittableList, XYRect, XZRect, YZRect, FlipNormals, AABox};
 use crate::material::{Dielectric, Lambertian, Metal, DiffuseLight};
 use crate::random::{next_color, next_std_f64};
 use crate::bvh::BVH;
@@ -37,7 +37,8 @@ fn main() {
 //        hittable: Box::new(Stage::new(img_scene()))
 //        hittable: Box::new(Stage::new(img_lit_scene()))
 //        hittable: Box::new(Stage::new(img_lit_rect_scene()))
-        hittable: Box::new(HittableList::new(cornel_box_scene()))
+//        hittable: Box::new(HittableList::new(cornel_box_scene()))
+        hittable: Box::new(HittableList::new(cornel_box_scene_with_instances()))
 //        hittable:&Stage::new(rnd_scene())
 //        hittable: BVH::new(rnd_scene())
     };
@@ -167,6 +168,37 @@ fn cornel_box_scene() -> Vec<Box<dyn Hittable>> {
     objs.push(Box::new(XZRect::new(0.0..555.0, 0.0..555.0, 0.0, floor_white)));
     objs.push(FlipNormals::new(Box::new(XZRect::new(0.0..555.0, 0.0..555.0, 555.0, ceil_white))));
     objs.push(FlipNormals::new(Box::new(XYRect::new(0.0..555.0, 0.0..555.0, 555.0, back_white))));
+
+    objs
+}
+
+fn cornel_box_scene_with_instances() -> Vec<Box<dyn Hittable>> {
+
+
+    let mut objs: Vec<Box<dyn Hittable>> = cornel_box_scene();
+    objs.push(Box::new(AABox::new(
+        130.0..295.0, 0.0..165.0, 65.0..230.0,
+        Box::new(Lambertian::new(V3::new(0.73, 0.73, 0.73))),
+        Box::new(Lambertian::new(V3::new(0.73, 0.73, 0.73))),
+        Box::new(Lambertian::new(V3::new(0.73, 0.73, 0.73))),
+        Box::new(Lambertian::new(V3::new(0.73, 0.73, 0.03))),
+        Box::new(Lambertian::new(V3::new(0.73, 0.73, 0.73))),
+        Box::new(Lambertian::new(V3::new(0.33, 0.13, 0.73))),
+        )));
+
+    objs.push(Box::new(AABox::new(
+        265.0..430.0, 0.0..330.0, 295.0..460.0,
+        Box::new(Lambertian::new(V3::new(0.73, 0.73, 0.73))),
+        Box::new(Lambertian::new(V3::new(0.73, 0.73, 0.73))),
+        Box::new(Lambertian::new(V3::new(0.73, 0.73, 0.73))),
+        Box::new(Lambertian::new(V3::new(0.73, 0.73, 0.03))),
+        Box::new(Lambertian::new(V3::new(0.73, 0.73, 0.73))),
+        Box::new(Lambertian::new(V3::new(0.33, 0.13, 0.73))),
+        )));
+
+    let light = Box::new(DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 1.0)), 25.0));
+    objs.push(Box::new(XZRect::new(213.0..343.0, 227.0..332.0, 554.0, light)));
+    objs.swap_remove(2);
 
     objs
 }

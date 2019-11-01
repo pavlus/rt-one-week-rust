@@ -24,7 +24,7 @@ impl<'a> Hit<'a> {
     }
 }
 
-pub trait Hittable: Debug+Sync {
+pub trait Hittable: Debug + Sync {
     fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit>;
     fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> { None }
 }
@@ -296,5 +296,56 @@ impl Hittable for FlipNormals {
 
     fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
         self.hittable.bounding_box(t_min, t_max)
+    }
+}
+
+#[derive(Debug)]
+pub struct AABox {
+    faces: HittableList,
+    aabb: AABB,
+}
+
+impl AABox {
+    pub fn new(
+        x: Range<f64>,
+        y: Range<f64>,
+        z: Range<f64>,
+        top: Box<dyn Material>,
+        bottom: Box<dyn Material>,
+        front: Box<dyn Material>,
+        left: Box<dyn Material>,
+        back: Box<dyn Material>,
+        right: Box<dyn Material>,
+    ) -> AABox {
+        let mut faces: Vec<Box<dyn Hittable>> = Vec::new();
+        faces.push(FlipNormals::new(Box::new(
+            XYRect::new(x.clone(), y.clone(), z.start, back))));
+        faces.push(Box::new(
+            XYRect::new(x.clone(), y.clone(), z.end, front)));
+        faces.push(FlipNormals::new(Box::new(
+            XZRect::new(x.clone(), z.clone(), y.start, bottom))));
+        faces.push(Box::new(
+            XZRect::new(x.clone(), z.clone(), y.end, top)));
+        faces.push(FlipNormals::new(Box::new(
+            YZRect::new(y.clone(), z.clone(), x.start, right))));
+        faces.push(Box::new(
+            YZRect::new(y.clone(), z.clone(), x.end, left)));
+
+        AABox {
+            faces: HittableList::new(faces),
+            aabb: AABB::new(V3::new(x.start, y.start, z.start),
+                            V3::new(x.end, y.end, z.end)),
+        }
+    }
+
+}
+
+impl Hittable for AABox {
+    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
+        self.faces.hit(ray, dist_min, dist_max)
+    }
+
+    fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
+        Some(self.aabb)
     }
 }
