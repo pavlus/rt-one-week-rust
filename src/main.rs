@@ -2,7 +2,7 @@ use camera::Camera;
 use ray::Ray;
 use vec::V3;
 
-use crate::hittable::{Hittable, MovingSphere, Sphere, Stage, XYRect, XZRect, YZRect, FlipNormals};
+use crate::hittable::{Hittable, MovingSphere, Sphere, HittableList, XYRect, XZRect, YZRect, FlipNormals};
 use crate::material::{Dielectric, Lambertian, Metal, DiffuseLight};
 use crate::random::{next_color, next_std_f64};
 use crate::bvh::BVH;
@@ -37,7 +37,7 @@ fn main() {
 //        hittable: Box::new(Stage::new(img_scene()))
 //        hittable: Box::new(Stage::new(img_lit_scene()))
 //        hittable: Box::new(Stage::new(img_lit_rect_scene()))
-        hittable: Box::new(Stage::new(cornel_box_scene()))
+        hittable: Box::new(HittableList::new(cornel_box_scene()))
 //        hittable:&Stage::new(rnd_scene())
 //        hittable: BVH::new(rnd_scene())
     };

@@ -236,23 +236,23 @@ aarect!(YZRect, y, z, normal: x);
 
 
 #[derive(Debug)]
-pub struct Stage {
+pub struct HittableList {
     objects: Vec<Box<dyn Hittable>>,
     aabb: AABB,
 }
 
-impl Stage {
-    pub fn new(objects: Vec<Box<dyn Hittable>>) -> Stage {
+impl HittableList {
+    pub fn new(objects: Vec<Box<dyn Hittable>>) -> HittableList {
         let aabb = (|| {
             let mut aabbs = objects.iter().flat_map(|o| o.bounding_box(0.0, 1.0));
             let first = aabbs.next()?;
             Some(aabbs.fold(first, |a, b| a + b))
         })();
-        Stage { objects, aabb: aabb.unwrap() }
+        HittableList { objects, aabb: aabb.unwrap() }
     }
 }
 
-impl Hittable for Stage {
+impl Hittable for HittableList {
     fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
         self.objects
             .iter()
