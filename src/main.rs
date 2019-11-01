@@ -31,7 +31,7 @@ fn main() {
     println!("{} {}", nx, ny);
     println!("255");
 
-    let cam = cornel_box_cam(nx, ny, 0.0, 0.2);
+    let cam = cornel_box_cam(nx, ny, 0.0, 0.2, 32);
     let renderer = Renderer {
 //        hittable: Box::new(Stage::new(perlin_scene()))
 //        hittable: Box::new(Stage::new(img_scene()))
@@ -216,7 +216,7 @@ fn rnd_scene() -> Vec<Box<dyn Hittable>> {
     objs
 }
 
-fn cornel_box_cam(nx: u32, ny: u32, t_off: f32, t_span: f32) -> Camera {
+fn cornel_box_cam(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Camera {
     let aspect = (nx as f64) / (ny as f64);
     let from = V3::new(278.0, 278.0, -800.0);
     let at = V3::new(278.0, 278.0, 0.0);
@@ -232,10 +232,11 @@ fn cornel_box_cam(nx: u32, ny: u32, t_off: f32, t_span: f32) -> Camera {
         dist_to_focus,
         aperture,
         t_off, t_span,
+        ttl
     )
 }
 
-fn get_cam(nx: u32, ny: u32, t_off: f32, t_span: f32) -> Camera {
+fn get_cam(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Camera {
     let aspect = (nx as f64) / (ny as f64);
     let from = V3::new(13.0, 2.0, 3.0);
     let at = V3::new(0.0, 0.0, 0.0);
@@ -251,10 +252,11 @@ fn get_cam(nx: u32, ny: u32, t_off: f32, t_span: f32) -> Camera {
         dist_to_focus,
         aperture,
         t_off, t_span,
+        ttl
     )
 }
 
-fn _get_cam(nx: u32, ny: u32, t_off: f32, t_span: f32) -> Camera {
+fn _get_cam(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Camera {
     let aspect = (nx as f64) / (ny as f64);
     let from = V3::new(-3.0, 3.0, 2.0);
     let at = V3::new(0.0, 0.0, -1.0);
@@ -268,6 +270,7 @@ fn _get_cam(nx: u32, ny: u32, t_off: f32, t_span: f32) -> Camera {
         dist_to_focus,
         aperture,
         t_off, t_span,
+        ttl
     )
 }
 

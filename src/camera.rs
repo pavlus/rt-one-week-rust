@@ -17,11 +17,10 @@ pub struct Camera {
     lens_radius: f32,
     t0: f32,
     t1: f32,
-    ttl: u32,
+    ttl: i32,
 }
 
 static DEFAULT_COLOR: V3 = V3 { x: 0.0, y: 0.0, z: 0.0 };
-const TTL: i32 = 16;
 
 impl Camera {
     pub fn new_look(
@@ -29,6 +28,7 @@ impl Camera {
         vfov: f64, aspect: f64,
         focus_distance: f64, aperture: f32,
         t0: f32, t1: f32,
+        ttl: i32
     ) -> Camera {
         let theta = vfov * PI / 180.0;
         let height = (theta / 2.0).tan();
@@ -54,7 +54,7 @@ impl Camera {
             lens_radius: aperture / 2.0,
             t0,
             t1,
-            ttl: 16,
+            ttl,
         }
     }
 
@@ -69,7 +69,7 @@ impl Camera {
                 + (t * self.vertical))
                 - tmp_origin,
             DEFAULT_COLOR, interpolation::lerp(&self.t0, &self.t1, &random::next_std_f32()),
-            TTL,
+            self.ttl,
         )
     }
 }
