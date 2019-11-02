@@ -5,6 +5,8 @@ use crate::aabb::AABB;
 use std::fmt::Debug;
 use std::f64::consts;
 use std::ops::Range;
+use std::borrow::Borrow;
+use std::sync::Arc;
 
 #[derive(Copy, Clone)]
 pub struct Hit<'a> {
@@ -12,14 +14,14 @@ pub struct Hit<'a> {
     pub normal: V3,
     pub u: f64,
     pub v: f64,
-    pub material: &'a Box<dyn Material>,
+    pub material: &'a dyn Material,
     pub dist: f64,
 }
 
 //impl Eq for Hit {}
 
 impl<'a> Hit<'a> {
-    pub fn new(dist: f64, p: V3, n: V3, material: &'a Box<dyn Material>, u: f64, v: f64) -> Hit<'a> {
+    pub fn new(dist: f64, p: V3, n: V3, material: &'a dyn Material, u: f64, v: f64) -> Hit<'a> {
         return Hit { dist, point: p, normal: n, material, u, v };
     }
 }
@@ -105,7 +107,7 @@ impl Hittable for Sphere {
             let p = ray.point_at(dist);
             let n = (p - self.center(ray.time)) / self.radius();
             let (u, v) = Sphere::uv(n);
-            return Hit::new(dist, p, n, &self.material(), u, v);
+            return Hit::new(dist, p, n, self.material().borrow(), u, v);
         };
 
         if discr_sqr > 0.0 {
@@ -144,7 +146,7 @@ impl Hittable for MovingSphere {
             let p = ray.point_at(dist);
             let n = (p - self.center(ray.time)) / self.radius;
             let (u, v) = Sphere::uv(n);
-            return Hit::new(dist, p, n, &self.material, u, v);
+            return Hit::new(dist, p, n, self.material.borrow(), u, v);
         };
 
         if discr_sqr > 0.0 {
@@ -192,10 +194,10 @@ macro_rules! aarect {
             $a: Range<f64>,
             $b: Range<f64>,
             k: f64,
-            material: Box<dyn Material>
+            material: Arc<dyn Material>
         }
         impl $name {
-            pub fn new($a: Range<f64>, $b:Range<f64>, k:f64, material: Box<dyn Material>) -> $name {
+            pub fn new($a: Range<f64>, $b:Range<f64>, k:f64, material: Arc<dyn Material>) -> $name {
                 $name { $a, $b, k, material }
             }
 
@@ -219,7 +221,7 @@ macro_rules! aarect {
                 };
 
                 let (u, v) = self.uv($a, $b);
-                Some(Hit::new(dist, ray.point_at(dist), norm_vec!($a, $b), &self.material, u, v))
+                Some(Hit::new(dist, ray.point_at(dist), norm_vec!($a, $b), self.material.borrow(), u, v))
             }
 
             fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
@@ -310,12 +312,12 @@ impl AABox {
         x: Range<f64>,
         y: Range<f64>,
         z: Range<f64>,
-        top: Box<dyn Material>,
-        bottom: Box<dyn Material>,
-        front: Box<dyn Material>,
-        left: Box<dyn Material>,
-        back: Box<dyn Material>,
-        right: Box<dyn Material>,
+        top: Arc<dyn Material>,
+        bottom: Arc<dyn Material>,
+        front: Arc<dyn Material>,
+        left: Arc<dyn Material>,
+        back: Arc<dyn Material>,
+        right: Arc<dyn Material>,
     ) -> AABox {
         let mut faces: Vec<Box<dyn Hittable>> = Vec::new();
         faces.push(FlipNormals::new(Box::new(
@@ -337,7 +339,21 @@ impl AABox {
                             V3::new(x.end, y.end, z.end)),
         }
     }
-
+    pub fn mono(
+        x: Range<f64>,
+        y: Range<f64>,
+        z: Range<f64>,
+        material: Arc<dyn Material>,
+    ) -> AABox {
+        AABox::new(x, y, z,
+                   Arc::clone(&material),
+                   Arc::clone(&material),
+                   Arc::clone(&material),
+                   Arc::clone(&material),
+                   Arc::clone(&material),
+                   Arc::clone(&material),
+        )
+    }
 }
 
 impl Hittable for AABox {

@@ -7,7 +7,7 @@ use crate::random;
 use std::fmt::Debug;
 use std::alloc::handle_alloc_error;
 
-pub trait Material: Debug + Sync {
+pub trait Material: Debug + Sync + Send {
     fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<Ray> { None }
     fn emmit(&self, hit: &Hit) -> Color { Color(V3::zeros()) }
 }

@@ -3,13 +3,14 @@ use ray::Ray;
 use vec::V3;
 
 use crate::hittable::{Hittable, MovingSphere, Sphere, HittableList, XYRect, XZRect, YZRect, FlipNormals, AABox};
-use crate::material::{Dielectric, Lambertian, Metal, DiffuseLight};
+use crate::material::{Dielectric, Lambertian, Metal, DiffuseLight, Material};
 use crate::random::{next_color, next_std_f64};
 use crate::bvh::BVH;
 use crate::texture::{Color, Checker, PerlinTexture, ImageTexture};
 use crate::noise::Perlin;
 use std::path::Path;
 use rayon::prelude::*;
+use std::sync::Arc;
 
 mod vec;
 mod ray;
@@ -146,20 +147,20 @@ fn img_lit_rect_scene() -> Vec<Box<dyn Hittable>> {
         Lambertian::texture(Box::new(Checker::new(Color::new(0.0, 0.0, 0.0), Color::new(1.0, 1.0, 1.0), 10.0)))))));
     objs.push(Box::new(Sphere::new(V3::new(0.0, 1.0, 0.0), 1.0, Box::new(
         Lambertian::texture(Box::new(ImageTexture::load("./textures/stone.png")))))));
-    objs.push(Box::new(XZRect::new(-1.0..1.0, -1.0..1.0, 2.5, Box::new(
+    objs.push(Box::new(XZRect::new(-1.0..1.0, -1.0..1.0, 2.5, Arc::new(
         DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 0.99)), 4.0)))));
-    objs.push(Box::new(XYRect::new(-1.0..1.0, 0.5..1.5, -1.5, Box::new(
+    objs.push(Box::new(XYRect::new(-1.0..1.0, 0.5..1.5, -1.5, Arc::new(
         DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 0.99)), 4.0)))));
     objs
 }
 
 fn cornel_box_scene() -> Vec<Box<dyn Hittable>> {
-    let red = Box::new(Lambertian::color(Color::new(0.65, 0.05, 0.05)));
-    let floor_white = Box::new(Lambertian::color(Color::new(0.73, 0.73, 0.73)));
-    let ceil_white = Box::new(Lambertian::color(Color::new(0.73, 0.73, 0.73)));
-    let back_white = Box::new(Lambertian::color(Color::new(0.73, 0.73, 0.73)));
-    let green = Box::new(Lambertian::color(Color::new(0.12, 0.45, 0.15)));
-    let light = Box::new(DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 1.0)), 15.0));
+    let red = Arc::new(Lambertian::color(Color::new(0.65, 0.05, 0.05)));
+    let floor_white = Arc::new(Lambertian::color(Color::new(0.73, 0.73, 0.73)));
+    let ceil_white = Arc::new(Lambertian::color(Color::new(0.73, 0.73, 0.73)));
+    let back_white = Arc::new(Lambertian::color(Color::new(0.73, 0.73, 0.73)));
+    let green = Arc::new(Lambertian::color(Color::new(0.12, 0.45, 0.15)));
+    let light = Arc::new(DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 1.0)), 15.0));
 
     let mut objs: Vec<Box<dyn Hittable>> = Vec::new();
     objs.push(FlipNormals::new(Box::new(YZRect::new(0.0..555.0, 0.0..555.0, 555.0, green))));
@@ -176,27 +177,17 @@ fn cornel_box_scene_with_instances() -> Vec<Box<dyn Hittable>> {
 
 
     let mut objs: Vec<Box<dyn Hittable>> = cornel_box_scene();
-    objs.push(Box::new(AABox::new(
+    objs.push(Box::new(AABox::mono(
         130.0..295.0, 0.0..165.0, 65.0..230.0,
-        Box::new(Lambertian::new(V3::new(0.73, 0.73, 0.73))),
-        Box::new(Lambertian::new(V3::new(0.73, 0.73, 0.73))),
-        Box::new(Lambertian::new(V3::new(0.73, 0.73, 0.73))),
-        Box::new(Lambertian::new(V3::new(0.73, 0.73, 0.03))),
-        Box::new(Lambertian::new(V3::new(0.73, 0.73, 0.73))),
-        Box::new(Lambertian::new(V3::new(0.33, 0.13, 0.73))),
+        Arc::new(Lambertian::new(V3::new(0.73, 0.73, 0.73))),
         )));
 
-    objs.push(Box::new(AABox::new(
+    objs.push(Box::new(AABox::mono(
         265.0..430.0, 0.0..330.0, 295.0..460.0,
-        Box::new(Lambertian::new(V3::new(0.73, 0.73, 0.73))),
-        Box::new(Lambertian::new(V3::new(0.73, 0.73, 0.73))),
-        Box::new(Lambertian::new(V3::new(0.73, 0.73, 0.73))),
-        Box::new(Lambertian::new(V3::new(0.73, 0.73, 0.03))),
-        Box::new(Lambertian::new(V3::new(0.73, 0.73, 0.73))),
-        Box::new(Lambertian::new(V3::new(0.33, 0.13, 0.73))),
+        Arc::new(Lambertian::new(V3::new(0.73, 0.73, 0.73))),
         )));
 
-    let light = Box::new(DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 1.0)), 25.0));
+    let light = Arc::new(DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 1.0)), 25.0));
     objs.push(Box::new(XZRect::new(213.0..343.0, 227.0..332.0, 554.0, light)));
     objs.swap_remove(2);
 
