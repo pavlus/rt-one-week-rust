@@ -1,9 +1,9 @@
-use crate::vec::Axis;
-use crate::vec::V3;
 use std::ops::Add;
-use crate::ray::Ray;
 
-#[derive(Copy, Clone, Debug)]
+use crate::ray::Ray;
+use crate::vec::{V3, Axis};
+
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct AABB {
     pub min: V3,
     pub max: V3,

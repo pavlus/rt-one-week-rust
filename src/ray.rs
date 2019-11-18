@@ -6,7 +6,7 @@ pub struct Ray {
     pub direction: V3,
     pub attenuation: V3,
     pub time: f32,
-    ttl: i32,
+    pub ttl: i32,
 }
 
 impl Ray {

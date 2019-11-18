@@ -1,12 +1,19 @@
-use crate::ray::Ray;
-use crate::vec::V3;
-use crate::material::Material;
-use crate::aabb::AABB;
-use std::fmt::Debug;
+use std::borrow::{Borrow, BorrowMut};
+use std::f64::{MAX, MIN};
 use std::f64::consts;
-use std::ops::Range;
-use std::borrow::Borrow;
+use std::f64::consts::PI;
+use std::fmt::{Debug, Error, Formatter};
+use std::ops::{Deref, Range};
 use std::sync::Arc;
+
+use itertools::Itertools;
+
+use crate::aabb::AABB;
+use crate::material::{Lambertian, Material};
+use crate::ray::Ray;
+use crate::texture::Color;
+
+use crate::vec::{Axis, V3};
 
 #[derive(Copy, Clone)]
 pub struct Hit<'a> {
@@ -189,7 +196,7 @@ macro_rules! norm_vec {
 }
 macro_rules! aarect {
     {$name:tt, $a:tt, $b:tt, normal: $k:tt} =>{
-        #[derive(Debug)]
+        #[derive(Debug, Clone)]
         pub struct $name {
             $a: Range<f64>,
             $b: Range<f64>,
@@ -273,31 +280,189 @@ impl Hittable for HittableList {
     }
 }
 
-#[derive(Debug)]
-pub struct FlipNormals {
-    hittable: Box<dyn Hittable>,
+pub trait Instance {
+    fn flip_normals(self) -> Box<dyn Hittable>;
+    fn translate(self, offset: V3) -> Box<dyn Hittable>;
+    fn rotate_y(self, angle: f64) -> Box<dyn Hittable>;
 }
 
-impl FlipNormals {
-    pub fn new(hittable: Box<dyn Hittable>) -> Box<Self> {
-        Box::new(FlipNormals { hittable })
+impl Instance for Box<dyn Hittable> {
+    fn flip_normals(self) -> Box<dyn Hittable> { Box::new(FlipNormals(self)) }
+
+    fn translate(self, offset: V3) -> Box<dyn Hittable> {
+        Box::new(Translate {
+            target: self,
+            offset,
+        })
+    }
+
+    fn rotate_y(self, angle: f64) -> Box<dyn Hittable> {
+        RotateY::new(self, angle)
     }
 }
 
+impl<T: Hittable + 'static> Instance for T {
+    fn flip_normals(self) -> Box<dyn Hittable> { Box::new(FlipNormals(Box::new(self))) }
+
+    fn translate(self, offset: V3) -> Box<dyn Hittable> {
+        Box::new(Translate {
+            target: Box::new(self),
+            offset,
+        })
+    }
+
+    fn rotate_y(self, angle: f64) -> Box<dyn Hittable> {
+        RotateY::new(Box::new(self), angle)
+    }
+}
+
+#[derive(Debug)]
+struct FlipNormals(Box<dyn Hittable>);
 
 impl Hittable for FlipNormals {
     fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
-        match self.hittable.hit(ray, dist_min, dist_max) {
-            Some(h) => Some(Hit {
-                normal: -h.normal,
-                ..h
-            }),
-            None => None
-        }
+        self.0
+            .hit(ray, dist_min, dist_max)
+            .map(|hit| Hit { normal: -hit.normal, ..hit })
     }
 
     fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
-        self.hittable.bounding_box(t_min, t_max)
+        self.0.bounding_box(t_min, t_max)
+    }
+}
+
+
+#[derive(Debug)]
+struct Translate {
+    target: Box<dyn Hittable>,
+    offset: V3,
+}
+
+impl Hittable for Translate {
+    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
+        let moved_r = Ray { origin: ray.origin - self.offset, ..*ray };
+        self.target
+            .hit(&moved_r, dist_min, dist_max)
+            .map(|hit| Hit { point: hit.point + self.offset, ..hit })
+    }
+
+    fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
+        self.target
+            .bounding_box(t_min, t_max)
+            .map(|aabb| AABB::new(aabb.min + self.offset, aabb.max + self.offset))
+    }
+}
+
+#[derive(Debug)]
+struct RotateY {
+    target: Box<dyn Hittable>,
+    sin: f64,
+    cos: f64,
+    aabb: Option<AABB>,
+}
+
+impl RotateY {
+    fn new(target: Box<dyn Hittable>, angle: f64) -> Box<dyn Hittable> {
+        Box::new(RotateY::_new2(target, angle))
+    }
+
+    fn _new1(target: Box<dyn Hittable>, angle: f64) -> RotateY {
+        let (sin, cos) = f64::sin_cos((PI / 180.0) * angle);
+
+        let aabb = target.bounding_box(0.0, 1.0).map(|aabb| {
+            macro_rules! nx { ($x:expr, $z: expr) => (cos * $x + sin * $z) }
+            macro_rules! nz { ($x:expr, $z: expr) => (-sin * $x + cos * $z) }
+            macro_rules! reduce { ($comp: path, $rot:tt) => ($comp(
+                $comp($rot!(aabb.min.x, aabb.min.z), $rot!(aabb.max.x, aabb.max.z)),
+                $comp($rot!(aabb.min.x, aabb.max.z), $rot!(aabb.max.x, aabb.min.z)),
+            )) }
+
+            AABB::new(
+                V3::new(reduce!(f64::min, nx), aabb.min.y, reduce!(f64::min, nz)),
+                V3::new(reduce!(f64::max, nx), aabb.max.y, reduce!(f64::max, nz)),
+            )
+        });
+        RotateY { target, sin, cos, aabb }
+    }
+
+    fn _new2(target: Box<dyn Hittable>, angle: f64) -> RotateY {
+        let (sin, cos) = f64::sin_cos((PI / 180.0) * angle);
+
+        let aabb = target.bounding_box(0.0, 1.0).map(|aabb| {
+            let min_max = [aabb.min, aabb.max, aabb.min, aabb.max];
+            let (min_x, max_x) = min_max.iter()
+                .tuple_combinations()
+                .map(|(a, b)| cos * a.x + sin * b.z)
+                .minmax().into_option().unwrap();
+
+            let (min_z, max_z) = min_max.iter()
+                .tuple_combinations()
+                .map(|(a, b)| -sin * a.x + cos * b.z)
+                .minmax().into_option().unwrap();
+
+            AABB::new(
+                V3::new(min_x, aabb.min.y, min_z),
+                V3::new(max_x, aabb.max.y, max_z),
+            )
+        });
+        RotateY { target, sin, cos, aabb }
+    }
+}
+
+// todo: implementation for X and Z + benchmark to compute instead of saving for hardcoded time
+#[test]
+fn test_rot_y() {
+    let h = || AABox::mono(
+        0.0..1.0, 0.0..2.0, 0.0..3.0,
+        Arc::new(Lambertian::new(V3::new(0.0, 0.0, 0.0))),
+    );
+    for a in 0..3600 {
+        let aabb1 = RotateY::_new1(Box::new(h()), a as f64 / 10.0).aabb;
+        let aabb2 = RotateY::_new2(Box::new(h()), a as f64 / 10.0).aabb;
+        assert_eq!(aabb1, aabb2);
+    }
+}
+
+impl Hittable for RotateY {
+    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
+        let sin = self.sin;
+        let cos = self.cos;
+
+        let origin = mul_by_matrix!(ray.origin,
+            cos, 0.0, -sin,
+            0.0, 1.0, 0.0,
+            sin, 0.0, cos
+        );
+        let direction = mul_by_matrix!(ray.direction,
+            cos, 0.0, -sin,
+            0.0, 1.0, 0.0,
+            sin, 0.0, cos
+        );
+
+        let rotated_ray = Ray { origin, direction, ..*ray };
+        self.target.hit(&rotated_ray, dist_min, dist_max)
+            .map(|hit| {
+                let point = mul_by_matrix!(hit.point,
+                     cos, 0.0, sin,
+                     0.0, 1.0, 0.0,
+                    -sin, 0.0, cos
+                );
+                let normal = mul_by_matrix!(hit.normal,
+                     cos, 0.0, sin,
+                     0.0, 1.0, 0.0,
+                    -sin, 0.0, cos
+                );
+
+                Hit {
+                    point,
+                    normal,
+                    ..hit
+                }
+        })
+    }
+
+    fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
+        self.aabb
     }
 }
 
@@ -319,19 +484,14 @@ impl AABox {
         back: Arc<dyn Material>,
         right: Arc<dyn Material>,
     ) -> AABox {
-        let mut faces: Vec<Box<dyn Hittable>> = Vec::new();
-        faces.push(FlipNormals::new(Box::new(
-            XYRect::new(x.clone(), y.clone(), z.start, back))));
-        faces.push(Box::new(
-            XYRect::new(x.clone(), y.clone(), z.end, front)));
-        faces.push(FlipNormals::new(Box::new(
-            XZRect::new(x.clone(), z.clone(), y.start, bottom))));
-        faces.push(Box::new(
-            XZRect::new(x.clone(), z.clone(), y.end, top)));
-        faces.push(FlipNormals::new(Box::new(
-            YZRect::new(y.clone(), z.clone(), x.start, right))));
-        faces.push(Box::new(
-            YZRect::new(y.clone(), z.clone(), x.end, left)));
+        let faces: Vec<Box<dyn Hittable>> = vec![
+            XYRect::new(x.clone(), y.clone(), z.start, back).flip_normals(),
+            Box::new(XYRect::new(x.clone(), y.clone(), z.end, front)),
+            XZRect::new(x.clone(), z.clone(), y.start, bottom).flip_normals(),
+            Box::new(XZRect::new(x.clone(), z.clone(), y.end, top)),
+            YZRect::new(y.clone(), z.clone(), x.start, right).flip_normals(),
+            Box::new(YZRect::new(y.clone(), z.clone(), x.end, left)),
+        ];
 
         AABox {
             faces: HittableList::new(faces),

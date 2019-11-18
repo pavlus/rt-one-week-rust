@@ -48,7 +48,7 @@ impl Texture for Checker {
 }
 
 pub struct PerlinTexture {
-    noise: Box<dyn Fn(V3, f64) -> f64>,
+    noise: Box<dyn Fn(V3, f64) -> f64 + Sync + Send>,
     scale: f64,
 }
 
@@ -58,11 +58,8 @@ impl Debug for PerlinTexture {
     }
 }
 
-unsafe impl Sync for PerlinTexture{}
-unsafe impl Send for PerlinTexture{}
-
 impl PerlinTexture {
-    pub fn new(noise: Box<dyn Fn(V3, f64) -> f64+Sync>, scale: f64) -> PerlinTexture {
+    pub fn new(noise: Box<dyn Fn(V3, f64) -> f64 + Sync + Send>, scale: f64) -> PerlinTexture {
         PerlinTexture { noise, scale }
     }
 }
