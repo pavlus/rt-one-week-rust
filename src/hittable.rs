@@ -2,8 +2,9 @@ use crate::ray::Ray;
 use crate::vec::V3;
 use crate::material::Material;
 use crate::aabb::AABB;
-use std::fmt::Debug;
+use std::fmt::{self, Debug};
 use std::f64::consts;
+use std::marker::PhantomData;
 use std::ops::Range;
 
 #[derive(Copy, Clone)]
@@ -168,72 +169,180 @@ impl Hittable for MovingSphere {
     }
 }
 
-macro_rules! aarect_aabb {
-    {$slf:ident, $a:tt, $b:tt, $off:expr} => {
-        AABB::new(
-            aarect_aabb!($slf, start, $a, $b, $off - 0.001),
-            aarect_aabb!($slf, end  , $a, $b, $off + 0.001)
-        )
-    };
-    {$slf:ident, $bound:ident, x, y, $off:expr} => {V3::new($slf.x.$bound, $slf.y.$bound, $off)};
-    {$slf:ident, $bound:ident, x, z, $off:expr} => {V3::new($slf.x.$bound, $off, $slf.z.$bound)};
-    {$slf:ident, $bound:ident, y, z, $off:expr} => {V3::new($off, $slf.y.$bound, $slf.z.$bound)};
+mod axis {
+    use super::V3;
+    
+    pub struct X;
+    pub struct Y;
+    pub struct Z;
+    
+    pub trait Axis {
+        const NAME: &'static str;
+        fn of(vector: V3) -> f64;
+        fn mut_of(vector: &mut V3) -> &mut f64;
+    }
+    
+    impl Axis for X {
+        const NAME: &'static str = "x";
+        fn of(v: V3) -> f64 {
+            v.x
+        }
+        fn mut_of(v: &mut V3) -> &mut f64 {
+            &mut v.x
+        }
+    }
+    
+    impl Axis for Y {
+        const NAME: &'static str = "y";
+        fn of(v: V3) -> f64 {
+            v.y
+        }
+        fn mut_of(v: &mut V3) -> &mut f64 {
+            &mut v.y
+        }
+    }
+    
+    impl Axis for Z {
+        const NAME: &'static str = "z";
+        fn of(v: V3) -> f64 {
+            v.z
+        }
+        fn mut_of(v: &mut V3) -> &mut f64 {
+            &mut v.z
+        }
+    }
+    
+    pub trait Normal<Other> {
+        type Output: Axis;
+    }
+    
+    impl Normal<Y> for X {
+        type Output = Z;
+    }
+    
+    impl Normal<Z> for Y {
+        type Output = X;
+    }
+    
+    impl Normal<Z> for X {
+        type Output = Y;
+    }
+    
+    pub type NormalTo<Axis1, Axis2> = <Axis1 as Normal<Axis2>>::Output;
 }
 
-macro_rules! norm_vec {
-    {x, y} => {V3::new(0.0,0.0,1.0)};
-    {x, z} => {V3::new(0.0,1.0,0.0)};
-    {y, z} => {V3::new(1.0,0.0,0.0)};
-}
-macro_rules! aarect {
-    {$name:tt, $a:tt, $b:tt, normal: $k:tt} =>{
-        #[derive(Debug)]
-        pub struct $name {
-            $a: Range<f64>,
-            $b: Range<f64>,
-            k: f64,
-            material: Box<dyn Material>
-        }
-        impl $name {
-            pub fn new($a: Range<f64>, $b:Range<f64>, k:f64, material: Box<dyn Material>) -> $name {
-                $name { $a, $b, k, material }
-            }
-
-            fn uv(&self, $a:f64, $b: f64) -> (f64, f64) {
-                let u = ($a - self.$a.start)/(self.$a.end-self.$a.start);
-                let v = ($b - self.$b.start)/(self.$b.end-self.$b.start);
-                (u, v)
-            }
-        }
-
-        impl Hittable for $name {
-            fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
-                let dist = (self.k - ray.origin.$k) / ray.direction.$k;
-                if !(dist_min..dist_max).contains(&dist) { return None; };
-
-                let $a = ray.origin.$a + dist * ray.direction.$a;
-                let $b = ray.origin.$b + dist * ray.direction.$b;
-
-                if !(self.$a.contains(&$a) && self.$b.contains(&$b)) {
-                    return None;
-                };
-
-                let (u, v) = self.uv($a, $b);
-                Some(Hit::new(dist, ray.point_at(dist), norm_vec!($a, $b), &self.material, u, v))
-            }
-
-            fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
-                Some(aarect_aabb!(self, $a, $b, self.k))
-            }
-        }
-
-    };
+fn with_axes_and_normal<A, B>(a: f64, b: f64, normal: f64) -> V3
+where
+    A: axis::Axis + axis::Normal<B>,
+    B: axis::Axis,
+{
+    use axis::Axis;
+    
+    let v = &mut V3::zeros();
+    *A::mut_of(v) = a;
+    *B::mut_of(v) = b;
+    *axis::NormalTo::<A, B>::mut_of(v) = normal;
+    *v
 }
 
-aarect!(XYRect, x, y, normal: z);
-aarect!(XZRect, x, z, normal: y);
-aarect!(YZRect, y, z, normal: x);
+fn aarect_aabb<A, B>(a_range: Range<f64>, b_range: Range<f64>, off: f64) -> AABB
+where
+    A: axis::Axis + axis::Normal<B>,
+    B: axis::Axis,
+{
+    AABB::new(
+        with_axes_and_normal::<A, B>(a_range.start, b_range.start, off - 0.001),
+        with_axes_and_normal::<A, B>(a_range.end,   b_range.end,   off + 0.001),
+    )
+}
 
+fn norm_vec<Axis>() -> V3
+where
+    Axis: axis::Axis,
+{
+    let mut v = V3::zeros();
+    *Axis::mut_of(&mut v) = 1.0;
+    v
+}
+
+pub struct AARect<A, B> {
+    a: Range<f64>,
+    b: Range<f64>,
+    k: f64,
+    material: Box<dyn Material>,
+    _marker: PhantomData<(A, B)>,
+}
+
+impl<A: axis::Axis, B: axis::Axis> Debug for AARect<A, B> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("AARect")
+            .field(A::NAME, &self.a)
+            .field(B::NAME, &self.b)
+            .field("k", &self.k)
+            .field("material", &self.material)
+            .finish()
+    }
+}
+
+impl<A, B> AARect<A, B> {
+    pub fn new(a: Range<f64>, b: Range<f64>, k: f64, material: Box<dyn Material>) -> Self {
+        Self {
+            a,
+            b,
+            k,
+            material,
+            _marker: PhantomData,
+        }
+    }
+
+    fn uv(&self, a: f64, b: f64) -> (f64, f64) {
+        let u = (a - self.a.start) / (self.a.end - self.a.start);
+        let v = (b - self.b.start) / (self.b.end - self.b.start);
+        (u, v)
+    }
+}
+
+impl<A, B> Hittable for AARect<A, B>
+where
+    A: axis::Axis + axis::Normal<B>,
+    B: axis::Axis,
+{
+    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
+        use axis::{Axis, NormalTo};
+
+        let dist =
+            (self.k - NormalTo::<A, B>::of(ray.origin)) / NormalTo::<A, B>::of(ray.direction);
+        if !(dist_min..dist_max).contains(&dist) {
+            return None;
+        };
+
+        let point = ray.point_at(dist);
+        let a = A::of(point);
+        let b = B::of(point);
+
+        if !(self.a.contains(&a) && self.b.contains(&b)) {
+            return None;
+        }
+
+        let (u, v) = self.uv(a, b);
+        Some(Hit::new(
+            dist,
+            ray.point_at(dist),
+            norm_vec::<NormalTo<A, B>>(),
+            &*self.material,
+            u,
+            v,
+        ))
+    }
+
+    fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
+        Some(aarect_aabb::<A, B>(self.a.clone(), self.b.clone(), self.k))
+    }
+}
+
+pub type XYRect = AARect<axis::X, axis::Y>;
+pub type XZRect = AARect<axis::X, axis::Z>;
+pub type YZRect = AARect<axis::Y, axis::Z>;
 
 #[derive(Debug)]
 pub struct Stage {
