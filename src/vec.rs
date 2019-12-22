@@ -1,4 +1,6 @@
-use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub, Index};
+#![macro_use]
+
+use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub, Index, IndexMut};
 use rand::Rng;
 use rand::seq::SliceRandom;
 use std::iter::Sum;
@@ -80,6 +82,18 @@ impl V3 {
     }
 }
 
+macro_rules! mul_by_matrix {
+    ($vec:expr,
+    $a00:expr, $a01:expr, $a02:expr,
+    $a10:expr, $a11:expr, $a12:expr,
+    $a20:expr, $a21:expr, $a22:expr
+    ) => (V3{
+        x: ($vec.x) * ($a00) + ($vec.y) * ($a01) + ($vec.z) * ($a02),
+        y: ($vec.x) * ($a10) + ($vec.y) * ($a11) + ($vec.z) * ($a12),
+        z: ($vec.x) * ($a20) + ($vec.y) * ($a21) + ($vec.z) * ($a22),
+    })
+}
+
 impl From<[f64; 3]> for V3 {
     fn from(vec: [f64; 3]) -> Self {
         V3 { x: vec[0], y: vec[1], z: vec[2] }
@@ -124,7 +138,7 @@ impl AddAssign for V3 {
     }
 }
 
-impl Sum for V3{
+impl Sum for V3 {
     fn sum<I: Iterator<Item=Self>>(iter: I) -> Self {
         iter.fold(V3::zeros(), V3::add)
     }

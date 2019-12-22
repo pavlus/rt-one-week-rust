@@ -7,7 +7,7 @@ use std::path::Path;
 #[derive(Debug, Copy, Clone)]
 pub struct Color(pub V3);
 
-pub trait Texture: Debug {
+pub trait Texture: Debug + Sync + Send {
     fn value(&self, u: f64, v: f64, point: V3) -> Color;
 }
 
@@ -48,7 +48,7 @@ impl Texture for Checker {
 }
 
 pub struct PerlinTexture {
-    noise: Box<dyn Fn(V3, f64) -> f64>,
+    noise: Box<dyn Fn(V3, f64) -> f64 + Sync + Send>,
     scale: f64,
 }
 
@@ -59,7 +59,7 @@ impl Debug for PerlinTexture {
 }
 
 impl PerlinTexture {
-    pub fn new(noise: Box<dyn Fn(V3, f64) -> f64>, scale: f64) -> PerlinTexture {
+    pub fn new(noise: Box<dyn Fn(V3, f64) -> f64 + Sync + Send>, scale: f64) -> PerlinTexture {
         PerlinTexture { noise, scale }
     }
 }

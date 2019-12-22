@@ -1,6 +1,6 @@
 use crate::aabb::AABB;
 use crate::Hittable;
-use crate::hittable::{Hit, Stage};
+use crate::hittable::{Hit, HittableList};
 use crate::ray::Ray;
 use crate::random::random_axis;
 
@@ -17,7 +17,7 @@ impl BVH {
     }
     fn construct(mut objs: Vec<Box<dyn Hittable>>) -> Box<dyn Hittable> {
         if objs.len() == 1 { return objs.remove(0); }
-        if objs.len() <= 8 { return Box::new(Stage::new(objs)); }
+        if objs.len() <= 8 { return Box::new(HittableList::new(objs)); }
         let axis = random_axis();
         objs.sort_by(|a, b| {
             // TIME!!!!
