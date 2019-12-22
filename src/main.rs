@@ -2,7 +2,7 @@ use camera::Camera;
 use ray::Ray;
 use vec::V3;
 
-use crate::hittable::{Hittable, MovingSphere, Sphere, HittableList, XYRect, XZRect, YZRect, AABox, Instance};
+use crate::hittable::{Hittable, MovingSphere, Sphere, HittableList, XYRect, XZRect, YZRect, AABox, Instance, ConstantMedium};
 use crate::material::{Dielectric, Lambertian, Metal, DiffuseLight, Material};
 use crate::random::{next_color, next_std_f64};
 use crate::bvh::BVH;
@@ -26,20 +26,20 @@ mod noise;
 fn main() {
     let nx = 400;
     let ny = 400;
-    let aa = 800;
+    let aa = 1000;
 
     println!("P3");
     println!("{} {}", nx, ny);
     println!("255");
 
-    let cam = cornel_box_cam(nx, ny, 0.0, 0.2, 32);
+    let cam = cornel_box_cam(nx, ny, 0.0, 0.2, 16);
     let renderer = Renderer {
 //        hittable: Box::new(Stage::new(perlin_scene()))
 //        hittable: Box::new(Stage::new(img_scene()))
 //        hittable: Box::new(Stage::new(img_lit_scene()))
 //        hittable: Box::new(Stage::new(img_lit_rect_scene()))
 //        hittable: Box::new(HittableList::new(cornel_box_scene()))
-        hittable: Box::new(HittableList::new(cornel_box_scene_with_instances()))
+        hittable: Box::new(HittableList::new(cornel_box_volumes()))
 //        hittable:&Stage::new(rnd_scene())
 //        hittable: BVH::new(rnd_scene())
     };
@@ -196,6 +196,34 @@ fn cornel_box_scene_with_instances() -> Vec<Box<dyn Hittable>> {
     objs
 }
 
+fn cornel_box_volumes() -> Vec<Box<dyn Hittable>> {
+    let mut objs: Vec<Box<dyn Hittable>> = cornel_box_scene();
+    objs.push(Box::new(ConstantMedium::new(
+        AABox::mono(0.0..165.0, 0.0..165.0, 0.0..165.0,
+                    // todo: null-texture/null-material?
+                    Arc::new(Lambertian::new(V3::new(1.0, 0.0, 1.0))))
+            .rotate_y(-18.0)
+            .translate(V3::new(130.0, 0.0, 65.0)),
+        0.01,
+        Box::new(Color::new(1.0, 1.0, 1.0)))
+    ));
+
+    objs.push(Box::new(ConstantMedium::new(
+        AABox::mono(0.0..165.0, 0.0..330.0, 0.0..165.0,
+                    Arc::new(Lambertian::new(V3::new(0.0, 1.0, 0.0))))
+            .rotate_y(15.0)
+            .translate(V3::new(265.0, 0.0, 295.0)),
+        0.01,
+        Box::new(Color::new(0.0, 0.0, 0.0)))
+    ));
+
+    let light = Arc::new(DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 1.0)), 7.0));
+    objs.push(Box::new(XZRect::new(113.0..443.0, 127.0..432.0, 554.0, light)));
+    objs.swap_remove(2);
+
+    objs
+}
+
 // naive took 6m12s with 800x400xaa100
 // BVH took 5m20s with 800x400xaa100
 fn rnd_scene() -> Vec<Box<dyn Hittable>> {
@@ -256,7 +284,7 @@ fn cornel_box_cam(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Camera
         dist_to_focus,
         aperture,
         t_off, t_span,
-        ttl
+        ttl,
     )
 }
 
@@ -276,7 +304,7 @@ fn get_cam(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Camera {
         dist_to_focus,
         aperture,
         t_off, t_span,
-        ttl
+        ttl,
     )
 }
 
@@ -294,7 +322,7 @@ fn _get_cam(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Camera {
         dist_to_focus,
         aperture,
         t_off, t_span,
-        ttl
+        ttl,
     )
 }
 

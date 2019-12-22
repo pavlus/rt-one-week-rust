@@ -11,9 +11,10 @@ use itertools::Itertools;
 use crate::aabb::AABB;
 use crate::material::{Lambertian, Material};
 use crate::ray::Ray;
-use crate::texture::Color;
+use crate::texture::{Color, Texture};
 
 use crate::vec::{Axis, V3};
+use crate::random::{rand_in_unit_sphere, next_f64, next_std_f64};
 
 #[derive(Copy, Clone)]
 pub struct Hit<'a> {
@@ -458,7 +459,7 @@ impl Hittable for RotateY {
                     normal,
                     ..hit
                 }
-        })
+            })
     }
 
     fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
@@ -523,5 +524,78 @@ impl Hittable for AABox {
 
     fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
         Some(self.aabb)
+    }
+}
+
+#[derive(Debug)]
+pub struct ConstantMedium {
+    boundary: Box<dyn Hittable>,
+    density: f64,
+    phase_function: Box<dyn Material>,
+}
+
+impl ConstantMedium {
+    pub fn new(boundary: Box<dyn Hittable>,
+               density: f64,
+               texture: Box<dyn Texture>,
+    ) -> ConstantMedium {
+        ConstantMedium {
+            boundary,
+            density,
+            phase_function: Box::new(Isotropic::new(texture)),
+        }
+    }
+}
+
+impl Hittable for ConstantMedium {
+    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
+        self.boundary.hit(ray, MIN, MAX).and_then(|hit1| {
+            self.boundary.hit(ray, hit1.dist + 0.001, MAX).and_then(|hit2| {
+                let min = f64::max(hit1.dist, dist_min);
+                let max = f64::min(hit2.dist, dist_max);
+                if min < max {
+                    // TODO: describe why such distribution?
+                    //  isotropic scattering follows Poisson point process?
+                    let hit_dist = next_f64(rand_distr::Exp1) / self.density;
+                    let inner_travel_distance = (max - min) * ray.direction.length();
+                    if hit_dist < inner_travel_distance {
+                        let dist = max + hit_dist / ray.direction.length();
+                        Some(Hit::new(
+                            dist,
+                            ray.point_at(dist),
+                            V3::new(1.0, 0.0, 0.0),
+                            self.phase_function.borrow(),
+                            0.0, 0.0,
+                        ))
+                    } else { None }
+                } else { None }
+            })
+        })
+    }
+
+    fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
+        self.boundary.bounding_box(t_min, t_max)
+    }
+}
+
+#[derive(Debug)]
+pub struct Isotropic {
+    albedo: Box<dyn Texture>
+}
+
+impl Isotropic {
+    pub fn new(albedo: Box<dyn Texture>) -> Isotropic {
+        Isotropic { albedo }
+    }
+}
+
+impl Material for Isotropic {
+    fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<Ray> {
+        Some(
+            ray.produce(
+                hit.point,
+                rand_in_unit_sphere(),
+                self.albedo.value(hit.u, hit.v, hit.point).0)
+        )
     }
 }
