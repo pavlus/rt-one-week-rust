@@ -44,11 +44,7 @@ pub fn random_axis() -> &'static Axis {
 }
 
 pub fn rand_in_unit_sphere() -> V3 {
-    RND.with(|rnd_cell| {
-        let arr = UnitSphere.sample((*rnd_cell.borrow_mut()).borrow_mut());
-        V3 { x: arr[0], y: arr[1], z: arr[2] }
-    }
-    )
+    V3::from(RND.with(|rnd_cell| UnitSphere.sample((*rnd_cell.borrow_mut()).borrow_mut())))
 }
 
 pub fn with_rnd<T, F>(op: F) -> T
