@@ -267,7 +267,7 @@ impl Hittable for HittableList {
         self.objects
             .iter()
             // todo[performance]: try enabling again after implementing heavier object
-//            .filter(|h| h.bounding_box(ray.time(), ray.time())
+//            .filter(|h| h.bounding_box(ray.time, ray.time)
 //                .map(|aabb| aabb.hit(ray, dist_min, dist_max))
 //                .unwrap_or(true)
 //            )
@@ -549,17 +549,17 @@ impl ConstantMedium {
 
 impl Hittable for ConstantMedium {
     fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
-        self.boundary.hit(ray, MIN, MAX).and_then(|hit1| {
-            self.boundary.hit(ray, hit1.dist + 0.001, MAX).and_then(|hit2| {
-                let min = f64::max(hit1.dist, dist_min);
-                let max = f64::min(hit2.dist, dist_max);
-                if min < max {
+        self.boundary.hit(ray, 0.0, MAX).and_then(|enter_hit| {
+            self.boundary.hit(ray, enter_hit.dist + 0.001, MAX).and_then(|exit_hit| {
+                let enter_dist = f64::max(dist_min, enter_hit.dist);
+                let exit_dist = f64::min(exit_hit.dist, dist_max);
+                if enter_dist < exit_dist {
                     // TODO: describe why such distribution?
                     //  isotropic scattering follows Poisson point process?
                     let hit_dist = next_f64(rand_distr::Exp1) / self.density;
-                    let inner_travel_distance = (max - min) * ray.direction.length();
+                    let inner_travel_distance = (exit_dist - enter_dist) * ray.direction.length();
                     if hit_dist < inner_travel_distance {
-                        let dist = max + hit_dist / ray.direction.length();
+                        let dist = enter_dist + hit_dist / ray.direction.length();
                         Some(Hit::new(
                             dist,
                             ray.point_at(dist),
