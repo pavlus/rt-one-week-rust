@@ -88,11 +88,8 @@ fn main() {
 }
 
 fn clamp(color: V3) -> V3 {
-    V3::new(
-        texture::clamp(color.x, 0.0, 1.0),
-        texture::clamp(color.y, 0.0, 1.0),
-        texture::clamp(color.z, 0.0, 1.0),
-    )
+    let max = f64::max(color.x, f64::max(color.y, color.z));
+    if max > 1.0 { color / max } else { color }
 }
 
 fn gamma(color: V3) -> V3 {
