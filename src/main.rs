@@ -273,7 +273,7 @@ fn rnd_scene() -> Vec<Box<dyn Hittable>> {
 
 fn cornel_box_cam(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Camera {
     let aspect = (nx as f64) / (ny as f64);
-    let from = V3::new(278.0, 278.0, -800.0);
+    let from = V3::new(278.0, 278.0, -680.0);
     let at = V3::new(278.0, 278.0, 0.0);
 
     let dist_to_focus = 10.0;
@@ -353,7 +353,7 @@ impl Renderer for RgbRenderer {
             None => {
 //                let unit_direction = r.direction.unit();
 //                let t: f64 = 0.5 * (unit_direction.y + 1.0);
-                return V3::new(0.0, 0.0, 0.01);
+                return V3::new(0.05088, 0.05088, 0.05088);
 //                return (1.0 - t) * V3::ones() + t * V3::new(0.5, 0.7, 1.0);
             }
         };
