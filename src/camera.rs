@@ -1,5 +1,3 @@
-use std::f64::consts::PI;
-
 use crate::ray::Ray;
 use crate::vec::V3;
 use crate::random;
@@ -30,7 +28,7 @@ impl Camera {
         t0: f32, t1: f32,
         ttl: i32
     ) -> Camera {
-        let theta = vfov * PI / 180.0;
+        let theta = vfov.to_radians();
         let height = (theta / 2.0).tan();
         let width = aspect * height;
 
@@ -68,7 +66,8 @@ impl Camera {
                 + ((s * self.horizontal)
                 + (t * self.vertical))
                 - tmp_origin,
-            DEFAULT_COLOR, interpolation::lerp(&self.t0, &self.t1, &random::next_std_f32()),
+            DEFAULT_COLOR,
+            interpolation::lerp(&self.t0, &self.t1, &random::next_std_f32()),
             self.ttl,
         )
     }

@@ -15,6 +15,9 @@ use crate::texture::{Color, Texture};
 
 use crate::vec::{Axis, V3};
 use crate::random::{rand_in_unit_sphere, next_f64, next_std_f64};
+use rand::distributions::Uniform;
+use rand::distributions::uniform::UniformFloat;
+use rand::RngCore;
 
 #[derive(Copy, Clone)]
 pub struct Hit<'a> {

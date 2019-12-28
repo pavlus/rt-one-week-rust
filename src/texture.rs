@@ -66,7 +66,7 @@ impl PerlinTexture {
 
 impl Texture for PerlinTexture {
     fn value(&self, u: f64, v: f64, point: V3) -> Color {
-        let noise = ((self.noise)(point, self.scale));
+        let noise = (self.noise)(point, self.scale);
         assert!(noise <= 1.0);
         assert!(noise >= 0.0);
         Color(noise * V3::ones())
@@ -94,7 +94,7 @@ impl Texture for ImageTexture {
         let w = self.buffer.width() as f64;
         let h = self.buffer.height() as f64;
 
-        let i = clamp((w * u), 0.0, w - 1.0);
+        let i = clamp(w * u, 0.0, w - 1.0);
         let j = clamp((h * (1.0 - v) - 0.001), 0.0, h - 1.0);
 
         let color = self.buffer.get_pixel(i as u32, j as u32);
