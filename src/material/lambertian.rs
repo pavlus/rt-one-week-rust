@@ -21,4 +21,3 @@ impl Material for Lambertian {
         Some(ray.produce(hit.point, target, self.texture.value(hit.u, hit.v, hit.point).0))
     }
 }
-

@@ -1,9 +1,9 @@
 use std::fmt::Debug;
 
-pub use lambertian::*;
-pub use metal::*;
 pub use dielectric::*;
 pub use diffuse_light::*;
+pub use lambertian::*;
+pub use metal::*;
 
 use crate::hittable::Hit;
 use crate::ray::Ray;
@@ -19,4 +19,3 @@ pub trait Material: Debug + Sync + Send {
     fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<Ray> { None }
     fn emmit(&self, hit: &Hit) -> Color { Color(V3::zeros()) }
 }
-
