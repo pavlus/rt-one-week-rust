@@ -1,6 +1,6 @@
 #![macro_use]
 
-use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub, Index, IndexMut};
+use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub, Index};
 use rand::Rng;
 use rand::seq::SliceRandom;
 use std::iter::Sum;
@@ -46,6 +46,10 @@ impl V3 {
     }
     pub fn zeros() -> V3 {
         V3::new(0.0, 0.0, 0.0)
+    }
+
+    pub fn all(value: f64) -> V3 {
+        V3::new(value, value, value)
     }
 
     pub fn sqr_length(self) -> f64 {
