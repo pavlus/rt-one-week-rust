@@ -9,7 +9,6 @@ use vec::V3;
 use crate::bvh::BVH;
 use crate::hittable::HittableList;
 use crate::renderer::{Renderer, RgbRenderer};
-
 use crate::scenes::*;
 
 mod vec;
@@ -37,17 +36,21 @@ fn main() {
     println!("{} {}", nx, ny);
     println!("255");
 
-    let cam = cornel_box_cam(nx, ny, 0.0, 0.2, ttl);
+//    let cam = cornel_box_cam(nx, ny, 0.0, 0.2, ttl);
+    let cam = get_cam(nx, ny, 0.0, 0.2, ttl);
+//    let const_color = |_: &Ray| V3::new(0.05088, 0.05088, 0.05088);
     let renderer = RgbRenderer {
 //    let renderer = TtlRenderer {
-//        hittable: Box::new(Stage::new(perlin_scene()))
-//        hittable: Box::new(Stage::new(img_scene()))
-//        hittable: Box::new(Stage::new(img_lit_scene()))
-//        hittable: Box::new(Stage::new(img_lit_rect_scene()))
-//        hittable: Box::new(HittableList::new(cornel_box_scene()))
-        hittable: Box::new(HittableList::new(cornel_box_with_instances())),
+//        hittable: Box::new(Stage::new(perlin_scene())),
+//        hittable: Box::new(Stage::new(img_scene())),
+//        hittable: Box::new(Stage::new(img_lit_scene())),
+//        hittable: Box::new(Stage::new(img_lit_rect_scene())),
+//        hittable: Box::new(HittableList::new(cornel_box_scene())),
+//        hittable: Box::new(HittableList::new(cornel_box_with_instances())),
 //        hittable:&Stage::new(rnd_scene())
-//        hittable: BVH::new(rnd_scene())
+        hittable: BVH::new(rnd_scene()),
+        miss_shader: self::sky
+//        miss_shader: const_color
 //        ttl
     };
 //    dbg!(&renderer.hittable);
@@ -84,6 +87,11 @@ fn main() {
         }
         println!();
     }
+}
+
+fn sky(r: &Ray) -> V3 {
+    let t: f64 = 0.5 * (r.direction.y / r.direction.length() + 1.0);
+    return (1.0 - t) * V3::ones() + t * V3::new(0.5, 0.7, 1.0);
 }
 
 fn clamp(color: V3) -> V3 {

@@ -1,7 +1,9 @@
 use super::{Hittable, Ray, Renderer, V3};
+use std::borrow::Borrow;
 
 pub struct RgbRenderer {
-    pub hittable: Box<dyn Hittable>
+    pub hittable: Box<dyn Hittable>,
+    pub miss_shader: fn(&Ray) -> V3,
 }
 
 impl Renderer for RgbRenderer {
@@ -18,10 +20,7 @@ impl Renderer for RgbRenderer {
                 };
             }
             None => {
-//                let unit_direction = r.direction.unit();
-//                let t: f64 = 0.5 * (unit_direction.y + 1.0);
-                return V3::new(0.05088, 0.05088, 0.05088);
-//                return (1.0 - t) * V3::ones() + t * V3::new(0.5, 0.7, 1.0);
+                return self.miss_shader.borrow()(r);
             }
         };
     }
