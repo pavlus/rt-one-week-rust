@@ -1,19 +1,17 @@
-use super::vec::V3;
+use std::fmt::Debug;
 
-pub mod color;
-pub use color::*;
-
-pub mod checker;
 pub use checker::*;
-
-pub mod perlin;
+pub use color::*;
 pub use perlin::*;
 
-pub mod image;
+use super::vec::V3;
+
 pub use self::image::*;
 
-
-use std::fmt::Debug;
+pub mod color;
+pub mod checker;
+pub mod perlin;
+pub mod image;
 
 pub trait Texture: Debug + Sync + Send {
     fn value(&self, u: f64, v: f64, point: V3) -> Color;

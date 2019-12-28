@@ -1,6 +1,7 @@
 use crate::vec::V3;
-use super::Texture;
+
 use super::Color;
+use super::Texture;
 
 #[derive(Debug)]
 pub struct Checker {
