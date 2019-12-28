@@ -1,34 +1,18 @@
-use crate::vec::V3;
-use crate::ray::Ray;
-use crate::hittable::Hit;
-use crate::texture::{Texture, Color};
-
-use crate::random;
 use std::fmt::Debug;
+
+pub use lambertian::*;
+
+use crate::hittable::Hit;
+use crate::random;
+use crate::ray::Ray;
+use crate::texture::{Color, Texture};
+use crate::vec::V3;
+
+pub mod lambertian;
 
 pub trait Material: Debug + Sync + Send {
     fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<Ray> { None }
     fn emmit(&self, hit: &Hit) -> Color { Color(V3::zeros()) }
-}
-
-
-#[derive(Debug)]
-pub struct Lambertian {
-    texture: Box<dyn Texture>
-}
-
-impl Lambertian {
-    #[deprecated]
-    pub fn new(albedo: V3) -> Lambertian { Lambertian { texture: Box::new(Color(albedo)) } }
-    pub fn color(albedo: Color) -> Lambertian { Lambertian { texture: Box::new(albedo) } }
-    pub fn texture(texture: Box<dyn Texture>) -> Lambertian { Lambertian { texture } }
-}
-
-impl Material for Lambertian {
-    fn scatter(&self, ray: &Ray, &hit: &Hit) -> Option<Ray> {
-        let target = 0.5 * (hit.normal + random::rand_in_unit_sphere());
-        Some(ray.produce(hit.point, target, self.texture.value(hit.u, hit.v, hit.point).0))
-    }
 }
 
 
