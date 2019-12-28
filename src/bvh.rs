@@ -1,6 +1,5 @@
 use crate::aabb::AABB;
-use crate::Hittable;
-use crate::hittable::{Hit, HittableList};
+use crate::hittable::{Hit, HittableList, Hittable};
 use crate::ray::Ray;
 use crate::random::random_axis;
 
