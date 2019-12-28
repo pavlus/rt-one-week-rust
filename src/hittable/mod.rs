@@ -17,7 +17,7 @@ pub use list::*;
 pub use sphere::*;
 
 use crate::aabb::AABB;
-use crate::material::{Lambertian, Material};
+use crate::material::{Lambertian, Material, Isotropic};
 use crate::random::{next_f64, next_std_f64, rand_in_unit_sphere};
 use crate::ray::Ray;
 use crate::texture::{Color, Texture};
@@ -289,28 +289,4 @@ impl Hittable for ConstantMedium {
     }
 }
 
-#[derive(Debug)]
-pub struct Isotropic {
-    albedo: Box<dyn Texture>
-}
 
-impl Isotropic {
-    pub fn new(albedo: Box<dyn Texture>) -> Isotropic {
-        Isotropic { albedo }
-    }
-}
-
-impl Material for Isotropic {
-    /// Isotropic material has a unit-sphere BSDF,
-    /// this means that amount of reflected light
-    /// is equal to the amount of transmitted light
-    /// probability of reflection in any direction is the same
-    fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<Ray> {
-        Some(
-            ray.produce(
-                hit.point,
-                rand_in_unit_sphere(),
-                self.albedo.value(hit.u, hit.v, hit.point).0)
-        )
-    }
-}

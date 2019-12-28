@@ -4,6 +4,7 @@ pub use dielectric::*;
 pub use diffuse_light::*;
 pub use lambertian::*;
 pub use metal::*;
+pub use isotropic::*;
 
 use crate::hittable::Hit;
 use crate::ray::Ray;
@@ -14,6 +15,7 @@ pub mod lambertian;
 pub mod metal;
 pub mod dielectric;
 pub mod diffuse_light;
+pub mod isotropic;
 
 pub trait Material: Debug + Sync + Send {
     fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<Ray> { None }
