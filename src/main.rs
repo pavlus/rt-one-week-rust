@@ -43,7 +43,7 @@ fn main() {
 //        hittable: Box::new(Stage::new(img_lit_scene()))
 //        hittable: Box::new(Stage::new(img_lit_rect_scene()))
 //        hittable: Box::new(HittableList::new(cornel_box_scene()))
-        hittable: Box::new(HittableList::new(cornel_box_volumes())),
+        hittable: Box::new(HittableList::new(cornel_box_with_instances())),
 //        hittable:&Stage::new(rnd_scene())
 //        hittable: BVH::new(rnd_scene())
 //        ttl
@@ -53,10 +53,7 @@ fn main() {
         for i in 0..nx {
 //            let col: V3 = (0..aa).map(|_| {
             let col: V3 = rayon::iter::repeatn((), aa).map(|_| {
-//                let du: sf64 = dist.sample(&mut rand);
-//                let dv: f64 = dist.sample(&mut rand);
-                let du: f64 = random::next_std_f64() - 0.5;
-                let dv: f64 = random::next_std_f64() - 0.5;
+                let [du, dv] = random::rand_in_unit_disc();
                 let u = (i as f64 + du) / (nx as f64);
                 let v = (j as f64 + dv) / (ny as f64);
                 let r = cam.get_ray(u, v);

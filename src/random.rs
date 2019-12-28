@@ -6,7 +6,7 @@ use rand::distributions::{Distribution, Standard};
 use rand::{SeedableRng, Rng, RngCore};
 use rand_xoshiro::Xoshiro256Plus;
 use crate::vec::{V3, Axis};
-use rand_distr::UnitSphere;
+use rand_distr::{UnitDisc, UnitSphere};
 
 thread_local! {
     static RND: RefCell<Xoshiro256Plus> =
@@ -45,6 +45,10 @@ pub fn random_axis() -> &'static Axis {
 
 pub fn rand_in_unit_sphere() -> V3 {
     V3::from(RND.with(|rnd_cell| UnitSphere.sample((*rnd_cell.borrow_mut()).borrow_mut())))
+}
+
+pub fn rand_in_unit_disc() -> [f64; 2] {
+    RND.with(|rnd_cell| UnitDisc.sample((*rnd_cell.borrow_mut()).borrow_mut()))
 }
 
 pub fn with_rnd<T, F>(op: F) -> T
