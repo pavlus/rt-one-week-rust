@@ -1,14 +1,7 @@
-use std::sync::Arc;
-
 use rayon::prelude::*;
 
-use camera::Camera;
-use ray::Ray;
 use vec::V3;
 
-use crate::bvh::BVH;
-use crate::hittable::HittableList;
-use crate::renderer::{Renderer, RgbRenderer};
 use crate::scenes::*;
 
 mod vec;
@@ -37,22 +30,13 @@ fn main() {
     println!("255");
 
 //    let cam = cornel_box_cam(nx, ny, 0.0, 0.2, ttl);
-    let cam = get_cam(nx, ny, 0.0, 0.2, ttl);
-//    let const_color = |_: &Ray| V3::new(0.05088, 0.05088, 0.05088);
-    let renderer = RgbRenderer {
-//    let renderer = TtlRenderer {
-//        hittable: Box::new(Stage::new(perlin_scene())),
-//        hittable: Box::new(Stage::new(img_scene())),
-//        hittable: Box::new(Stage::new(img_lit_scene())),
-//        hittable: Box::new(Stage::new(img_lit_rect_scene())),
-//        hittable: Box::new(HittableList::new(cornel_box_scene())),
-//        hittable: Box::new(HittableList::new(cornel_box_with_instances())),
-//        hittable:&Stage::new(rnd_scene())
-        hittable: BVH::new(rnd_scene()),
-        miss_shader: self::sky
-//        miss_shader: const_color
-//        ttl
-    };
+//    let scene = rnd_scene(nx, ny, 0.0, 0.2, ttl);
+//    let scene = perlin_scene(nx, ny, 0.0, 0.2, ttl);
+//    let scene = img_scene(nx, ny, 0.0, 0.2, ttl);
+//    let scene = img_lit_scene(nx, ny, 0.0, 0.2, ttl);
+//    let scene = img_lit_rect_scene(nx, ny, 0.0, 0.2, ttl);
+//    let scene = cornel_box_with_instances(nx, ny, 0.0, 0.2, ttl);
+    let scene = cornel_box_volumes(nx, ny, 0.0, 0.2, ttl);
 //    dbg!(&renderer.hittable);
     for j in (0..ny).rev() {
         for i in 0..nx {
@@ -61,8 +45,7 @@ fn main() {
                 let [du, dv] = random::rand_in_unit_disc();
                 let u = (i as f64 + du) / (nx as f64);
                 let v = (j as f64 + dv) / (ny as f64);
-                let r = cam.get_ray(u, v);
-                renderer.color(&r)
+                scene.color(u, v)
             }).sum();
 
             let mut col = col / aa as f64;
@@ -89,11 +72,6 @@ fn main() {
     }
 }
 
-fn sky(r: &Ray) -> V3 {
-    let t: f64 = 0.5 * (r.direction.y / r.direction.length() + 1.0);
-    return (1.0 - t) * V3::ones() + t * V3::new(0.5, 0.7, 1.0);
-}
-
 fn clamp(color: V3) -> V3 {
     V3::new(
         texture::clamp(color.x, 0.0, 1.0),
@@ -112,63 +90,5 @@ fn gamma(color: V3) -> V3 {
         color.x.powf(1.0 / 2.2),
         color.y.powf(1.0 / 2.2),
         color.z.powf(1.0 / 2.2),
-    )
-}
-
-fn cornel_box_cam(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Camera {
-    let aspect = (nx as f64) / (ny as f64);
-    let from = V3::new(278.0, 278.0, -680.0);
-    let at = V3::new(278.0, 278.0, 0.0);
-
-    let dist_to_focus = 10.0;
-    let aperture = 0.0;
-    let vfov = 80.0;
-    Camera::new_look(
-        from, at,
-        /*    up*/ V3::new(0.0, 1.0, 0.0),
-        vfov,
-        aspect,
-        dist_to_focus,
-        aperture,
-        t_off, t_span,
-        ttl,
-    )
-}
-
-fn get_cam(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Camera {
-    let aspect = (nx as f64) / (ny as f64);
-    let from = V3::new(13.0, 2.0, 3.0);
-    let at = V3::new(0.0, 0.0, 0.0);
-
-    let dist_to_focus = 10.0;
-    let aperture = 0.0;
-    let vfov = 40.0;
-    Camera::new_look(
-        from, at,
-        /*    up*/ V3::new(0.0, 1.0, 0.0),
-        vfov,
-        aspect,
-        dist_to_focus,
-        aperture,
-        t_off, t_span,
-        ttl,
-    )
-}
-
-fn _get_cam(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Camera {
-    let aspect = (nx as f64) / (ny as f64);
-    let from = V3::new(-3.0, 3.0, 2.0);
-    let at = V3::new(0.0, 0.0, -1.0);
-    let dist_to_focus = (from - at).length();
-    let aperture = 0.01;
-    Camera::new_look(
-        from, at,
-        /*    up*/ V3::new(0.0, 1.0, 0.0),
-        /*  vfov*/ 120.0,
-        aspect,
-        dist_to_focus,
-        aperture,
-        t_off, t_span,
-        ttl,
     )
 }
