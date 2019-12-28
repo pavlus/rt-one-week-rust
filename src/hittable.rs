@@ -590,6 +590,10 @@ impl Isotropic {
 }
 
 impl Material for Isotropic {
+    /// Isotropic material has a unit-sphere BSDF,
+    /// this means that amount of reflected light
+    /// is equal to the amount of transmitted light
+    /// probability of reflection in any direction is the same
     fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<Ray> {
         Some(
             ray.produce(
