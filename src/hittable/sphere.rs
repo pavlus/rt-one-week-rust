@@ -14,13 +14,13 @@ impl Sphere {
     pub fn new(center: V3, radius: f64, material: Box<dyn Material>) -> Sphere {
         Sphere { center, radius, material }
     }
-    fn center(&self, time: f32) -> V3 {
+    fn center(&self, _: f32) -> V3 {
         self.center
     }
     fn radius(&self) -> f64 { self.radius }
     fn material(&self) -> &Box<dyn Material> { &self.material }
 
-    fn aabb(&self, t0: f32, t1: f32) -> AABB {
+    fn aabb(&self, _: f32, _: f32) -> AABB {
         AABB::new(self.center - self.radius, self.center + self.radius)
     }
 
@@ -60,7 +60,6 @@ impl MovingSphere {
         self.center_t0 + scale * (self.center_t1 - self.center_t0)
     }
     fn radius(&self) -> f64 { self.radius }
-    fn material<'a>(&'a self) -> &'a Box<dyn Material> { &self.material }
     fn aabb(&self, t: f32) -> AABB {
         AABB::new(self.center(t) - self.radius(), self.center(t) + self.radius())
     }

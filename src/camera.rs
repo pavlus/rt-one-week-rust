@@ -1,7 +1,6 @@
 use crate::ray::Ray;
 use crate::vec::V3;
 use crate::random;
-use rand::distributions::Uniform;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Camera {

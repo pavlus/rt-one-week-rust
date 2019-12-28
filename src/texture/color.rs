@@ -15,5 +15,5 @@ impl Color {
 }
 
 impl Texture for Color {
-    fn value(&self, u: f64, v: f64, point: V3) -> Color { *self }
+    fn value(&self, _: f64, _: f64, _: V3) -> Color { *self }
 }

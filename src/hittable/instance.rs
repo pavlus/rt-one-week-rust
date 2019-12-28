@@ -1,11 +1,15 @@
 use std::f64::consts::PI;
+#[cfg(test)]
 use std::sync::Arc;
 
 use itertools::Itertools;
 
+#[cfg(test)]
+use crate::hittable::AABox;
+#[cfg(test)]
 use crate::material::Lambertian;
 
-use super::{AABB, AABox, Hit, Hittable, Material, Ray, V3};
+use super::{AABB, Hit, Hittable, Ray, V3};
 
 pub trait Instance {
     fn flip_normals(self) -> Box<dyn Hittable>;
@@ -141,7 +145,7 @@ impl RotateY {
 fn test_rot_y() {
     let h = || AABox::mono(
         0.0..1.0, 0.0..2.0, 0.0..3.0,
-        Arc::new(Lambertian::new(V3::new(0.0, 0.0, 0.0))),
+        Arc::new(Lambertian::color(V3::new(0.0, 0.0, 0.0))),
     );
     for a in 0..3600 {
         let aabb1 = RotateY::_new1(Box::new(h()), a as f64 / 10.0).aabb;
@@ -188,7 +192,7 @@ impl Hittable for RotateY {
             })
     }
 
-    fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
+    fn bounding_box(&self, _: f32, _: f32) -> Option<AABB> {
         self.aabb
     }
 }

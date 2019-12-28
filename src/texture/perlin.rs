@@ -23,10 +23,10 @@ impl PerlinTexture {
 }
 
 impl Texture for PerlinTexture {
-    fn value(&self, u: f64, v: f64, point: V3) -> Color {
+    fn value(&self, _: f64, _: f64, point: V3) -> Color {
         let noise = (self.noise)(point, self.scale);
-        assert!(noise <= 1.0);
-        assert!(noise >= 0.0);
+        debug_assert!(noise <= 1.0);
+        debug_assert!(noise >= 0.0);
         Color(noise * V3::ones())
     }
 }

@@ -1,5 +1,6 @@
 use super::{Hittable, Ray, Renderer, V3};
 
+#[allow(dead_code)]
 pub struct TtlRenderer{
     hittable: Box<dyn Hittable>,
     ttl: i32

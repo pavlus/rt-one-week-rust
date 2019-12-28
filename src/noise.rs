@@ -1,8 +1,7 @@
 use rand::{Rng, RngCore};
-use rand::distributions::{Distribution, Standard};
+use rand::distributions::Standard;
 use rand::seq::SliceRandom;
 
-use crate::random;
 use crate::vec::V3;
 
 #[derive(Copy, Clone)]
@@ -77,7 +76,7 @@ impl Perlin {
         let mut acc = 0.0;
         let mut temp = p;
         let mut weight = 1.0;
-        for i in 0..7 {
+        for _ in 0..7 {
             acc += weight * self.noise(temp);
             weight *= 0.5;
             temp = 2.0 * temp;

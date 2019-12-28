@@ -1,10 +1,9 @@
-use std::path::Path;
 use std::sync::Arc;
 
 use crate::hittable::{AABox, ConstantMedium, Hittable, HittableList, Instance, MovingSphere, Sphere, XYRect, XZRect, YZRect};
-use crate::material::{Dielectric, DiffuseLight, Lambertian, Material, Metal};
+use crate::material::{Dielectric, DiffuseLight, Lambertian, Metal};
 use crate::noise::Perlin;
-use crate::random::{next_color, next_std_f32, next_std_f64, with_rnd};
+use crate::random::{next_color, next_std_f64, with_rnd, next_std_u32};
 use crate::texture::{Checker, Color, ImageTexture, PerlinTexture};
 use crate::vec::V3;
 use crate::camera::Camera;
@@ -22,7 +21,6 @@ impl<T: Renderer> Scene<T> {
         self.renderer.color(&self.camera.get_ray(u, v))
     }
 }
-
 
 pub fn perlin_scene(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene<RgbRenderer> {
     let perlin = with_rnd(|rnd| Perlin::new(rnd));
@@ -53,7 +51,6 @@ pub fn perlin_scene(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scen
         },
     }
 }
-
 
 pub fn img_scene(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene<RgbRenderer> {
     let mut objs: Vec<Box<dyn Hittable>> = Vec::new();
@@ -89,6 +86,7 @@ pub fn img_lit_scene(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Sce
     }
 }
 
+#[allow(dead_code)]
 pub fn img_lit_rect_scene(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene<RgbRenderer> {
     Scene {
         camera: get_cam(nx, ny, t_off, t_span, ttl),
@@ -109,11 +107,11 @@ pub fn img_lit_rect_scene(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -
 }
 
 fn cornel_box_prototype() -> Vec<Box<dyn Hittable>> {
-    let red = Arc::new(Lambertian::color(Color::new(0.65, 0.05, 0.05)));
-    let floor_white = Arc::new(Lambertian::color(Color::new(0.73, 0.73, 0.73)));
-    let ceil_white = Arc::new(Lambertian::color(Color::new(0.73, 0.73, 0.73)));
-    let back_white = Arc::new(Lambertian::color(Color::new(0.73, 0.73, 0.73)));
-    let green = Arc::new(Lambertian::color(Color::new(0.12, 0.45, 0.15)));
+    let red = Arc::new(Lambertian::new(Color::new(0.65, 0.05, 0.05)));
+    let floor_white = Arc::new(Lambertian::new(Color::new(0.73, 0.73, 0.73)));
+    let ceil_white = Arc::new(Lambertian::new(Color::new(0.73, 0.73, 0.73)));
+    let back_white = Arc::new(Lambertian::new(Color::new(0.73, 0.73, 0.73)));
+    let green = Arc::new(Lambertian::new(Color::new(0.12, 0.45, 0.15)));
     let light = Arc::new(DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 1.0)), 15.0));
 
     vec![
@@ -130,14 +128,14 @@ pub fn cornel_box_with_instances(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl:
     let mut objs = cornel_box_prototype();
     objs.push(
         AABox::mono(0.0..165.0, 0.0..165.0, 0.0..165.0,
-                    Arc::new(Lambertian::new(V3::new(0.73, 0.73, 0.73))))
+                    Arc::new(Lambertian::new(Color(V3::all(0.73)))))
             .rotate_y(-18.0)
             .translate(V3::new(130.0, 0.0, 65.0))
     );
 
     objs.push(
         AABox::mono(0.0..165.0, 0.0..330.0, 0.0..165.0,
-                    Arc::new(Lambertian::new(V3::new(0.73, 0.73, 0.73))))
+                    Arc::new(Lambertian::new(Color(V3::all(0.73)))))
             .rotate_y(15.0)
             .translate(V3::new(265.0, 0.0, 295.0)));
 
@@ -159,7 +157,7 @@ pub fn cornel_box_volumes(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -
     objs.push(Box::new(ConstantMedium::new(
         AABox::mono(0.0..165.0, 0.0..165.0, 0.0..165.0,
                     // todo: null-texture/null-material?
-                    Arc::new(Lambertian::new(V3::new(1.0, 0.0, 1.0))))
+                    Arc::new(Lambertian::new(Color(V3::new(1.0, 0.0, 1.0)))))
             .rotate_y(-18.0)
             .translate(V3::new(130.0, 0.0, 65.0)),
         0.01,
@@ -168,7 +166,7 @@ pub fn cornel_box_volumes(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -
 
     objs.push(Box::new(ConstantMedium::new(
         AABox::mono(0.0..165.0, 0.0..330.0, 0.0..165.0,
-                    Arc::new(Lambertian::new(V3::new(0.0, 1.0, 0.0))))
+                    Arc::new(Lambertian::new(Color(V3::new(0.0, 1.0, 0.0)))))
             .rotate_y(15.0)
             .translate(V3::new(265.0, 0.0, 295.0)),
         0.01,
@@ -199,7 +197,7 @@ pub fn rnd_scene(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene<R
             )))))),
         Box::new(Sphere::new(V3::new(4.0, 1.0, 0.0), 1.0, Box::new(Metal::new(V3::new(0.7, 0.6, 0.5))))),
         Box::new(Sphere::new(V3::new(0.0, 1.0, 0.0), 1.0, Box::new(Dielectric::new(1.5)))),
-        Box::new(Sphere::new(V3::new(-4.0, 1.0, 0.0), 1.0, Box::new(Lambertian::color(Color::new(0.8, 0.8, 0.9))))),
+        Box::new(Sphere::new(V3::new(-4.0, 1.0, 0.0), 1.0, Box::new(Lambertian::new(Color::new(0.8, 0.8, 0.9))))),
     ];
 
     for a in -10..=10 {
@@ -210,15 +208,14 @@ pub fn rnd_scene(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene<R
 
             if (center - V3::new(4.0, 0.2, 0.0)).length() > 0.9 {
                 objs.push(
-                    // todo: #41620
-                    match next_std_f32() {
-                        0.0..=0.8 => Box::new(MovingSphere::new(
+                    match next_std_u32() % 100 {
+                        0..=80 => Box::new(MovingSphere::new(
                             center,
                             center + V3::new(0.0, 0.5 * next_std_f64(), 0.0),
                             0.0, 1.0, 0.2,
-                            Box::new(Lambertian::new(next_color() * next_color())),
+                            Box::new(Lambertian::new(Color(next_color() * next_color()))),
                         )),
-                        0.8..=0.95 => Box::new(Sphere::new(
+                        80..=95 => Box::new(Sphere::new(
                             center,
                             0.2,
                             Box::new(Metal::new(0.5 * (next_color() + 1.0))),

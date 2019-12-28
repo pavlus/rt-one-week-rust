@@ -1,9 +1,10 @@
+#[allow(dead_code)]
+
 use std::borrow::BorrowMut;
 use std::cell::RefCell;
 
-use rand::seq::SliceRandom;
 use rand::distributions::{Distribution, Standard};
-use rand::{SeedableRng, Rng, RngCore};
+use rand::{SeedableRng, RngCore};
 use rand_xoshiro::Xoshiro256Plus;
 use crate::vec::{V3, Axis};
 use rand_distr::{UnitDisc, UnitSphere};
@@ -24,6 +25,11 @@ pub fn next_f64<D: Distribution<f64>>(d: D) -> f64 {
 }
 
 pub fn next_std_f32() -> f32 {
+    RND.with(|rnd_cell|
+        Standard.sample((*rnd_cell.borrow_mut()).borrow_mut()))
+}
+
+pub fn next_std_u32() -> u32 {
     RND.with(|rnd_cell|
         Standard.sample((*rnd_cell.borrow_mut()).borrow_mut()))
 }
@@ -52,6 +58,6 @@ pub fn rand_in_unit_disc() -> [f64; 2] {
 }
 
 pub fn with_rnd<T, F>(op: F) -> T
-    where F: FnOnce(&mut RngCore) -> T {
+    where F: FnOnce(&mut dyn RngCore) -> T {
     RND.with(|rnd_cell| op((*rnd_cell.borrow_mut()).borrow_mut()))
 }

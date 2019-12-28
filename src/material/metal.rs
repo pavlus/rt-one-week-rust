@@ -1,6 +1,5 @@
 use crate::random;
 
-use super::{Color, Texture};
 use super::{Hit, Material, Ray, V3};
 
 #[derive(PartialEq, Copy, Clone, Debug)]

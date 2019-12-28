@@ -9,9 +9,9 @@ pub struct Lambertian {
 }
 
 impl Lambertian {
+    pub fn new(albedo: Color) -> Lambertian { Lambertian { texture: Box::new(albedo) } }
     #[deprecated]
-    pub fn new(albedo: V3) -> Lambertian { Lambertian { texture: Box::new(Color(albedo)) } }
-    pub fn color(albedo: Color) -> Lambertian { Lambertian { texture: Box::new(albedo) } }
+    pub fn color(albedo: V3) -> Lambertian { Lambertian { texture: Box::new(Color(albedo)) } }
     pub fn texture(texture: Box<dyn Texture>) -> Lambertian { Lambertian { texture } }
 }
 

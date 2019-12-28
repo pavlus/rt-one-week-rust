@@ -58,7 +58,7 @@ macro_rules! aarect {
                 Some(Hit::new(dist, ray.point_at(dist), norm_vec!($a, $b), self.material.borrow(), u, v))
             }
 
-            fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
+            fn bounding_box(&self, _: f32, _: f32) -> Option<AABB> {
                 Some(aarect_aabb!(self, $a, $b, self.k))
             }
         }

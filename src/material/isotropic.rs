@@ -1,7 +1,7 @@
 use crate::random::rand_in_unit_sphere;
 
-use super::{Color, Texture};
-use super::{Hit, Material, Ray, V3};
+use super::Texture;
+use super::{Hit, Material, Ray};
 
 #[derive(Debug)]
 pub struct Isotropic {

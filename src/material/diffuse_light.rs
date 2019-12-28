@@ -1,5 +1,5 @@
 use super::{Color, Texture};
-use super::{Hit, Material, Ray, V3};
+use super::{Hit, Material};
 
 #[derive(Debug)]
 pub struct DiffuseLight {

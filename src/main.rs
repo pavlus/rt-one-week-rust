@@ -8,13 +8,17 @@ mod vec;
 mod ray;
 mod hittable;
 mod camera;
+#[allow(dead_code)]
 mod material;
+#[allow(dead_code)]
 mod random;
 mod aabb;
 mod bvh;
 mod texture;
 mod noise;
 mod renderer;
+
+#[allow(dead_code)]
 mod scenes;
 
 fn main() {

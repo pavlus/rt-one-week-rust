@@ -8,7 +8,7 @@ pub use list::*;
 pub use sphere::*;
 
 use crate::aabb::AABB;
-use crate::material::{Isotropic, Lambertian, Material};
+use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec::V3;
 

@@ -58,7 +58,7 @@ impl Hittable for AABox {
         self.faces.hit(ray, dist_min, dist_max)
     }
 
-    fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
+    fn bounding_box(&self, _: f32, _: f32) -> Option<AABB> {
         Some(self.aabb)
     }
 }
