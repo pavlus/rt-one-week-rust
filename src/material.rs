@@ -5,7 +5,6 @@ use crate::texture::{Texture, Color};
 
 use crate::random;
 use std::fmt::Debug;
-use std::alloc::handle_alloc_error;
 
 pub trait Material: Debug + Sync + Send {
     fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<Ray> { None }

@@ -2,7 +2,7 @@ use camera::Camera;
 use ray::Ray;
 use vec::V3;
 
-use crate::hittable::{Hittable, MovingSphere, Sphere, HittableList, XYRect, XZRect, YZRect, AABox, Instance};
+use crate::hittable::{Hittable, MovingSphere, Sphere, HittableList, XYRect, XZRect, YZRect, AABox, Instance, ConstantMedium};
 use crate::material::{Dielectric, Lambertian, Metal, DiffuseLight, Material};
 use crate::random::{next_color, next_std_f64};
 use crate::bvh::BVH;
@@ -24,24 +24,29 @@ mod texture;
 mod noise;
 
 fn main() {
-    let nx = 400;
-    let ny = 400;
+    let nx = 512;
+    let ny = 512;
     let aa = 800;
+    let ttl = 12;
+    let gamma_correct = true;
+    let clamp_color = true;
 
     println!("P3");
     println!("{} {}", nx, ny);
     println!("255");
 
-    let cam = cornel_box_cam(nx, ny, 0.0, 0.2, 32);
-    let renderer = Renderer {
+    let cam = cornel_box_cam(nx, ny, 0.0, 0.2, ttl);
+    let renderer = RgbRenderer {
+//    let renderer = TtlRenderer {
 //        hittable: Box::new(Stage::new(perlin_scene()))
 //        hittable: Box::new(Stage::new(img_scene()))
 //        hittable: Box::new(Stage::new(img_lit_scene()))
 //        hittable: Box::new(Stage::new(img_lit_rect_scene()))
 //        hittable: Box::new(HittableList::new(cornel_box_scene()))
-        hittable: Box::new(HittableList::new(cornel_box_scene_with_instances()))
+        hittable: Box::new(HittableList::new(cornel_box_volumes())),
 //        hittable:&Stage::new(rnd_scene())
 //        hittable: BVH::new(rnd_scene())
+//        ttl
     };
 //    dbg!(&renderer.hittable);
     for j in (0..ny).rev() {
@@ -59,8 +64,6 @@ fn main() {
             }).sum();
 
             let mut col = col / aa as f64;
-            let gamma_correct = true;
-            let clamp_color = true;
 
             if clamp_color {
                 col = clamp(col)
@@ -85,11 +88,8 @@ fn main() {
 }
 
 fn clamp(color: V3) -> V3 {
-    V3::new(
-        texture::clamp(color.x, 0.0, 1.0),
-        texture::clamp(color.y, 0.0, 1.0),
-        texture::clamp(color.z, 0.0, 1.0),
-    )
+    let max = f64::max(color.x, f64::max(color.y, color.z));
+    if max > 1.0 { color / max } else { color }
 }
 
 fn gamma(color: V3) -> V3 {
@@ -174,7 +174,7 @@ fn cornel_box_scene() -> Vec<Box<dyn Hittable>> {
     ]
 }
 
-fn cornel_box_scene_with_instances() -> Vec<Box<dyn Hittable>> {
+fn cornel_box_with_instances() -> Vec<Box<dyn Hittable>> {
     let mut objs: Vec<Box<dyn Hittable>> = cornel_box_scene();
     objs.push(
         AABox::mono(0.0..165.0, 0.0..165.0, 0.0..165.0,
@@ -191,6 +191,34 @@ fn cornel_box_scene_with_instances() -> Vec<Box<dyn Hittable>> {
 
     let light = Arc::new(DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 1.0)), 25.0));
     objs.push(Box::new(XZRect::new(213.0..343.0, 227.0..332.0, 554.0, light)));
+    objs.swap_remove(2);
+
+    objs
+}
+
+fn cornel_box_volumes() -> Vec<Box<dyn Hittable>> {
+    let mut objs: Vec<Box<dyn Hittable>> = cornel_box_scene();
+    objs.push(Box::new(ConstantMedium::new(
+        AABox::mono(0.0..165.0, 0.0..165.0, 0.0..165.0,
+                    // todo: null-texture/null-material?
+                    Arc::new(Lambertian::new(V3::new(1.0, 0.0, 1.0))))
+            .rotate_y(-18.0)
+            .translate(V3::new(130.0, 0.0, 65.0)),
+        0.01,
+        Box::new(Color::new(1.0, 1.0, 1.0)))
+    ));
+
+    objs.push(Box::new(ConstantMedium::new(
+        AABox::mono(0.0..165.0, 0.0..330.0, 0.0..165.0,
+                    Arc::new(Lambertian::new(V3::new(0.0, 1.0, 0.0))))
+            .rotate_y(15.0)
+            .translate(V3::new(265.0, 0.0, 295.0)),
+        0.01,
+        Box::new(Color::new(0.0, 0.0, 0.0)))
+    ));
+
+    let light = Arc::new(DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 1.0)), 7.0));
+    objs.push(Box::new(XZRect::new(113.0..443.0, 127.0..432.0, 554.0, light)));
     objs.swap_remove(2);
 
     objs
@@ -242,7 +270,7 @@ fn rnd_scene() -> Vec<Box<dyn Hittable>> {
 
 fn cornel_box_cam(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Camera {
     let aspect = (nx as f64) / (ny as f64);
-    let from = V3::new(278.0, 278.0, -800.0);
+    let from = V3::new(278.0, 278.0, -680.0);
     let at = V3::new(278.0, 278.0, 0.0);
 
     let dist_to_focus = 10.0;
@@ -256,7 +284,7 @@ fn cornel_box_cam(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Camera
         dist_to_focus,
         aperture,
         t_off, t_span,
-        ttl
+        ttl,
     )
 }
 
@@ -276,7 +304,7 @@ fn get_cam(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Camera {
         dist_to_focus,
         aperture,
         t_off, t_span,
-        ttl
+        ttl,
     )
 }
 
@@ -294,15 +322,19 @@ fn _get_cam(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Camera {
         dist_to_focus,
         aperture,
         t_off, t_span,
-        ttl
+        ttl,
     )
 }
 
-struct Renderer {
+trait Renderer {
+    fn color(&self, r: &Ray) -> V3;
+}
+
+struct RgbRenderer {
     pub hittable: Box<dyn Hittable>
 }
 
-impl Renderer {
+impl Renderer for RgbRenderer {
     fn color(&self, r: &Ray) -> V3 {
         match self.hittable.hit(&r, 0.0001, 99999.0) {
             Some(hit) => {
@@ -318,9 +350,38 @@ impl Renderer {
             None => {
 //                let unit_direction = r.direction.unit();
 //                let t: f64 = 0.5 * (unit_direction.y + 1.0);
-                return V3::new(0.0, 0.0, 0.01);
+                return V3::new(0.05088, 0.05088, 0.05088);
 //                return (1.0 - t) * V3::ones() + t * V3::new(0.5, 0.7, 1.0);
             }
         };
     }
+}
+
+struct TtlRenderer{
+    hittable: Box<dyn Hittable>,
+    ttl: i32
+}
+impl Renderer for TtlRenderer {
+    fn color(&self, r: &Ray) -> V3 {
+        match self.hittable.hit(&r, 0.0001, 99999.0) {
+            Some(hit) => {
+                return match hit
+                    .material
+                    .scatter(r, &hit)
+                    .and_then(Ray::validate) {
+                    Some(scattered) => {
+                        ttl_color(scattered.ttl, self.ttl) * self.color(&scattered)
+                    }
+                    None => ttl_color(r.ttl, self.ttl)
+                };
+            }
+            None => {
+                return ttl_color(r.ttl, self.ttl)
+            }
+        };
+    }
+}
+
+fn ttl_color(ray_ttl: i32, max_ttl:i32) -> V3{
+    (ray_ttl as f64 / max_ttl as f64)* V3::ones()
 }

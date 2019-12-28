@@ -11,9 +11,13 @@ use itertools::Itertools;
 use crate::aabb::AABB;
 use crate::material::{Lambertian, Material};
 use crate::ray::Ray;
-use crate::texture::Color;
+use crate::texture::{Color, Texture};
 
 use crate::vec::{Axis, V3};
+use crate::random::{rand_in_unit_sphere, next_f64, next_std_f64};
+use rand::distributions::Uniform;
+use rand::distributions::uniform::UniformFloat;
+use rand::RngCore;
 
 #[derive(Copy, Clone)]
 pub struct Hit<'a> {
@@ -266,7 +270,7 @@ impl Hittable for HittableList {
         self.objects
             .iter()
             // todo[performance]: try enabling again after implementing heavier object
-//            .filter(|h| h.bounding_box(ray.time(), ray.time())
+//            .filter(|h| h.bounding_box(ray.time, ray.time)
 //                .map(|aabb| aabb.hit(ray, dist_min, dist_max))
 //                .unwrap_or(true)
 //            )
@@ -458,7 +462,7 @@ impl Hittable for RotateY {
                     normal,
                     ..hit
                 }
-        })
+            })
     }
 
     fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
@@ -523,5 +527,82 @@ impl Hittable for AABox {
 
     fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
         Some(self.aabb)
+    }
+}
+
+#[derive(Debug)]
+pub struct ConstantMedium {
+    boundary: Box<dyn Hittable>,
+    density: f64,
+    phase_function: Box<dyn Material>,
+}
+
+impl ConstantMedium {
+    pub fn new(boundary: Box<dyn Hittable>,
+               density: f64,
+               texture: Box<dyn Texture>,
+    ) -> ConstantMedium {
+        ConstantMedium {
+            boundary,
+            density,
+            phase_function: Box::new(Isotropic::new(texture)),
+        }
+    }
+}
+
+impl Hittable for ConstantMedium {
+    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
+        self.boundary.hit(ray, 0.0, MAX).and_then(|enter_hit| {
+            self.boundary.hit(ray, enter_hit.dist + 0.001, MAX).and_then(|exit_hit| {
+                let enter_dist = f64::max(dist_min, enter_hit.dist);
+                let exit_dist = f64::min(exit_hit.dist, dist_max);
+                if enter_dist < exit_dist {
+                    // TODO: describe why such distribution?
+                    //  isotropic scattering follows Poisson point process?
+                    let hit_dist = next_f64(rand_distr::Exp1) / self.density;
+                    let inner_travel_distance = (exit_dist - enter_dist) * ray.direction.length();
+                    if hit_dist < inner_travel_distance {
+                        let dist = enter_dist + hit_dist / ray.direction.length();
+                        Some(Hit::new(
+                            dist,
+                            ray.point_at(dist),
+                            V3::new(1.0, 0.0, 0.0),
+                            self.phase_function.borrow(),
+                            0.0, 0.0,
+                        ))
+                    } else { None }
+                } else { None }
+            })
+        })
+    }
+
+    fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
+        self.boundary.bounding_box(t_min, t_max)
+    }
+}
+
+#[derive(Debug)]
+pub struct Isotropic {
+    albedo: Box<dyn Texture>
+}
+
+impl Isotropic {
+    pub fn new(albedo: Box<dyn Texture>) -> Isotropic {
+        Isotropic { albedo }
+    }
+}
+
+impl Material for Isotropic {
+    /// Isotropic material has a unit-sphere BSDF,
+    /// this means that amount of reflected light
+    /// is equal to the amount of transmitted light
+    /// probability of reflection in any direction is the same
+    fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<Ray> {
+        Some(
+            ray.produce(
+                hit.point,
+                rand_in_unit_sphere(),
+                self.albedo.value(hit.u, hit.v, hit.point).0)
+        )
     }
 }
