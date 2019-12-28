@@ -186,8 +186,6 @@ pub fn cornel_box_volumes(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -
     }
 }
 
-// naive took 6m12s with 800x400xaa100
-// BVH took 5m20s with 800x400xaa100
 pub fn rnd_scene(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene<RgbRenderer> {
     let mut objs: Vec<Box<dyn Hittable>> = vec![
         Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(
