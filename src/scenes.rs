@@ -7,7 +7,7 @@ use crate::random::{next_color, next_std_f64, with_rnd, next_std_u32};
 use crate::texture::{Checker, Color, ImageTexture, PerlinTexture};
 use crate::vec::V3;
 use crate::camera::Camera;
-use crate::renderer::{Renderer, RgbRenderer};
+use crate::renderer::{Renderer, RgbRenderer, TtlRenderer};
 use crate::ray::Ray;
 use crate::bvh::BVH;
 
