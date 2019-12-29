@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::f64::MAX;
+use std::f64::{MAX, MIN};
 
 use crate::material::Isotropic;
 use crate::random::next_f64;
@@ -29,7 +29,7 @@ impl ConstantMedium {
 
 impl Hittable for ConstantMedium {
     fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
-        self.boundary.hit(ray, 0.0, MAX).and_then(|enter_hit| {
+        self.boundary.hit(ray, MIN, MAX).and_then(|enter_hit| {
             self.boundary.hit(ray, enter_hit.dist + 0.001, MAX).and_then(|exit_hit| {
                 let enter_dist = f64::max(dist_min, enter_hit.dist);
                 let exit_dist = f64::min(exit_hit.dist, dist_max);
