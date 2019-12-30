@@ -7,7 +7,7 @@ use crate::random::{next_color, next_std_f64, with_rnd, next_std_u32};
 use crate::texture::{Checker, Color, ImageTexture, PerlinTexture};
 use crate::vec::V3;
 use crate::camera::Camera;
-use crate::renderer::{Renderer, RgbRenderer};
+use crate::renderer::{Renderer, RgbRenderer, TtlRenderer};
 use crate::ray::Ray;
 use crate::bvh::BVH;
 
@@ -186,8 +186,6 @@ pub fn cornel_box_volumes(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -
     }
 }
 
-// naive took 6m12s with 800x400xaa100
-// BVH took 5m20s with 800x400xaa100
 pub fn rnd_scene(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene<RgbRenderer> {
     let mut objs: Vec<Box<dyn Hittable>> = vec![
         Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(
@@ -235,6 +233,97 @@ pub fn rnd_scene(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene<R
     }
 }
 
+pub fn next_week(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene<impl Renderer> {
+    let nb = 20;
+    let ground = Arc::new(Lambertian::new(Color(V3::new(0.48, 0.83, 0.53))));
+    let mut objs: Vec<Box<dyn Hittable>> = vec![];
+    let mut boxes: Vec<Box<dyn Hittable>> = vec![];
+    for i in 0..nb {
+        for j in 0..nb {
+            let w = 100.0;
+            let x0 = -1000.0 + i as f64 * w;
+            let y0 = 0.0;
+            let z0 = -1000.0 + j as f64 * w;
+            let x1 = x0 + w;
+            let y1 = 100.0 * (next_std_f64() + 0.001);
+            let z1 = z0 + w;
+            boxes.push(Box::new(AABox::mono(x0..x1, y0..y1, z0..z1, ground.clone())));
+        }
+    }
+    objs.push(BVH::new(boxes));
+
+    let light = Arc::new(DiffuseLight::new(Box::new(Color(V3::ones())), 7.0));
+    objs.push(Box::new(XZRect::new(123.0..423.0, 147.0..412.0, 554.0, light)));
+
+    let center = V3::new(400.0, 400.0, 200.0);
+    objs.push(Box::new(MovingSphere::new(
+        center, center + V3::new(30.0, 0.0, 0.0),
+        0.0, 1.0,
+        50.0,
+        Box::new(Lambertian::new(
+            Color(V3::new(0.7, 0.3, 0.1))
+        )))));
+
+    objs.push(Box::new(Sphere::new(
+        V3::new(260.0, 150.0, 45.0), 50.0,
+        Box::new(Dielectric::new(1.5)))));
+
+    objs.push(Box::new(Sphere::new(
+        V3::new(0.0, 150.0, 145.0), 50.0,
+        Box::new(Metal::new_fuzzed(V3::new(0.8, 0.8, 0.9), 10.0)))));
+
+    let mat = Dielectric::new(1.5);
+    objs.push(Box::new(Sphere::new(
+        V3::new(260.0, 150.0, 45.0), 50.0,
+        Box::new(mat))));
+    objs.push(Box::new(ConstantMedium::new(
+        Box::new(Sphere::new(V3::new(260.0, 150.0, 45.0), 50.0, Box::new(mat))),
+        0.2,
+        Box::new(Color(V3::new(0.2, 0.4, 0.9))),
+    )));
+    objs.push(Box::new(ConstantMedium::new(
+        Box::new(Sphere::new(V3::zeros(), 5000.0, Box::new(mat))),
+        0.0001,
+        Box::new(Color(V3::ones())),
+    )));
+    objs.push(Box::new(Sphere::new(
+        V3::new(400.0, 200.0, 400.0),
+        100.0,
+        Box::new(Lambertian::texture(Box::new(ImageTexture::load("./textures/stone.png")))))
+    ));
+
+    let perlin = with_rnd(|rnd| Perlin::new(rnd));
+    objs.push(Box::new(Sphere::new(V3::new(220.0, 280.0, 300.0), 80.0, Box::new(
+        Lambertian::texture(Box::new(PerlinTexture::new(
+            Box::new(move |p, scale| 0.5 * (1.0 + (scale * p.x + 2.0 * perlin.turb(scale * p)).sin())),
+            0.1,
+        )))))));
+
+    let mut foam_box: Vec<Box<dyn Hittable>> = vec![];
+    for _ in 0..1000 {
+        foam_box.push(Box::new(Sphere::new(
+            165.0 * V3::new(next_std_f64(), next_std_f64(), next_std_f64()),
+            10.0,
+            Box::new(Lambertian::new(Color(V3::all(0.73)))),
+        )));
+    }
+    objs.push(
+        BVH::new(foam_box)
+            .rotate_y(15.0)
+            .translate(V3::new(-100.0, 270.0, 395.0))
+    );
+    Scene {
+        camera: next_week_cam(nx, ny, t_off, t_span, ttl),
+//        renderer: TtlRenderer {
+        renderer: RgbRenderer {
+            // time for 200x200x200x12
+//            hittable: Box::new(HittableList::new(objs)), //real: 1m17.845s, user: 9m28.076s, sys: 0m13.122s
+            hittable: BVH::new(objs), // real: 1m15.038s user: 9m17.559s, sys: 0m13.148s
+//            ttl,
+            miss_shader: |_| V3::zeros(),
+        },
+    }
+}
 
 fn cornel_box_cam(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Camera {
     let aspect = (nx as f64) / (ny as f64);
@@ -294,10 +383,33 @@ fn closeup_cam(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Camera {
     )
 }
 
+
+fn next_week_cam(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Camera {
+    let aspect = (nx as f64) / (ny as f64);
+    let from = V3::new(478.0, 278.0, -680.0);
+    let at = V3::new(278.0, 300.0, 0.0);
+
+    let dist_to_focus = 2.0;
+    let aperture = 0.00;
+    let vfov = 62.0;
+    Camera::new_look(
+        from, at,
+        /*    up*/ V3::new(0.0, 1.0, 0.0),
+        vfov,
+        aspect,
+        dist_to_focus,
+        aperture,
+        t_off, t_span,
+        ttl,
+    )
+}
+
+
 fn sky(r: &Ray) -> V3 {
     let t: f64 = 0.5 * (r.direction.y / r.direction.length() + 1.0);
     return (1.0 - t) * V3::ones() + t * V3::new(0.5, 0.7, 1.0);
 }
 
 fn const_color_dark(_: &Ray) -> V3 { V3::new(0.05088, 0.05088, 0.05088) }
+
 fn const_color_light(_: &Ray) -> V3 { V3::new(0.3, 0.3, 0.3) }

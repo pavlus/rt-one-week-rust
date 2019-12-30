@@ -2,8 +2,8 @@ use super::{Hittable, Ray, Renderer, V3};
 
 #[allow(dead_code)]
 pub struct TtlRenderer{
-    hittable: Box<dyn Hittable>,
-    ttl: i32
+    pub hittable: Box<dyn Hittable>,
+    pub ttl: i32
 }
 impl Renderer for TtlRenderer {
     fn color(&self, r: &Ray) -> V3 {
