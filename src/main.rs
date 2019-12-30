@@ -22,10 +22,15 @@ mod renderer;
 mod scenes;
 
 fn main() {
-    let nx = 512;
-    let ny = 512;
-    let aa = 800;
-    let ttl = 12;
+    let nx = 1024;
+    let ny = 1024;
+    let aa = 10000;
+    let ttl = 8;
+
+//    let nx = 400;
+//    let ny = 400;
+//    let aa = 8;
+//    let ttl = 8;
     let gamma_correct = true;
     let clamp_color = true;
 
@@ -35,12 +40,13 @@ fn main() {
 
 //    let cam = cornel_box_cam(nx, ny, 0.0, 0.2, ttl);
 //    let scene = rnd_scene(nx, ny, 0.0, 0.2, ttl);
+    let scene = next_week(nx, ny, 0.0, 0.2, ttl);
 //    let scene = perlin_scene(nx, ny, 0.0, 0.2, ttl);
 //    let scene = img_scene(nx, ny, 0.0, 0.2, ttl);
 //    let scene = img_lit_scene(nx, ny, 0.0, 0.2, ttl);
 //    let scene = img_lit_rect_scene(nx, ny, 0.0, 0.2, ttl);
 //    let scene = cornel_box_with_instances(nx, ny, 0.0, 0.2, ttl);
-    let scene = cornel_box_volumes(nx, ny, 0.0, 0.2, ttl);
+//    let scene = cornel_box_volumes(nx, ny, 0.0, 0.2, ttl);
 //    dbg!(&renderer.hittable);
     for j in (0..ny).rev() {
         for i in 0..nx {
