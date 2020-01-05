@@ -14,3 +14,4 @@ rand_distr = "0.2.2"
 image="0.22.*"
 rayon = "1.2.*"
 itertools = "0.8.*"
+structopt = { version = "0.3", default-features = false }
