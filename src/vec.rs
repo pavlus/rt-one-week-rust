@@ -6,6 +6,7 @@ use rand::seq::SliceRandom;
 use std::iter::Sum;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
+#[repr(C)]
 pub struct V3 {
     pub x: f64,
     pub y: f64,
@@ -37,32 +38,39 @@ impl Index<&Axis> for V3 {
 }
 
 impl V3 {
-    pub fn new(x: f64, y: f64, z: f64) -> V3 {
+    pub const fn new(x: f64, y: f64, z: f64) -> V3 {
         V3 { x, y, z }
     }
 
-    pub fn ones() -> V3 {
+    pub const fn ones() -> V3 {
         V3::new(1.0, 1.0, 1.0)
     }
-    pub fn zeros() -> V3 {
+    pub const fn zeros() -> V3 {
         V3::new(0.0, 0.0, 0.0)
     }
 
-    pub fn all(value: f64) -> V3 {
+    pub const fn all(value: f64) -> V3 {
         V3::new(value, value, value)
     }
 
     pub fn sqr_length(self) -> f64 {
-        self.dot(self)
+        unsafe {
+            let s = _mm_loadu_pd(&self.x as *const f64); // x, y
+            let p1 = _mm_dp_pd(s, s, 0b00110001);
+            self.z.mul_add(self.z, _mm_cvtsd_f64(p1))
+        }
     }
     pub fn length(&self) -> f64 {
         self.sqr_length().sqrt()
     }
 
     pub fn dot(&self, other: V3) -> f64 {
-        self.x * other.x
-            + self.y * other.y
-            + self.z * other.z
+        unsafe {
+            let s = _mm_loadu_pd(&self.x as *const f64); // x, y
+            let o = _mm_loadu_pd(&other.x as *const f64); // x, y
+            let p1 = _mm_dp_pd(s, o, 0b00110001);
+            self.z.mul_add(other.z, _mm_cvtsd_f64(p1))
+        }
     }
     pub fn cross(&self, other: V3) -> V3 {
         V3 {
@@ -91,11 +99,12 @@ macro_rules! mul_by_matrix {
     $a00:expr, $a01:expr, $a02:expr,
     $a10:expr, $a11:expr, $a12:expr,
     $a20:expr, $a21:expr, $a22:expr
-    ) => (V3{
-        x: ($vec.x) * ($a00) + ($vec.y) * ($a01) + ($vec.z) * ($a02),
-        y: ($vec.x) * ($a10) + ($vec.y) * ($a11) + ($vec.z) * ($a12),
-        z: ($vec.x) * ($a20) + ($vec.y) * ($a21) + ($vec.z) * ($a22),
-    })
+    ) => (V3::new(
+        ($vec.x) * ($a00) + ($vec.y) * ($a01) + ($vec.z) * ($a02),
+        ($vec.x) * ($a10) + ($vec.y) * ($a11) + ($vec.z) * ($a12),
+        ($vec.x) * ($a20) + ($vec.y) * ($a21) + ($vec.z) * ($a22),
+        )
+    )
 }
 
 impl From<[f64; 3]> for V3 {
@@ -244,20 +253,8 @@ mod test {
     #[test]
     fn add() {
         assert_eq!(
-            V3 {
-                x: 1.0,
-                y: 0.0,
-                z: 2.0,
-            } + V3 {
-                x: 2.0,
-                y: 1.0,
-                z: 2.0,
-            },
-            V3 {
-                x: 3.0,
-                y: 1.0,
-                z: 4.0,
-            }
+            V3::new(1.0, 0.0, 2.0) + V3::new(2.0, 1.0, 2.0),
+            V3::new(3.0, 1.0, 4.0)
         );
     }
 
@@ -268,80 +265,53 @@ mod test {
         x += y;
         assert_eq!(
             x,
-            V3 {
-                x: 1.0,
-                y: 2.0,
-                z: 3.0,
-            }
+            V3::new(1.0, 2.0, 3.0)
         );
     }
 
     #[test]
     fn cross() {
         assert_eq!(
-            V3 {
-                x: 1.0,
-                y: 0.0,
-                z: 2.0,
-            }
-                .cross(V3 {
-                    x: 2.0,
-                    y: 1.0,
-                    z: 2.0,
-                }),
-            V3 {
-                x: -2.0,
-                y: 2.0,
-                z: 1.0,
-            }
+            V3::new(1.0, 0.0, 2.0).cross(V3::new(2.0, 1.0, 2.0)),
+            V3::new(-2.0, 2.0, 1.0)
         );
+    }
+
+    #[test]
+    fn _cross() {
+        let v1 = V3::new(1.0, 2.0, 3.0);
+        let v2 = V3::new(3.0, 2.0, 1.0);
+        assert_eq!(v1.cross(v2), v1._cross(v2));
+    }
+
+    #[test]
+    fn __cross() {
+        let v1 = V3::new(0.0, 0.0, 1.0);
+        let v2 = V3::new(0.0, 1.0, 0.0);
+        assert_eq!(v1.cross(v2), v1._cross(v2));
     }
 
     #[test]
     fn dot() {
         assert_eq!(
-            V3 {
-                x: 1.0,
-                y: 0.0,
-                z: 2.0,
-            }
-                .dot(V3 {
-                    x: 2.0,
-                    y: 1.0,
-                    z: 2.0,
-                }),
+            V3::new(1.0, 0.0, 2.0)
+                .dot(V3::new(2.0, 1.0, 2.0)),
             6.0
         );
     }
 
     #[test]
     fn length() {
-        let v = V3 {
-            x: -2.0,
-            y: -2.0,
-            z: -1.0,
-        };
-        let u = V3 {
-            x: 0.0,
-            y: 0.0,
-            z: -1.0,
-        };
+        let v = V3::new(-2.0, -2.0, -1.0);
+        let u = V3::new(0.0, 0.0, -1.0);
         assert_eq!(v.length(), 3.0);
         assert_eq!(u.length(), 1.0);
     }
 
     #[test]
     fn sqr_length() {
-        let v = V3 {
-            x: -2.0,
-            y: -2.0,
-            z: -1.0,
-        };
-        let u = V3 {
-            x: 0.0,
-            y: 0.0,
-            z: -1.0,
-        };
+        let v = V3::new(-2.0, -2.0, -1.0);
+        let u = V3::new(0.0, 0.0, -1.0);
         assert_eq!(v.sqr_length(), 9.0);
         assert_eq!(u.sqr_length(), 1.0);
     }
@@ -349,16 +319,8 @@ mod test {
     #[test]
     fn mul() {
         assert_eq!(
-            3.0 * V3 {
-                x: 1.0,
-                y: 2.0,
-                z: 3.0,
-            },
-            V3 {
-                x: 3.0,
-                y: 6.0,
-                z: 9.0,
-            }
+            3.0 * V3::new(1.0, 2.0, 3.0),
+            V3::new(3.0, 6.0, 9.0)
         );
     }
 
@@ -372,36 +334,16 @@ mod test {
     #[test]
     fn neg() {
         assert_eq!(
-            -V3 {
-                x: 1.0,
-                y: -2.0,
-                z: 3.0,
-            },
-            V3 {
-                x: -1.0,
-                y: 2.0,
-                z: -3.0,
-            }
+            -V3::new(1.0, -2.0, 3.0),
+            V3::new(-1.0, 2.0, -3.0)
         );
     }
 
     #[test]
     fn sub() {
         assert_eq!(
-            V3 {
-                x: 1.0,
-                y: 0.0,
-                z: 2.0,
-            } - V3 {
-                x: 2.0,
-                y: 1.0,
-                z: 2.0,
-            },
-            V3 {
-                x: -1.0,
-                y: -1.0,
-                z: 0.0,
-            }
+            V3::new(1.0, 0.0, 2.0) - V3::new(2.0, 1.0, 2.0),
+            V3::new(-1.0, -1.0, 0.0)
         );
     }
 }
