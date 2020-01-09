@@ -4,11 +4,11 @@ mkdir -p benchmarks
 
 RUSTFLAGS="-C target-cpu=native" cargo build --release --bin rust-rt-one-weekend
 
-hyperfine './target/release/rust-rt-one-weekend --width 64 --height 64 --samples 1000 --bounces 4 {scene}' \
-  --warmup 2 \
-  --runs 10 \
+hyperfine './target/release/rust-rt-one-weekend --width 128 --height 128 --bounces 4 {scene}' \
+  --warmup 3 \
+  --runs 20 \
   --parameter-list scene \
-    next_week_final,weekend_final,cornel_instances,cornel_volumes,perlin \
+    "-s 62 next_week_final,-s 220 weekend_final,-s 2950 cornel_instances,-s 1900 cornel_volumes,-s 3300 perlin" \
   --export-json ./benchmarks.json \
   --export-markdown ./BENCHMARKS.md
 
