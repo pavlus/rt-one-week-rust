@@ -1,7 +1,9 @@
-use rayon::prelude::*;
+use structopt::StructOpt;
 
 use vec::V3;
 
+use crate::renderer::Renderer;
+use crate::sampler::Sampler;
 use crate::scenes::*;
 
 mod vec;
@@ -17,69 +19,66 @@ mod bvh;
 mod texture;
 mod noise;
 mod renderer;
+mod sampler;
 
 #[allow(dead_code)]
 mod scenes;
 
+#[derive(Debug, StructOpt)]
+enum SceneType {
+    #[structopt(name = "weekend_final")]
+    WeekendFinal,
+    #[structopt(name = "perlin")]
+    Perlin,
+    #[structopt(name = "cornel_instances")]
+    CornelInstances,
+    #[structopt(name = "cornel_volumes")]
+    CornelVolumes,
+    #[structopt(name = "next_week_final")]
+    NextWeekFinal,
+}
+
+#[derive(Debug, StructOpt)]
+struct Params {
+    #[structopt(subcommand)]
+    scene: Option<SceneType>,
+
+    #[structopt(short = "w", long = "width", default_value = "512")]
+    width: u16,
+    #[structopt(short = "h", long = "height", default_value = "512")]
+    height: u16,
+    #[structopt(short = "s", long = "samples", default_value = "400")]
+    samples: u16,
+    #[structopt(short = "b", long = "bounces", default_value = "12")]
+    bounces: u16,
+}
+
 fn main() {
-    let nx = 1024;
-    let ny = 1024;
-    let aa = 10000;
-    let ttl = 8;
+    let params: Params = Params::from_args();
+    let cfg = Sampler {
+        width: params.width as u32,
+        height: params.height as u32,
+        samples: params.samples as usize,
+        max_ray_bounces: params.bounces as i32,
+        pixel_postprocessor: crate::postprocess,
+    };
 
-//    let nx = 400;
-//    let ny = 400;
-//    let aa = 8;
-//    let ttl = 8;
-    let gamma_correct = true;
-    let clamp_color = true;
+    let scene: Scene = match params.scene.unwrap_or(SceneType::WeekendFinal) {
+        SceneType::WeekendFinal => weekend_final(11, cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces),
+        SceneType::CornelInstances => cornel_box_with_instances(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces),
+        SceneType::CornelVolumes => cornel_box_volumes(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces),
+        SceneType::NextWeekFinal => next_week(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces),
+        SceneType::Perlin => perlin_scene(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces),
+    };
+//    let scene = img_scene(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces);
+//    let scene = img_lit_scene(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces);
+//    let scene = img_lit_rect_scene(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces);
 
-    println!("P3");
-    println!("{} {}", nx, ny);
-    println!("255");
+    cfg.do_render(scene);
+}
 
-//    let cam = cornel_box_cam(nx, ny, 0.0, 0.2, ttl);
-//    let scene = rnd_scene(nx, ny, 0.0, 0.2, ttl);
-    let scene = next_week(nx, ny, 0.0, 0.2, ttl);
-//    let scene = perlin_scene(nx, ny, 0.0, 0.2, ttl);
-//    let scene = img_scene(nx, ny, 0.0, 0.2, ttl);
-//    let scene = img_lit_scene(nx, ny, 0.0, 0.2, ttl);
-//    let scene = img_lit_rect_scene(nx, ny, 0.0, 0.2, ttl);
-//    let scene = cornel_box_with_instances(nx, ny, 0.0, 0.2, ttl);
-//    let scene = cornel_box_volumes(nx, ny, 0.0, 0.2, ttl);
-//    dbg!(&renderer.hittable);
-    for j in (0..ny).rev() {
-        for i in 0..nx {
-//            let col: V3 = (0..aa).map(|_| {
-            let col: V3 = rayon::iter::repeatn((), aa).map(|_| {
-                let [du, dv] = random::rand_in_unit_disc();
-                let u = (i as f64 + du) / (nx as f64);
-                let v = (j as f64 + dv) / (ny as f64);
-                scene.color(u, v)
-            }).sum();
-
-            let mut col = col / aa as f64;
-
-            if clamp_color {
-                col = clamp(col)
-            }
-
-            if gamma_correct {
-                col = gamma(col)
-            }
-
-            let ir: u32 = (255.99 * col.x) as u32;
-            let ig: u32 = (255.99 * col.y) as u32;
-            let ib: u32 = (255.99 * col.z) as u32;
-
-            assert![ir < 256];
-            assert![ig < 256];
-            assert![ib < 256];
-
-            print!("{} {} {} ", ir, ig, ib);
-        }
-        println!();
-    }
+pub fn postprocess(color: V3) -> V3 {
+    gamma(clamp(color))
 }
 
 fn clamp(color: V3) -> V3 {
