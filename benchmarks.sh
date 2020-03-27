@@ -2,7 +2,7 @@
 
 mkdir -p benchmarks
 
-RUSTFLAGS="-C target-cpu=native" cargo build --release --bin rust-rt-one-weekend
+#RUSTFLAGS="-C target-cpu=native" cargo build --release --bin rust-rt-one-weekend
 
 hyperfine './target/release/rust-rt-one-weekend --width 128 --height 128 --bounces 4 {scene}' \
   --warmup 3 \
