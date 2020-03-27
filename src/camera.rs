@@ -17,7 +17,7 @@ pub struct Camera {
     ttl: i32,
 }
 
-static DEFAULT_COLOR: V3 = V3 { x: 0.0, y: 0.0, z: 0.0 };
+static DEFAULT_COLOR: V3 = V3::zeros();
 
 impl Camera {
     pub fn new_look(
