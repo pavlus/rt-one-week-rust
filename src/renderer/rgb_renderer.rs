@@ -13,9 +13,15 @@ impl Renderer for RgbRenderer {
                 let emitted = hit.material.emmit(&hit);
                 return match hit
                     .material
-                    .scatter(r, &hit)
-                    .and_then(Ray::validate) {
-                    Some(scattered) => { emitted.0 + scattered.attenuation * self.color(&scattered) }
+                    .scatter_with_pdf(r, &hit)
+                    .and_then(|(ray, pdf)| ray.validate().map(|ray| (ray, pdf))) {
+                    Some((scattered, pdf)) => {
+                        emitted.0
+                            + hit.material.scattering_pdf(r, &hit, &scattered)
+                            * scattered.attenuation
+                            * self.color(&scattered)
+                            / pdf
+                    }
                     None => emitted.0
                 };
             }

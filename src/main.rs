@@ -9,6 +9,7 @@ use crate::scenes::*;
 mod vec;
 mod ray;
 mod hittable;
+mod onb;
 mod camera;
 #[allow(dead_code)]
 mod material;
@@ -32,6 +33,8 @@ enum SceneType {
     Perlin,
     #[structopt(name = "cornel_instances")]
     CornelInstances,
+    #[structopt(name = "cornel_is")]
+    CornelIs,
     #[structopt(name = "cornel_volumes")]
     CornelVolumes,
     #[structopt(name = "next_week_final")]
@@ -66,6 +69,7 @@ fn main() {
     let scene: Scene = match params.scene.unwrap_or(SceneType::WeekendFinal) {
         SceneType::WeekendFinal => weekend_final(11, cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces),
         SceneType::CornelInstances => cornel_box_with_instances(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces),
+        SceneType::CornelIs => cornel_box_with_is(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces),
         SceneType::CornelVolumes => cornel_box_volumes(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces),
         SceneType::NextWeekFinal => next_week(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces),
         SceneType::Perlin => perlin_scene(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces),

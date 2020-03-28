@@ -53,6 +53,22 @@ pub fn rand_in_unit_sphere() -> V3 {
     V3::from(RND.with(|rnd_cell| UnitSphere.sample((*rnd_cell.borrow_mut()).borrow_mut())))
 }
 
+pub fn rand_in_unit_hemisphere(normal: &V3) -> V3 {
+    let result = rand_in_unit_sphere();
+    if result.dot(*normal) > 0.0 { result } else { -result }
+}
+
+pub fn rand_cosine_direction() -> V3 {
+    let r1 = next_std_f64();
+    let r2 = next_std_f64();
+
+    let phi = r1 * 2.0 * core::f64::consts::PI;
+    let (sin, cos) = f64::sin_cos(phi);
+    let sqrt_r2 = f64::sqrt(r2);
+
+    V3::new(cos * sqrt_r2, sin * sqrt_r2, f64::sqrt(1.0 - r2))
+}
+
 pub fn rand_in_unit_disc() -> [f64; 2] {
     RND.with(|rnd_cell| UnitDisc.sample((*rnd_cell.borrow_mut()).borrow_mut()))
 }

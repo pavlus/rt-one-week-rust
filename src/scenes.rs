@@ -152,6 +152,30 @@ pub fn cornel_box_with_instances(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl:
     }
 }
 
+pub fn cornel_box_with_is(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
+    let mut objs = cornel_box_prototype();
+    objs.push(
+        AABox::mono(0.0..165.0, 0.0..165.0, 0.0..165.0,
+                    Arc::new(Lambertian::new(Color(V3::all(0.73)))))
+            .rotate_y(-18.0)
+            .translate(V3::new(130.0, 0.0, 65.0))
+    );
+
+    objs.push(
+        AABox::mono(0.0..165.0, 0.0..330.0, 0.0..165.0,
+                    Arc::new(Lambertian::new(Color(V3::all(0.73)))))
+            .rotate_y(15.0)
+            .translate(V3::new(265.0, 0.0, 295.0)));
+
+    Scene {
+        camera: cornel_box_cam(nx, ny, t_off, t_span, ttl),
+        renderer: RendererImpl::RGB(RgbRenderer {
+            hittable: Box::new(HittableList::new(objs)),
+            miss_shader: self::const_color_black,
+        }),
+    }
+}
+
 pub fn cornel_box_volumes(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
     let mut objs = cornel_box_prototype();
     objs.push(Box::new(ConstantMedium::new(
@@ -411,5 +435,6 @@ fn sky(r: &Ray) -> V3 {
 }
 
 fn const_color_dark(_: &Ray) -> V3 { V3::new(0.05088, 0.05088, 0.05088) }
+fn const_color_black(_: &Ray) -> V3 { V3::new(0., 0., 0.) }
 
 fn const_color_light(_: &Ray) -> V3 { V3::new(0.3, 0.3, 0.3) }
