@@ -60,6 +60,14 @@ impl Hittable for FlipNormals {
     fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
         self.0.bounding_box(t_min, t_max)
     }
+
+    fn pdf_value(&self, origin: &V3, direction: &V3, hit: &Hit) -> f64 {
+        self.0.pdf_value(origin, direction, hit)
+    }
+
+    fn random(&self, origin: &V3) -> V3 {
+        self.0.random(origin)
+    }
 }
 
 
@@ -81,6 +89,16 @@ impl Hittable for Translate {
         self.target
             .bounding_box(t_min, t_max)
             .map(|aabb| AABB::new(aabb.min + self.offset, aabb.max + self.offset))
+    }
+
+    fn pdf_value(&self, origin: &V3, direction: &V3, hit: &Hit) -> f64 {
+        // self.target.pdf_value(&(*origin - self.offset), direction, hit)
+        self.target.pdf_value(origin, direction, hit)
+    }
+
+    fn random(&self, origin: &V3) -> V3 {
+        // self.target.random(&(*origin - self.offset))
+        self.target.random(origin)
     }
 }
 
@@ -156,21 +174,12 @@ fn test_rot_y() {
 
 impl Hittable for RotateY {
     fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
-        let sin = self.sin;
-        let cos = self.cos;
-
-        let origin = mul_by_matrix!(ray.origin,
-            cos, 0.0, -sin,
-            0.0, 1.0, 0.0,
-            sin, 0.0, cos
-        );
-        let direction = mul_by_matrix!(ray.direction,
-            cos, 0.0, -sin,
-            0.0, 1.0, 0.0,
-            sin, 0.0, cos
-        );
+        let origin = self.forward_transform(ray.origin);
+        let direction = self.forward_transform(ray.direction);
 
         let rotated_ray = Ray { origin, direction, ..*ray };
+        let sin = self.sin;
+        let cos = self.cos;
         self.target.hit(&rotated_ray, dist_min, dist_max)
             .map(|hit| {
                 let point = mul_by_matrix!(hit.point,
@@ -194,5 +203,27 @@ impl Hittable for RotateY {
 
     fn bounding_box(&self, _: f32, _: f32) -> Option<AABB> {
         self.aabb
+    }
+
+    fn pdf_value(&self, origin: &V3, direction: &V3, hit: &Hit) -> f64 {
+        let origin = self.forward_transform(*origin);
+        let direction = self.forward_transform(*direction);
+        self.target.pdf_value(&origin, &direction, hit)
+    }
+
+    fn random(&self, origin: &V3) -> V3 {
+        // self.target.random(&self.forward_transform(*origin))
+        self.target.random(origin)
+    }
+}
+
+impl RotateY {
+    #[inline]
+    fn forward_transform(&self, vec: V3) -> V3 {
+        mul_by_matrix!(vec,
+            self.cos, 0.0, -self.sin,
+            0.0, 1.0, 0.0,
+            self.sin, 0.0, self.cos
+        )
     }
 }

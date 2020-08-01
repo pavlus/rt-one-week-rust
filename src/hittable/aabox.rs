@@ -5,7 +5,7 @@ use super::{AABB, Hit, Hittable, HittableList, Instance, Material, Ray, V3, XYRe
 use itertools::min;
 use std::borrow::Borrow;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AABoxMono {
     x: Range<f64>,
     y: Range<f64>,
@@ -14,7 +14,7 @@ pub struct AABoxMono {
     material: Arc<dyn Material>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AABoxHetero {
     x: Range<f64>,
     y: Range<f64>,
@@ -229,6 +229,30 @@ impl Hittable for AABoxHetero {
 
     fn bounding_box(&self, _: f32, _: f32) -> Option<AABB> {
         Some(self.aabb)
+    }
+
+    fn pdf_value(&self, _: &V3, direction: &V3, hit: &Hit) -> f64 {
+        let width = self.x.end - self.x.start;
+        let height = self.y.end - self.y.start;
+        let depth = self.z.end - self.z.start;
+        let area = width * height + height * depth + width * depth;
+        let sqr_dist = (hit.dist * hit.dist) * direction.sqr_length();
+        let cosine = f64::abs(direction.dot(hit.normal) / direction.length());
+        sqr_dist / (cosine * area)
+    }
+
+    fn random(&self, origin: &V3) -> V3 {
+        let o: [f64;3] = (*origin).into();
+        let k = crate::random::next_std_i32() as usize;
+        let a = k + 1;
+        let b = k + 2;
+        let (k, a, b) = (k % 3, a % 3, b % 3);
+        let axes = [&self.x, &self.y, &self.z];
+        let mut tmp: [f64; 3] = [0., 0., 0.];
+        tmp[a] = crate::random::next_std_f64_in_range(axes[a]);
+        tmp[b] = crate::random::next_std_f64_in_range(axes[b]);
+        tmp[k] = f64::min(axes[k].start - o[k], axes[k].end - o[k]);
+        tmp.into()
     }
 }
 

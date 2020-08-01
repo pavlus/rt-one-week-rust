@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 use std::f64::{MAX, MIN};
 
 use crate::material::Isotropic;
-use crate::random::next_f64;
+use crate::random::{next_f64, rand_in_unit_sphere};
 use crate::texture::Texture;
 
 use super::{AABB, Hit, Hittable, Material, Ray, V3};
@@ -43,9 +43,9 @@ impl Hittable for ConstantMedium {
                         Some(Hit::new(
                             dist,
                             ray.point_at(dist),
-                            V3::new(1.0, 0.0, 0.0),
+                            rand_in_unit_sphere(),
                             self.phase_function.borrow(),
-                            0.0, 0.0,
+                            enter_hit.u, enter_hit.v,
                         ))
                     } else { None }
                 } else { None }
@@ -53,8 +53,20 @@ impl Hittable for ConstantMedium {
         })
     }
 
+    #[inline]
     fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
         self.boundary.bounding_box(t_min, t_max)
     }
+
+    #[inline]
+    fn pdf_value(&self, origin: &V3, direction: &V3, hit: &Hit) -> f64 {
+        self.boundary.pdf_value(origin, direction, hit)
+    }
+
+    #[inline]
+    fn random(&self, origin: &V3) -> V3 {
+        self.boundary.random(origin)
+    }
+
 }
 

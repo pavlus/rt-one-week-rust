@@ -2,12 +2,15 @@
 
 use std::borrow::BorrowMut;
 use std::cell::RefCell;
+use std::ops::Range;
 
+use rand::{RngCore, SeedableRng};
 use rand::distributions::{Distribution, Standard};
-use rand::{SeedableRng, RngCore};
-use rand_xoshiro::Xoshiro256Plus;
-use crate::vec::{V3, Axis};
+use rand::seq::SliceRandom;
 use rand_distr::{UnitDisc, UnitSphere};
+use rand_xoshiro::Xoshiro256Plus;
+
+use crate::vec::{Axis, V3};
 
 thread_local! {
     static RND: RefCell<Xoshiro256Plus> =
@@ -15,6 +18,11 @@ thread_local! {
 }
 
 pub fn next_std_f64() -> f64 {
+    RND.with(|rnd_cell|
+        Standard.sample((*rnd_cell.borrow_mut()).borrow_mut()))
+}
+
+pub fn next_std_i32() -> i32 {
     RND.with(|rnd_cell|
         Standard.sample((*rnd_cell.borrow_mut()).borrow_mut()))
 }
@@ -49,6 +57,17 @@ pub fn random_axis() -> &'static Axis {
         Axis::random((*rnd_cell.borrow_mut()).borrow_mut()))
 }
 
+pub fn random_item<T>(from: &[T]) -> Option<&T> {
+    RND.with(|rnd_cell|
+        from.choose((*rnd_cell.borrow_mut()).borrow_mut()))
+}
+
+pub fn next_std_f64_in_range(range: &Range<f64>) -> f64 {
+    let value: f64 =  RND.with(|rnd_cell|
+        Standard.sample((*rnd_cell.borrow_mut()).borrow_mut()));
+    value.mul_add(range.end - range.start, range.start)
+}
+
 pub fn rand_in_unit_sphere() -> V3 {
     V3::from(RND.with(|rnd_cell| UnitSphere.sample((*rnd_cell.borrow_mut()).borrow_mut())))
 }
@@ -61,12 +80,17 @@ pub fn rand_in_unit_hemisphere(normal: &V3) -> V3 {
 pub fn rand_cosine_direction() -> V3 {
     let r1 = next_std_f64();
     let r2 = next_std_f64();
+    let z = f64::sqrt(1.0 - r2);
 
     let phi = r1 * 2.0 * core::f64::consts::PI;
     let (sin, cos) = f64::sin_cos(phi);
     let sqrt_r2 = f64::sqrt(r2);
 
-    V3::new(cos * sqrt_r2, sin * sqrt_r2, f64::sqrt(1.0 - r2))
+    let x = cos * sqrt_r2;
+    let y = sin * sqrt_r2;
+
+    let result = V3::new(x, y, z);
+    result
 }
 
 pub fn rand_in_unit_disc() -> [f64; 2] {

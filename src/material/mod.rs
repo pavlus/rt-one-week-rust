@@ -10,6 +10,7 @@ use crate::hittable::Hit;
 use crate::ray::Ray;
 use crate::texture::{Color, Texture};
 use crate::vec::V3;
+use crate::scatter::Scatter;
 
 pub mod lambertian;
 pub mod metal;
@@ -23,6 +24,8 @@ pub trait Material: Debug + Sync + Send {
     fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<Ray> { None }
     fn emmit(&self, hit: &Hit) -> Color { Color(V3::zeros()) }
 
-    fn scatter_with_pdf(&self, ray: &Ray, hit: &Hit) -> Option<(Ray, PDF)> { self.scatter(ray, hit).map(|ray| (ray, 1.0)) }
-    fn scattering_pdf(&self, ray: &Ray, hit: &Hit, scattered: &Ray) -> PDF { 1.0 }
+    fn scatter_with_pdf(&self, ray: &Ray, hit: &Hit) -> Option<Scatter> {
+        self.scatter(ray, hit).map(|ray| Scatter::Specular(ray))
+    }
+    fn scattering_pdf(&self, hit: &Hit, scattered: &Ray) -> PDF { 0.0 }
 }

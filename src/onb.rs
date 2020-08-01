@@ -1,5 +1,6 @@
 use crate::V3;
 
+#[derive(Debug, Copy, Clone)]
 pub struct ONB{
     pub u: V3,
     pub v: V3,

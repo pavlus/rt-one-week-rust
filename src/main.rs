@@ -10,6 +10,8 @@ mod vec;
 mod ray;
 mod hittable;
 mod onb;
+mod pdf;
+mod scatter;
 mod camera;
 #[allow(dead_code)]
 mod material;

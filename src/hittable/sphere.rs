@@ -2,6 +2,7 @@ use std::borrow::Borrow;
 use std::f64::consts;
 
 use super::{AABB, Hit, Hittable, Material, Ray, V3};
+use crate::onb::ONB;
 
 #[derive(Debug)]
 pub struct Sphere {
@@ -14,9 +15,11 @@ impl Sphere {
     pub fn new(center: V3, radius: f64, material: Box<dyn Material>) -> Sphere {
         Sphere { center, radius, material }
     }
+    #[inline]
     fn center(&self, _: f32) -> V3 {
         self.center
     }
+    #[inline]
     fn radius(&self) -> f64 { self.radius }
     fn material(&self) -> &Box<dyn Material> { &self.material }
 
@@ -55,10 +58,12 @@ impl MovingSphere {
             material,
         }
     }
+    #[inline]
     fn center(&self, time: f32) -> V3 {
         let scale = (time - self.time0) / self.duration;
         self.center_t0 + scale * (self.center_t1 - self.center_t0)
     }
+    #[inline]
     fn radius(&self) -> f64 { self.radius }
     fn aabb(&self, t: f32) -> AABB {
         AABB::new(self.center(t) - self.radius(), self.center(t) + self.radius())
@@ -67,15 +72,17 @@ impl MovingSphere {
 
 impl Hittable for Sphere {
     fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
-        let oc = ray.origin - self.center(ray.time);
+        let center =self.center(ray.time);
+        let radius = self.radius;
+        let oc = ray.origin - center;
         let a = ray.direction.sqr_length();
         let b = oc.dot(ray.direction);
-        let c = oc.sqr_length() - (self.radius() * self.radius()) as f64;
+        let c = oc.sqr_length() - (radius * radius) as f64;
         let discr_sqr = b * b - a * c;
 
         let get_hit = |ray: &Ray, dist: f64| -> Hit {
             let p = ray.point_at(dist);
-            let n = (p - self.center(ray.time)) / self.radius();
+            let n = (p - center) / radius;
             let (u, v) = Sphere::uv(n);
             return Hit::new(dist, p, n, self.material().borrow(), u, v);
         };
@@ -99,14 +106,43 @@ impl Hittable for Sphere {
     fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
         Some(self.aabb(t_min, t_max))
     }
+
+    fn pdf_value(&self, origin: &V3, _: &V3, _: &Hit) -> f64 {
+        let sqr_r = self.radius * self.radius;
+        // todo: am i sure that hit distance doesn't mean anything?
+        let direction = self.center - *origin;
+        let cos_theta_max = f64::sqrt(1.0 - sqr_r / direction.sqr_length());
+        let solid_angle = 2.0 * consts::PI * (1.0 - cos_theta_max);
+
+        1.0/solid_angle
+    }
+
+    fn random(&self, origin: &V3) -> V3 {
+        let direction = self.center - *origin;
+        let onb = ONB::from_w(&direction);
+        onb.local(random_to_sphere(self.radius(), direction.sqr_length()))
+    }
+}
+#[inline]
+fn random_to_sphere(radius: f64, sqr_dist: f64) -> V3 {
+    let r1 = crate::random::next_std_f64();
+    let r2 = crate::random::next_std_f64();
+    let z = 1.0 + r2 * (f64::sqrt(1.0 - radius * radius / sqr_dist) - 1.0);
+
+    let phi = 2.0 * consts::PI * r1;
+    let sin_theta = f64::sqrt(1.0 - z * z);
+
+    let (sin_phi,cos_phi) = f64::sin_cos(phi);
+    let x = cos_phi * sin_theta;
+    let y = sin_phi * sin_theta;
+
+    V3::new(x, y, z)
 }
 
 impl Hittable for MovingSphere {
     fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
-//        if !self.bounding_box(ray.time(), ray.time())
-//            .unwrap().hit(ray, dist_min, dist_max) { return None; }
-
-        let oc = ray.origin - self.center(ray.time);
+        let center = self.center(ray.time);
+        let oc = ray.origin - center;
         let a = ray.direction.sqr_length();
         let b = oc.dot(ray.direction);
         let c = oc.sqr_length() - (self.radius * self.radius) as f64;
@@ -114,7 +150,7 @@ impl Hittable for MovingSphere {
 
         let get_hit = |ray: &Ray, dist: f64| -> Hit {
             let p = ray.point_at(dist);
-            let n = (p - self.center(ray.time)) / self.radius;
+            let n = (p - center) / self.radius;
             let (u, v) = Sphere::uv(n);
             return Hit::new(dist, p, n, self.material.borrow(), u, v);
         };
@@ -138,4 +174,5 @@ impl Hittable for MovingSphere {
     fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
         Some(self.aabb(t_min) + self.aabb(t_max))
     }
+
 }

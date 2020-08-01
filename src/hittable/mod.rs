@@ -11,6 +11,8 @@ use crate::aabb::AABB;
 use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec::V3;
+use crate::random::rand_in_unit_sphere;
+use std::f64::consts::PI;
 
 mod sphere;
 mod aarect;
@@ -38,4 +40,33 @@ impl<'a> Hit<'a> {
 pub trait Hittable: Debug + Sync {
     fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit>;
     fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> { None }
+
+    fn pdf_value(&self, origin: &V3, direction: &V3, hit: &Hit) -> f64 {
+        1.0
+    }
+
+    fn random(&self, origin: &V3) -> V3 {
+        V3::new(0.0, 1.0, 0.0)
+    }
+
+}
+
+#[derive(Debug)]
+pub struct NoHit;
+impl Hittable for NoHit{
+    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
+        None
+    }
+
+    fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
+        None
+    }
+
+    fn pdf_value(&self, _: &V3, _: &V3, _: &Hit) -> f64 {
+        1.0/(PI*4.0)
+    }
+
+    fn random(&self, origin: &V3) -> V3 {
+        rand_in_unit_sphere()
+    }
 }

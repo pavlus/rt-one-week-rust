@@ -1,11 +1,20 @@
 use super::{Hittable, Ray, Renderer, V3};
 use std::borrow::Borrow;
 use crate::random::next_std_f64;
-use std::ops::Range;
+use std::ops::{Range, Mul, Deref};
 use crate::texture::Color;
+use crate::pdf::{CosinePDF, PDF, HittablePDF, MixturePDF};
+use crate::hittable::XZRect;
+use std::sync::Arc;
+use crate::material::{DiffuseLight, Lambertian, Material};
+use crate::scatter::Scatter::{Specular, Diffuse};
+use std::fmt::Debug;
+use rand::random;
+use crate::onb::ONB;
 
 pub struct RgbRenderer {
     pub hittable: Box<dyn Hittable>,
+    pub important: Box<dyn Hittable>,
     pub miss_shader: fn(&Ray) -> V3,
 }
 
@@ -13,37 +22,56 @@ impl Renderer for RgbRenderer {
     fn color(&self, r: &Ray) -> V3 {
         match self.hittable.hit(&r, 0.0001, 99999.0) {
             Some(hit) => {
-                let emitted = hit.material.emmit(&hit);
+                let emitted = if hit.normal.dot(r.direction.unit()) < 0.0 {
+                    hit.material.emmit(&hit)
+                } else {
+                    Color(V3::zeros())
+                };
                 match hit
                     .material
-                    .scatter_with_pdf(r, &hit)
-                    .and_then(|(ray, pdf)| ray.validate().map(|ray| (ray, pdf))) {
-                    Some((scattered, pdf)) => {
-                        let on_light: V3 = V3::new(
-                            next_std_f64_in_range(213.0..343.0),
-                            554.,
-                            next_std_f64_in_range(227.0..332.),
-                        );
-                        let to_light = on_light - hit.point;
-                        let dist_sqr = to_light.sqr_length();
-                        let to_light_direction = to_light.unit();
-                        if /*to_light_direction.dot(hit.normal) < 0.0*/ false {
-                            V3::new(0.0, 1.0, 0.0)
-                        } else {
-                            let light_area = (343.0 - 213.0) * (332.0 - 227.0);
-                            let light_cosine = to_light_direction.y.abs();
-                            if light_cosine < 0.000001 {
-                                V3::new(1.0, 0.0, 0.0)
-                            } else {
-                                let pdf = dist_sqr / (light_cosine * light_area);
-                                let scattered = r.produce(hit.point, to_light_direction, scattered.attenuation);
-                                emitted.0
-                                    + hit.material.scattering_pdf(r, &hit, &scattered) / pdf
-                                    * scattered.attenuation * self.color(&scattered)
-                                // V3::new(to_light_direction.x.abs(), to_light_direction.y.abs(), to_light_direction.z.abs()) // direction to light
-                                // V3::all(to_light.length() / 600.0) // distance to light
-                                // V3::all(hit.material.scattering_pdf(r, &hit, &scattered)) / pdf // light without color
+                    .scatter_with_pdf(r, &hit) {
+                    Some(scatter) => {
+                        match scatter {
+                            Specular(scattered) => {
+                                if let Some(valid) = scattered.validate() {
+                                    let scattered_color = self.color(&valid);
+                                    emitted.0 + valid.attenuation * scattered_color
+                                } else {
+                                    emitted.0
+                                }
+                            }
+                            Diffuse(pdf, attenuation) => {
+                                // let pdf = HittablePDF::new(hit.point, &self.important);
+                                let pdf = MixturePDF::new(pdf, HittablePDF::new(hit.point, &self.important));
+                                if let Some(scattered) = r.produce(
+                                    hit.point,
+                                    pdf.generate().unit(),
+                                    attenuation.0
+                                ).validate() {
+                                    let pdf_value = pdf.value(&scattered.direction, &hit);
+                                    let spdf = hit.material.scattering_pdf(&hit, &scattered);
+                                    let mut weight = spdf / pdf_value;
+                                    if weight.is_nan() {
+                                        weight = 0.0
+                                    } /*else if weight > 1.0 {
+                                        *//*if weight > 2.0 {
+                                            dbg!(weight);
+                                        }*//*
+                                        weight = 1.0
+                                    }*/
+                                    let scattered_color = self.color(&scattered);
+                                    let result = emitted.0 +
+                                        weight * scattered.attenuation * scattered_color;
+                                    result
+                                // 0.5*scattered.direction.unit() + 0.5
                                 // scattered.attenuation // color without light
+                                // V3::all(weight) * scattered_color // light without color
+                                // V3::all(pdf_value) * scattered_color
+                                //     V3::all(weight) * scattered_color
+                                // V3::all(spdf) * scattered_color
+                                } else {
+                                    emitted.0
+                                }
                             }
                         }
                     }

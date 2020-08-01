@@ -1,6 +1,7 @@
 use crate::random;
 
 use super::{Hit, Material, Ray, V3};
+use crate::scatter::Scatter;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub struct Metal {
@@ -29,4 +30,9 @@ impl Material for Metal {
             None
         }
     }
+
+    fn scattering_pdf(&self, hit: &Hit, scattered: &Ray) -> f64 {
+        0.0
+    }
+
 }
