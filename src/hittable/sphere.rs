@@ -5,14 +5,14 @@ use super::{AABB, Hit, Hittable, Material, Ray, V3};
 use crate::onb::ONB;
 
 #[derive(Debug)]
-pub struct Sphere {
-    center: V3,
-    radius: f64,
-    material: Box<dyn Material>,
+pub struct Sphere<M> {
+    pub center: V3,
+    pub radius: f64,
+    pub material: M,
 }
 
-impl Sphere {
-    pub fn new(center: V3, radius: f64, material: Box<dyn Material>) -> Sphere {
+impl<M:Material> Sphere<M> {
+    pub fn new(center: V3, radius: f64, material: M) -> Sphere<M> {
         Sphere { center, radius, material }
     }
     #[inline]
@@ -21,22 +21,17 @@ impl Sphere {
     }
     #[inline]
     fn radius(&self) -> f64 { self.radius }
-    fn material(&self) -> &Box<dyn Material> { &self.material }
 
     fn aabb(&self, _: f32, _: f32) -> AABB {
         AABB::new(self.center - self.radius, self.center + self.radius)
     }
 
-    fn uv(unit_point: V3) -> (f64, f64) {
-        let phi = f64::atan2(unit_point.z, unit_point.x);
-        let theta = unit_point.y.asin();
-
-        let u = 1.0 - (phi + consts::PI) / (2.0 * consts::PI);
-        let v = (theta + consts::FRAC_PI_2) / consts::PI;
-        (u, v)
+}
+impl<M> Borrow<M> for Sphere<M>{
+    fn borrow(&self) -> &M {
+        &self.material
     }
 }
-
 #[derive(Debug)]
 pub struct MovingSphere {
     center_t0: V3,
@@ -70,7 +65,7 @@ impl MovingSphere {
     }
 }
 
-impl Hittable for Sphere {
+impl<M: Material> Hittable for Sphere<M> {
     fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
         let center =self.center(ray.time);
         let radius = self.radius;
@@ -83,8 +78,8 @@ impl Hittable for Sphere {
         let get_hit = |ray: &Ray, dist: f64| -> Hit {
             let p = ray.point_at(dist);
             let n = (p - center) / radius;
-            let (u, v) = Sphere::uv(n);
-            return Hit::new(dist, p, n, self.material().borrow(), u, v);
+            let (u, v) = uv(n);
+            return Hit::new(dist, p, n, &self.material, u, v);
         };
 
         if discr_sqr > 0.0 {
@@ -151,7 +146,7 @@ impl Hittable for MovingSphere {
         let get_hit = |ray: &Ray, dist: f64| -> Hit {
             let p = ray.point_at(dist);
             let n = (p - center) / self.radius;
-            let (u, v) = Sphere::uv(n);
+            let (u, v) = uv(n);
             return Hit::new(dist, p, n, self.material.borrow(), u, v);
         };
 
@@ -175,4 +170,13 @@ impl Hittable for MovingSphere {
         Some(self.aabb(t_min) + self.aabb(t_max))
     }
 
+}
+
+fn uv(unit_point: V3) -> (f64, f64) {
+    let phi = f64::atan2(unit_point.z, unit_point.x);
+    let theta = unit_point.y.asin();
+
+    let u = 1.0 - (phi + consts::PI) / (2.0 * consts::PI);
+    let v = (theta + consts::FRAC_PI_2) / consts::PI;
+    (u, v)
 }

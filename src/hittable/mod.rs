@@ -13,6 +13,7 @@ use crate::ray::Ray;
 use crate::vec::V3;
 use crate::random::rand_in_unit_sphere;
 use std::f64::consts::PI;
+use std::ops::Deref;
 
 mod sphere;
 mod aarect;
@@ -49,6 +50,43 @@ pub trait Hittable: Debug + Sync {
         V3::new(0.0, 1.0, 0.0)
     }
 
+}
+
+impl Hittable for Box<dyn Hittable>
+{
+    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
+        Hittable::hit(&**self, ray, dist_min, dist_max)
+    }
+
+    fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
+        Hittable::bounding_box(&**self, t_min, t_max)
+    }
+
+    fn pdf_value(&self, origin: &V3, direction: &V3, hit: &Hit) -> f64 {
+        Hittable::pdf_value(&**self, origin, direction, hit)
+    }
+
+    fn random(&self, origin: &V3) -> V3 {
+        Hittable::random(&**self, origin)
+    }
+}
+impl<T:Hittable> Hittable for Box<T>
+{
+    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
+        Hittable::hit(&**self, ray, dist_min, dist_max)
+    }
+
+    fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
+        Hittable::bounding_box(&**self, t_min, t_max)
+    }
+
+    fn pdf_value(&self, origin: &V3, direction: &V3, hit: &Hit) -> f64 {
+        Hittable::pdf_value(&**self, origin, direction, hit)
+    }
+
+    fn random(&self, origin: &V3) -> V3 {
+        Hittable::random(&**self, origin)
+    }
 }
 
 #[derive(Debug)]

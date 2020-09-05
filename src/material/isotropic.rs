@@ -8,17 +8,17 @@ use crate::pdf::IsotropicPDF;
 use core::f64::consts;
 
 #[derive(Debug)]
-pub struct Isotropic {
-    albedo: Box<dyn Texture>
+pub struct Isotropic<T> {
+    albedo: T
 }
 
-impl Isotropic {
-    pub fn new(albedo: Box<dyn Texture>) -> Isotropic {
+impl<T: Texture> Isotropic<T> {
+    pub fn new(albedo: T) -> Isotropic<T> {
         Isotropic { albedo }
     }
 }
 
-impl Material for Isotropic {
+impl<T: Texture> Material for Isotropic<T> {
     /// Isotropic material has a unit-sphere BSDF,
     /// this means that amount of reflected light
     /// is equal to the amount of transmitted light

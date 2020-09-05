@@ -1,6 +1,21 @@
 use std::sync::Arc;
 
-use crate::hittable::{AABox, ConstantMedium, Hittable, HittableList, Instance, MovingSphere, Sphere, XYRect, XZRect, YZRect, NoHit};
+use crate::hittable::{
+    AABox,
+    ConstantMedium,
+    Hittable,
+    HittableList,
+    RotateYOp,
+    FlipNormalsOp,
+    TranslateOp,
+    MovingSphere,
+    Sphere,
+    XYRect,
+    XZRect,
+    YZRect,
+    NoHit,
+    AABoxMono,
+};
 use crate::material::{Dielectric, DiffuseLight, Lambertian, Metal};
 use crate::noise::Perlin;
 use crate::random::{next_color, next_std_f64, with_rnd, next_std_u32};
@@ -10,8 +25,6 @@ use crate::camera::Camera;
 use crate::renderer::{Renderer, RgbRenderer, TtlRenderer, RendererImpl};
 use crate::ray::Ray;
 use crate::bvh::BVH;
-use std::borrow::Borrow;
-use std::ops::Deref;
 
 pub struct Scene {
     pub camera: Camera,
@@ -31,23 +44,23 @@ pub fn perlin_scene(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scen
         renderer: RendererImpl::RGB(RgbRenderer {
             hittable: Box::new(HittableList::new(
                 vec![
-                    Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(
+                    Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0,
                         Lambertian::texture(Box::new(PerlinTexture::new(
                             Box::new(move |p, scale| perlin.noise(scale * p) * 0.5 + 0.5), 4.0,
-                        )))))),
-                    Box::new(Sphere::new(V3::new(0.0, 2.0, 0.0), 2.0, Box::new(
+                        ))))),
+                    Box::new(Sphere::new(V3::new(0.0, 2.0, 0.0), 2.0,
                         Lambertian::texture(Box::new(PerlinTexture::new(
                             Box::new(move |p, scale| perlin.turb(scale * p)), 4.0,
-                        )))))),
-                    Box::new(Sphere::new(V3::new(0.0, 2.0, 4.0), 2.0, Box::new(
+                        ))))),
+                    Box::new(Sphere::new(V3::new(0.0, 2.0, 4.0), 2.0,
                         Lambertian::texture(Box::new(PerlinTexture::new(
                             Box::new(move |p, scale| 0.5 * (1.0 + perlin.turb(scale * p))), 4.0,
-                        )))))),
-                    Box::new(Sphere::new(V3::new(0.0, 2.0, -4.0), 2.0, Box::new(
+                        ))))),
+                    Box::new(Sphere::new(V3::new(0.0, 2.0, -4.0), 2.0,
                         Lambertian::texture(Box::new(PerlinTexture::new(
                             Box::new(move |p, scale| 0.5 * (1.0 + (scale * p.z + 10.0 * perlin.turb(p)).sin())),
                             5.0,
-                        )))))),
+                        ))))),
                 ])),
             important: Box::new(NoHit),
             miss_shader: self::const_color_light,
@@ -57,10 +70,10 @@ pub fn perlin_scene(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scen
 
 pub fn img_scene(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
     let mut objs: Vec<Box<dyn Hittable>> = Vec::new();
-    objs.push(Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(
-        Lambertian::texture(Box::new(Checker::new(Color::new(0.0, 0.0, 0.0), Color::new(1.0, 1.0, 1.0), 10.0)))))));
-    objs.push(Box::new(Sphere::new(V3::new(0.0, 2.0, 0.0), 2.0, Box::new(
-        Lambertian::texture(Box::new(ImageTexture::load("./textures/stone.png")))))));
+    objs.push(Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0,
+        Lambertian::texture(Box::new(Checker::new(Color::new(0.0, 0.0, 0.0), Color::new(1.0, 1.0, 1.0), 10.0))))));
+    objs.push(Box::new(Sphere::new(V3::new(0.0, 2.0, 0.0), 2.0,
+        Lambertian::texture(Box::new(ImageTexture::load("./textures/stone.png"))))));
 
     Scene {
         camera: get_cam(nx, ny, t_off, t_span, ttl),
@@ -73,19 +86,19 @@ pub fn img_scene(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
 }
 
 pub fn img_lit_scene(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
-    let light = Sphere::new(V3::new(0.0, 3.0, -2.0), 2.0, Box::new(
-        DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 0.99)), 2.0)));
-    let light1 = Sphere::new(V3::new(0.0, 3.0, -2.0), 2.0, Box::new(
-        DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 0.99)), 2.0)));
+    let light = Sphere::new(V3::new(0.0, 3.0, -2.0), 2.0,
+        DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 0.99)), 2.0));
+    let light1 = Sphere::new(V3::new(0.0, 3.0, -2.0), 2.0,
+        DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 0.99)), 2.0));
     Scene {
         camera: get_cam(nx, ny, t_off, t_span, ttl),
         renderer: RendererImpl::RGB(RgbRenderer {
             hittable: Box::new(HittableList::new(
                 vec![
-                    Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(
-                        Lambertian::texture(Box::new(Checker::new(Color::new(0.0, 0.0, 0.0), Color::new(1.0, 1.0, 1.0), 10.0)))))),
-                    Box::new(Sphere::new(V3::new(0.0, 2.0, 2.0), 2.0, Box::new(
-                        Lambertian::texture(Box::new(ImageTexture::load("./textures/stone.png")))))),
+                    Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0,
+                        Lambertian::texture(Box::new(Checker::new(Color::new(0.0, 0.0, 0.0), Color::new(1.0, 1.0, 1.0), 10.0))))),
+                    Box::new(Sphere::new(V3::new(0.0, 2.0, 2.0), 2.0,
+                        Lambertian::texture(Box::new(ImageTexture::load("./textures/stone.png"))))),
                     Box::new(light),
                 ])),
             important: Box::new(light1),
@@ -104,10 +117,10 @@ pub fn img_lit_rect_scene(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -
         camera: get_cam(nx, ny, t_off, t_span, ttl),
         renderer: RendererImpl::RGB(RgbRenderer {
             hittable: Box::new(HittableList::new(vec![
-                Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(
-                    Lambertian::texture(Box::new(Checker::new(Color::new(0.0, 0.0, 0.0), Color::new(1.0, 1.0, 1.0), 10.0)))))),
-                Box::new(Sphere::new(V3::new(0.0, 1.0, 0.0), 1.0, Box::new(
-                    Lambertian::texture(Box::new(ImageTexture::load("./textures/stone.png")))))),
+                Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0,
+                    Lambertian::texture(Box::new(Checker::new(Color::new(0.0, 0.0, 0.0), Color::new(1.0, 1.0, 1.0), 10.0))))),
+                Box::new(Sphere::new(V3::new(0.0, 1.0, 0.0), 1.0,
+                    Lambertian::texture(Box::new(ImageTexture::load("./textures/stone.png"))))),
                 l1.clone(),
                 l2.clone(),
             ])),
@@ -126,34 +139,35 @@ fn cornel_box_prototype() -> Vec<Box<dyn Hittable>> {
     let light = Arc::new(DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 1.0)), 15.0));
 
     vec![
-        YZRect::new(0.0..555.0, 0.0..555.0, 555.0, green).flip_normals(),
+        Box::new(YZRect::new(0.0..555.0, 0.0..555.0, 555.0, green).flip_normals()),
         Box::new(YZRect::new(0.0..555.0, 0.0..555.0, 0.0, red)),
         Box::new(XZRect::new(213.0..343.0, 227.0..332.0, 554.0, light)),
         Box::new(XZRect::new(0.0..555.0, 0.0..555.0, 0.0, floor_white)),
-        XZRect::new(0.0..555.0, 0.0..555.0, 555.0, ceil_white).flip_normals(),
-        XYRect::new(0.0..555.0, 0.0..555.0, 555.0, back_white).flip_normals(),
+        Box::new(XZRect::new(0.0..555.0, 0.0..555.0, 555.0, ceil_white).flip_normals()),
+        Box::new(XYRect::new(0.0..555.0, 0.0..555.0, 555.0, back_white).flip_normals()),
     ]
 }
 
 pub fn cornel_box_with_instances(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
     let mut objs = cornel_box_prototype();
     objs.push(
-        AABox::mono(0.0..165.0, 0.0..165.0, 0.0..165.0,
-                    Arc::new(Lambertian::new(Color(V3::all(0.73)))))
+        Box::new(AABox::mono(0.0..165.0, 0.0..165.0, 0.0..165.0,
+                             Arc::new(Lambertian::new(Color(V3::all(0.73)))))
             .rotate_y(-18.0)
             .translate(V3::new(130.0, 0.0, 65.0))
-    );
+        ));
 
     objs.push(
-        AABox::mono(0.0..165.0, 0.0..330.0, 0.0..165.0,
-                    // Arc::new(Lambertian::new(Color(V3::all(0.73)))))
-                    Arc::new(Metal::new(V3::all(1.0))))
+        Box::new(AABox::mono(0.0..165.0, 0.0..330.0, 0.0..165.0,
+                             // Arc::new(Lambertian::new(Color(V3::all(0.73)))))
+                             Arc::new(Metal::new(V3::all(1.0))))
             .rotate_y(15.0)
-            .translate(V3::new(265.0, 0.0, 295.0)));
+            .translate(V3::new(265.0, 0.0, 295.0))
+        ));
 
     let light_mat = Arc::new(DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 1.0)), 2.0));
     let light = XZRect::new(213.0..343.0, 227.0..332.0, 554.0, light_mat);
-    objs.push(light.clone().flip_normals());
+    objs.push(Box::new(light.clone().flip_normals()));
     objs.swap_remove(2);
 
     Scene {
@@ -175,13 +189,13 @@ pub fn cornel_box_with_is(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -
             .translate(V3::new(130.0, 0.0, 65.0))
     );*/
     objs.push(Box::new(ConstantMedium::new(
-        AABox::mono(0.0..165.0, 0.0..165.0, 0.0..165.0,
-                    // todo: null-texture/null-material?
-                    Arc::new(Lambertian::new(Color(V3::new(1.0, 0.0, 1.0)))))
+        Box::new(AABox::mono(0.0..165.0, 0.0..165.0, 0.0..165.0,
+                             // todo: null-texture/null-material?
+                             Arc::new(Lambertian::new(Color(V3::new(1.0, 0.0, 1.0)))))
             .rotate_y(-18.0)
-            .translate(V3::new(130.0, 0.0, 65.0)),
+            .translate(V3::new(130.0, 0.0, 65.0))),
         0.01,
-        Box::new(Color::new(1.0, 1.0, 1.0)))
+        Color::new(1.0, 1.0, 1.0))
     ));
 
     let lamb = Arc::new(Lambertian::new(Color(V3::all(0.73))));
@@ -195,28 +209,28 @@ pub fn cornel_box_with_is(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -
                        metal.clone(),
                        lamb.clone(),
     );
-    objs.push(shiny_box.clone().rotate_y(15.0).translate(V3::new(265.0, 0.0, 295.0)));
+    objs.push(Box::new(shiny_box.clone().rotate_y(15.0).translate(V3::new(265.0, 0.0, 295.0))));
     let light_mat = Arc::new(DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 1.0)), 15.0));
-    let light = XZRect::new(213.0..343.0, 227.0..332.0, 554.0, light_mat);
-    objs.push(light.clone().flip_normals());
+    let light = Box::new(XZRect::new(213.0..343.0, 227.0..332.0, 554.0, light_mat));
+    objs.push(Box::new(light.clone().flip_normals()));
     objs.swap_remove(2);
 
     objs.push(Box::new(Sphere::new(
         V3::new(-87.5 + 295.0, 87.5 + 165.0, -12.5 + 230.0),
         88.5,
-        Box::new(Dielectric::new(1.5)),
+        Dielectric::new(1.5),
     )));
 
     let sphere = Sphere::new(
         V3::new(-87.5 + 165.0 + 130.0, 87.5 + 165.0, -12.5 + 165.0 + 65.0),
         88.5,
-        Box::new(Dielectric::new(2.2)),
+        Dielectric::new(2.2),
     );
 
     let important = Box::new(HittableList::new(vec![
-        light.flip_normals(),
+        Box::new(light),
         Box::new(sphere),
-        shiny_box.rotate_y(15.0).translate(V3::new(265.0, 0.0, 295.0))
+        Box::new(shiny_box.rotate_y(15.0).translate(V3::new(265.0, 0.0, 295.0)))
     ]));
     Scene {
         camera: cornel_box_cam(nx, ny, t_off, t_span, ttl),
@@ -232,26 +246,26 @@ pub fn cornel_box_volumes(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -
     let mut objs = cornel_box_prototype();
     objs.push(Box::new(ConstantMedium::new(
         AABox::mono(0.0..165.0, 0.0..165.0, 0.0..165.0,
-                    // todo: null-texture/null-material?
-                    Arc::new(Lambertian::new(Color(V3::new(1.0, 0.0, 1.0)))))
+                             // todo: null-texture/null-material?
+                             Arc::new(Lambertian::new(Color(V3::new(1.0, 0.0, 1.0)))))
             .rotate_y(-18.0)
             .translate(V3::new(130.0, 0.0, 65.0)),
         0.01,
-        Box::new(Color::new(1.0, 1.0, 1.0)))
-    ));
+        Color::new(1.0, 1.0, 1.0)
+    )));
 
     objs.push(Box::new(ConstantMedium::new(
         AABox::mono(0.0..165.0, 0.0..330.0, 0.0..165.0,
-                    Arc::new(Lambertian::new(Color(V3::new(0.0, 1.0, 0.0)))))
+                             Arc::new(Lambertian::new(Color(V3::new(0.0, 1.0, 0.0)))))
             .rotate_y(15.0)
             .translate(V3::new(265.0, 0.0, 295.0)),
         0.01,
-        Box::new(Color::new(0.0, 0.0, 0.0)))
-    ));
+        Color::new(0.0, 0.0, 0.0)
+    )));
 
     let light_mat = Arc::new(DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 1.0)), 7.0));
     let light = XZRect::new(213.0..343.0, 227.0..332.0, 554.0, light_mat);
-    objs.push(light.clone().flip_normals());
+    objs.push(Box::new(light.clone().flip_normals()));
     objs.swap_remove(2);
 
     Scene {
@@ -266,14 +280,14 @@ pub fn cornel_box_volumes(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -
 
 pub fn weekend_final(complexity: i8, nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
     let mut objs: Vec<Box<dyn Hittable>> = vec![
-        Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0, Box::new(
+        Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0,
             Lambertian::texture(Box::new(Checker::new(
                 Color::new(0.2, 0.3, 0.1),
                 Color::new(0.9, 0.9, 0.9), 10.0,
-            )))))),
-        Box::new(Sphere::new(V3::new(4.0, 1.0, 0.0), 1.0, Box::new(Metal::new(V3::new(0.7, 0.6, 0.5))))),
-        Box::new(Sphere::new(V3::new(0.0, 1.0, 0.0), 1.0, Box::new(Dielectric::new(1.5)))),
-        Box::new(Sphere::new(V3::new(-4.0, 1.0, 0.0), 1.0, Box::new(Lambertian::new(Color::new(0.8, 0.8, 0.9))))),
+            ))))),
+        Box::new(Sphere::new(V3::new(4.0, 1.0, 0.0), 1.0, Metal::new(V3::new(0.7, 0.6, 0.5)))),
+        Box::new(Sphere::new(V3::new(0.0, 1.0, 0.0), 1.0, Dielectric::new(1.5))),
+        Box::new(Sphere::new(V3::new(-4.0, 1.0, 0.0), 1.0, Lambertian::new(Color::new(0.8, 0.8, 0.9)))),
     ];
 
     for a in -complexity..=complexity {
@@ -294,10 +308,10 @@ pub fn weekend_final(complexity: i8, nx: u32, ny: u32, t_off: f32, t_span: f32, 
                         80..=95 => Box::new(Sphere::new(
                             center,
                             0.2,
-                            Box::new(Metal::new(0.5 * (next_color() + 1.0))),
+                            Metal::new(0.5 * (next_color() + 1.0)),
                         )),
                         _ => Box::new(Sphere::new(center, 0.2,
-                                                  Box::new(Dielectric::new(1.5))))
+                                                  Dielectric::new(1.5)))
                     });
             }
         }
@@ -333,7 +347,7 @@ pub fn next_week(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
 
     let light_mat = Arc::new(DiffuseLight::new(Box::new(Color(V3::ones())), 7.0));
     let light = XZRect::new(123.0..423.0, 147.0..412.0, 554.0, light_mat);
-    objs.push(light.clone().flip_normals());
+    objs.push(Box::new(light.clone().flip_normals()));
 
     let center = V3::new(400.0, 400.0, 200.0);
     objs.push(Box::new(MovingSphere::new(
@@ -346,41 +360,41 @@ pub fn next_week(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
 
     objs.push(Box::new(Sphere::new(
         V3::new(0.0, 150.0, 145.0), 50.0,
-        Box::new(Metal::new_fuzzed(V3::new(0.8, 0.8, 0.9), 10.0)))));
+        Metal::new_fuzzed(V3::new(0.8, 0.8, 0.9), 10.0))));
 
     let mat = Dielectric::new(1.5);
     objs.push(Box::new(Sphere::new(
         V3::new(260.0, 150.0, 45.0), 50.0,
-        Box::new(mat))));
+        mat)));
     objs.push(Box::new(ConstantMedium::new(
-        Box::new(Sphere::new(V3::new(260.0, 150.0, 45.0), 50.0, Box::new(mat))),
+        Sphere::new(V3::new(260.0, 150.0, 45.0), 50.0, mat),
         0.2,
-        Box::new(Color(V3::new(0.2, 0.4, 0.9))),
+        Color(V3::new(0.2, 0.4, 0.9)),
     )));
     objs.push(Box::new(ConstantMedium::new(
-        Box::new(Sphere::new(V3::zeros(), 5000.0, Box::new(mat))),
+        Box::new(Sphere::new(V3::zeros(), 5000.0, mat)),
         0.0001,
-        Box::new(Color(V3::ones())),
+        Color(V3::ones()),
     )));
     objs.push(Box::new(Sphere::new(
         V3::new(400.0, 200.0, 400.0),
         100.0,
-        Box::new(Lambertian::texture(Box::new(ImageTexture::load("./textures/stone.png")))))
+        Lambertian::texture(Box::new(ImageTexture::load("./textures/stone.png"))))
     ));
 
     let perlin = with_rnd(|rnd| Perlin::new(rnd));
-    objs.push(Box::new(Sphere::new(V3::new(220.0, 280.0, 300.0), 80.0, Box::new(
+    objs.push(Box::new(Sphere::new(V3::new(220.0, 280.0, 300.0), 80.0,
         Lambertian::texture(Box::new(PerlinTexture::new(
             Box::new(move |p, scale| 0.5 * (1.0 + (scale * p.x + 2.0 * perlin.turb(scale * p)).sin())),
             0.1,
-        )))))));
+        ))))));
 
     let mut foam_box: Vec<Box<dyn Hittable>> = vec![];
     for _ in 0..1000 {
         foam_box.push(Box::new(Sphere::new(
             165.0 * V3::new(next_std_f64(), next_std_f64(), next_std_f64()),
             10.0,
-            Box::new(Lambertian::new(Color(V3::all(0.73)))),
+            Lambertian::new(Color(V3::all(0.73))),
         )));
     }
 /*    objs.push(
@@ -396,7 +410,7 @@ pub fn next_week(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
 //            hittable: Box::new(HittableList::new(objs)), //real: 1m17.845s, user: 9m28.076s, sys: 0m13.122s
             hittable: BVH::new(objs), // real: 1m15.038s user: 9m17.559s, sys: 0m13.148s
 //            ttl,
-            important: light.flip_normals(),
+            important: Box::new(light.flip_normals()),
             miss_shader: |_| V3::zeros(),
         }),
     }
@@ -451,7 +465,7 @@ fn closeup_cam(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Camera {
     Camera::new_look(
         from, at,
         /*    up*/ V3::new(0.0, 1.0, 0.0),
-        /*  vfov*/ 120.0,
+        /*  vfov*/ 80.0,
         aspect,
         dist_to_focus,
         aperture,

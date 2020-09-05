@@ -8,26 +8,26 @@ use crate::texture::Texture;
 use super::{AABB, Hit, Hittable, Material, Ray, V3};
 
 #[derive(Debug)]
-pub struct ConstantMedium {
-    boundary: Box<dyn Hittable>,
+pub struct ConstantMedium<B,M> {
+    boundary: B,
     density: f64,
-    phase_function: Box<dyn Material>,
+    phase_function: M,
 }
 // todo: inject material
-impl ConstantMedium {
-    pub fn new(boundary: Box<dyn Hittable>,
+impl<B:Hittable, T: Texture> ConstantMedium<B, Isotropic<T>> {
+    pub fn new(boundary: B,
                density: f64,
-               texture: Box<dyn Texture>,
-    ) -> ConstantMedium {
+               texture: T,
+    ) -> ConstantMedium<B, Isotropic<T>> {
         ConstantMedium {
             boundary,
             density,
-            phase_function: Box::new(Isotropic::new(texture)),
+            phase_function: Isotropic::new(texture),
         }
     }
 }
 
-impl Hittable for ConstantMedium {
+impl<B:Hittable, M: Material> Hittable for ConstantMedium<B,M> {
     fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
         self.boundary.hit(ray, MIN, MAX).and_then(|enter_hit| {
             self.boundary.hit(ray, enter_hit.dist + 0.001, MAX).and_then(|exit_hit| {
