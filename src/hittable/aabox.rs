@@ -1,8 +1,7 @@
 use std::ops::Range;
 use std::sync::Arc;
 
-use super::{AABB, Hit, Hittable, HittableList, Instance, Material, Ray, V3, XYRect, XZRect, YZRect};
-use itertools::min;
+use super::{AABB, Hit, Hittable, Material, Ray, V3};
 use std::borrow::Borrow;
 
 #[derive(Debug, Clone)]

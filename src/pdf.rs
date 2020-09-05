@@ -3,7 +3,6 @@ use crate::onb::ONB;
 use crate::random::{rand_cosine_direction, next_std_f32, rand_in_unit_sphere};
 use std::ops::Deref;
 use crate::hittable::{Hittable, Hit};
-use std::borrow::Borrow;
 use std::fmt::Debug;
 use crate::ray::Ray;
 use core::f64::consts;

@@ -1,14 +1,11 @@
 use super::{Hittable, Ray, Renderer, V3};
 use std::borrow::Borrow;
 use crate::random::next_std_f64;
-use std::ops::{Range, Mul, Deref};
+use std::ops::Range;
 use crate::texture::Color;
-use crate::pdf::{CosinePDF, PDF, HittablePDF, MixturePDF};
-use crate::hittable::XZRect;
-use std::sync::Arc;
-use crate::material::{DiffuseLight, Lambertian, Material};
+use crate::pdf::{PDF, HittablePDF, MixturePDF};
+use crate::material::Material;
 use crate::scatter::Scatter::{Specular, Diffuse};
-use std::fmt::Debug;
 use rand::random;
 use crate::onb::ONB;
 

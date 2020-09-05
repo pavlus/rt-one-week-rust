@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use super::{AABB, Hit, Hittable, Material, Ray, V3};
 use crate::random::next_std_f64_in_range;
-use core::f64::MAX;
 
 macro_rules! aarect_aabb {
     {$slf:ident, $a:tt, $b:tt, $off:expr} => {

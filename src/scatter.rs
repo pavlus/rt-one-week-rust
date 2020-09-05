@@ -1,6 +1,5 @@
 
 use crate::ray::Ray;
-use crate::vec::V3;
 use crate::texture::Color;
 use crate::pdf::PDF;
 

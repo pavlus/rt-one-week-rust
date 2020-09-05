@@ -1,7 +1,6 @@
 use crate::random;
 
 use super::{Hit, Material, Ray, V3};
-use crate::scatter::Scatter;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub struct Metal {
