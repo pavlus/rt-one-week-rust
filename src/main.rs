@@ -2,7 +2,7 @@ use structopt::StructOpt;
 
 use vec::V3;
 
-use crate::renderer::Renderer;
+use crate::renderer::{Renderer, RendererType};
 use crate::sampler::Sampler;
 use crate::scenes::*;
 
@@ -47,6 +47,8 @@ enum SceneType {
 struct Params {
     #[structopt(subcommand)]
     scene: Option<SceneType>,
+    #[structopt(short = "r", long = "renderer")]
+    renderer_type: Option<RendererType>,
 
     #[structopt(short = "w", long = "width", default_value = "512")]
     width: u16,
@@ -68,13 +70,18 @@ fn main() {
         pixel_postprocessor: crate::postprocess,
     };
 
+    let w = cfg.width;
+    let h = cfg.height;
+    let ttl = cfg.max_ray_bounces;
+    let renderer_type = params.renderer_type.unwrap_or(RendererType::RGBBiased);
+
     let scene: Scene = match params.scene.unwrap_or(SceneType::WeekendFinal) {
-        SceneType::WeekendFinal => weekend_final(11, cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces),
-        SceneType::CornelInstances => cornel_box_with_instances(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces),
-        SceneType::CornelIs => cornel_box_with_is(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces),
-        SceneType::CornelVolumes => cornel_box_volumes(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces),
-        SceneType::NextWeekFinal => next_week(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces),
-        SceneType::Perlin => perlin_scene(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces),
+        SceneType::WeekendFinal => weekend_final(renderer_type, 11, w, h, 0.0, 0.2, ttl),
+        SceneType::CornelInstances => cornel_box_with_instances(renderer_type, w, h, 0.0, 0.2, ttl),
+        SceneType::CornelIs => cornel_box_with_is(renderer_type, w, h, 0.0, 0.2, ttl),
+        SceneType::CornelVolumes => cornel_box_volumes(renderer_type, w, h, 0.0, 0.2, ttl),
+        SceneType::NextWeekFinal => next_week(renderer_type, w, h, 0.0, 0.2, ttl),
+        SceneType::Perlin => perlin_scene(renderer_type, w, h, 0.0, 0.2, ttl),
     };
 //    let scene = img_scene(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces);
 //    let scene = img_lit_scene(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces);

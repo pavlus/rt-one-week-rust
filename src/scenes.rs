@@ -22,7 +22,7 @@ use crate::random::{next_color, next_std_f64, with_rnd, next_std_u32};
 use crate::texture::{Checker, Color, ImageTexture, PerlinTexture};
 use crate::vec::V3;
 use crate::camera::Camera;
-use crate::renderer::{Renderer, RgbRenderer, TtlRenderer, RendererImpl};
+use crate::renderer::{Renderer, RgbRenderer, TtlRenderer, RendererImpl, RendererType};
 use crate::ray::Ray;
 use crate::bvh::BVH;
 
@@ -37,96 +37,114 @@ impl Scene {
     }
 }
 
-pub fn perlin_scene(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
+pub fn perlin_scene(r_type: RendererType, nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
     let perlin = with_rnd(|rnd| Perlin::new(rnd));
+    let mut objs: Vec<Box<dyn Hittable>> = vec![];
+    objs.push(Box::new(
+        Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0,
+                    Lambertian::texture(Box::new(PerlinTexture::new(
+                        Box::new(move |p, scale| perlin.noise(scale * p) * 0.5 + 0.5), 4.0,
+                    ))))));
+    objs.push(Box::new(
+        Sphere::new(V3::new(0.0, 2.0, 0.0), 2.0,
+                    Lambertian::texture(Box::new(PerlinTexture::new(
+                        Box::new(move |p, scale| perlin.turb(scale * p)), 4.0,
+                    ))))));
+    objs.push(Box::new(
+        Sphere::new(V3::new(0.0, 2.0, 4.0), 2.0,
+                    Lambertian::texture(Box::new(PerlinTexture::new(
+                        Box::new(move |p, scale| 0.5 * (1.0 + perlin.turb(scale * p))), 4.0,
+                    ))))));
+    objs.push(Box::new(
+        Sphere::new(V3::new(0.0, 2.0, -4.0), 2.0,
+                    Lambertian::texture(Box::new(PerlinTexture::new(
+                        Box::new(move |p, scale| 0.5 * (1.0 + (scale * p.z + 10.0 * perlin.turb(p)).sin())),
+                        5.0,
+                    ))))));
     Scene {
         camera: get_cam(nx, ny, t_off, t_span, ttl),
-        renderer: RendererImpl::RGB(RgbRenderer {
-            hittable: Box::new(HittableList::new(
-                vec![
-                    Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0,
-                        Lambertian::texture(Box::new(PerlinTexture::new(
-                            Box::new(move |p, scale| perlin.noise(scale * p) * 0.5 + 0.5), 4.0,
-                        ))))),
-                    Box::new(Sphere::new(V3::new(0.0, 2.0, 0.0), 2.0,
-                        Lambertian::texture(Box::new(PerlinTexture::new(
-                            Box::new(move |p, scale| perlin.turb(scale * p)), 4.0,
-                        ))))),
-                    Box::new(Sphere::new(V3::new(0.0, 2.0, 4.0), 2.0,
-                        Lambertian::texture(Box::new(PerlinTexture::new(
-                            Box::new(move |p, scale| 0.5 * (1.0 + perlin.turb(scale * p))), 4.0,
-                        ))))),
-                    Box::new(Sphere::new(V3::new(0.0, 2.0, -4.0), 2.0,
-                        Lambertian::texture(Box::new(PerlinTexture::new(
-                            Box::new(move |p, scale| 0.5 * (1.0 + (scale * p.z + 10.0 * perlin.turb(p)).sin())),
-                            5.0,
-                        ))))),
-                ])),
-            important: Box::new(NoHit),
-            miss_shader: self::const_color_light,
-        }),
+        renderer: RendererImpl::pick_renderer(
+            r_type,
+            Box::new(HittableList::new(objs)),
+            Box::new(NoHit),
+            self::const_color_light,
+            ttl,
+        ),
     }
 }
 
-pub fn img_scene(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
+pub fn img_scene(r_type: RendererType, nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
     let mut objs: Vec<Box<dyn Hittable>> = Vec::new();
-    objs.push(Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0,
-        Lambertian::texture(Box::new(Checker::new(Color::new(0.0, 0.0, 0.0), Color::new(1.0, 1.0, 1.0), 10.0))))));
+    objs.push(Box::new(
+        Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0,
+                    Lambertian::texture(Box::new(
+                        Checker::new(
+                            Color::new(0.0, 0.0, 0.0),
+                            Color::new(1.0, 1.0, 1.0),
+                            10.0
+                        ))))));
     objs.push(Box::new(Sphere::new(V3::new(0.0, 2.0, 0.0), 2.0,
         Lambertian::texture(Box::new(ImageTexture::load("./textures/stone.png"))))));
 
     Scene {
         camera: get_cam(nx, ny, t_off, t_span, ttl),
-        renderer: RendererImpl::RGB(RgbRenderer {
-            hittable: Box::new(HittableList::new(objs)),
-            important: Box::new(NoHit),
-            miss_shader: self::const_color_light,
-        }),
+        renderer: RendererImpl::pick_renderer(
+            r_type,
+            Box::new(HittableList::new(objs)),
+            Box::new(NoHit),
+            self::const_color_light,
+            ttl
+        ),
     }
 }
 
-pub fn img_lit_scene(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
+pub fn img_lit_scene(r_type: RendererType, nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
     let light = Sphere::new(V3::new(0.0, 3.0, -2.0), 2.0,
         DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 0.99)), 2.0));
     let light1 = Sphere::new(V3::new(0.0, 3.0, -2.0), 2.0,
         DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 0.99)), 2.0));
+    let objs: Vec<Box<dyn Hittable>> = vec![
+        Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0,
+                             Lambertian::texture(Box::new(Checker::new(Color::new(0.0, 0.0, 0.0), Color::new(1.0, 1.0, 1.0), 10.0))))),
+        Box::new(Sphere::new(V3::new(0.0, 2.0, 2.0), 2.0,
+                             Lambertian::texture(Box::new(ImageTexture::load("./textures/stone.png"))))),
+        Box::new(light),
+    ];
     Scene {
         camera: get_cam(nx, ny, t_off, t_span, ttl),
-        renderer: RendererImpl::RGB(RgbRenderer {
-            hittable: Box::new(HittableList::new(
-                vec![
-                    Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0,
-                        Lambertian::texture(Box::new(Checker::new(Color::new(0.0, 0.0, 0.0), Color::new(1.0, 1.0, 1.0), 10.0))))),
-                    Box::new(Sphere::new(V3::new(0.0, 2.0, 2.0), 2.0,
-                        Lambertian::texture(Box::new(ImageTexture::load("./textures/stone.png"))))),
-                    Box::new(light),
-                ])),
-            important: Box::new(light1),
-            miss_shader: self::const_color_dark,
-        }),
+        renderer: RendererImpl::pick_renderer(
+            r_type,
+            Box::new(HittableList::new(objs)),
+            Box::new(light1),
+            self::const_color_dark,
+            ttl
+        ),
     }
 }
 
 #[allow(dead_code)]
-pub fn img_lit_rect_scene(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
+pub fn img_lit_rect_scene(r_type: RendererType, nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
     let l1 = Box::new(XZRect::new(-1.0..1.0, -1.0..1.0, 2.5, Arc::new(
         DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 0.99)), 4.0))));
     let l2 = Box::new(XYRect::new(-1.0..1.0, 0.5..1.5, -1.5, Arc::new(
         DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 0.99)), 4.0))));
+    let objs: Vec<Box<dyn Hittable>> = vec![
+        Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0,
+                             Lambertian::texture(Box::new(Checker::new(Color::new(0.0, 0.0, 0.0), Color::new(1.0, 1.0, 1.0), 10.0))))),
+        Box::new(Sphere::new(V3::new(0.0, 1.0, 0.0), 1.0,
+                             Lambertian::texture(Box::new(ImageTexture::load("./textures/stone.png"))))),
+        l1.clone(),
+        l2.clone(),
+    ];
     Scene {
         camera: get_cam(nx, ny, t_off, t_span, ttl),
-        renderer: RendererImpl::RGB(RgbRenderer {
-            hittable: Box::new(HittableList::new(vec![
-                Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0,
-                    Lambertian::texture(Box::new(Checker::new(Color::new(0.0, 0.0, 0.0), Color::new(1.0, 1.0, 1.0), 10.0))))),
-                Box::new(Sphere::new(V3::new(0.0, 1.0, 0.0), 1.0,
-                    Lambertian::texture(Box::new(ImageTexture::load("./textures/stone.png"))))),
-                l1.clone(),
-                l2.clone(),
-            ])),
-            important: Box::new(HittableList::new(vec![l1, l2])),
-            miss_shader: self::const_color_dark,
-        }),
+        renderer: RendererImpl::pick_renderer(
+            r_type,
+            Box::new(HittableList::new(objs)),
+            Box::new(HittableList::new(vec![l1, l2])),
+            self::const_color_dark,
+            ttl
+        ),
     }
 }
 
@@ -148,7 +166,7 @@ fn cornel_box_prototype() -> Vec<Box<dyn Hittable>> {
     ]
 }
 
-pub fn cornel_box_with_instances(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
+pub fn cornel_box_with_instances(r_type: RendererType, nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
     let mut objs = cornel_box_prototype();
     objs.push(
         Box::new(AABox::mono(0.0..165.0, 0.0..165.0, 0.0..165.0,
@@ -172,15 +190,17 @@ pub fn cornel_box_with_instances(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl:
 
     Scene {
         camera: cornel_box_cam(nx, ny, t_off, t_span, ttl),
-        renderer: RendererImpl::RGB(RgbRenderer {
-            hittable: Box::new(HittableList::new(objs)),
-            important: Box::new(light),
-            miss_shader: self::const_color_black,
-        }),
+        renderer: RendererImpl::pick_renderer(
+            r_type,
+            Box::new(HittableList::new(objs)),
+            Box::new(light),
+            self::const_color_black,
+            ttl
+        ),
     }
 }
 
-pub fn cornel_box_with_is(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
+pub fn cornel_box_with_is(r_type: RendererType, nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
     let mut objs = cornel_box_prototype();
     /*objs.push(
         AABox::mono(0.0..165.0, 0.0..165.0, 0.0..165.0,
@@ -234,15 +254,17 @@ pub fn cornel_box_with_is(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -
     ]));
     Scene {
         camera: cornel_box_cam(nx, ny, t_off, t_span, ttl),
-        renderer: RendererImpl::RGB(RgbRenderer {
-            hittable: Box::new(HittableList::new(objs)),
+        renderer: RendererImpl::pick_renderer(
+            r_type,
+            Box::new(HittableList::new(objs)),
             important,
-            miss_shader: self::const_color_black,
-        }),
+            self::const_color_black,
+            ttl
+        ),
     }
 }
 
-pub fn cornel_box_volumes(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
+pub fn cornel_box_volumes(r_type: RendererType, nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
     let mut objs = cornel_box_prototype();
     objs.push(Box::new(ConstantMedium::new(
         AABox::mono(0.0..165.0, 0.0..165.0, 0.0..165.0,
@@ -268,17 +290,20 @@ pub fn cornel_box_volumes(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -
     objs.push(Box::new(light.clone().flip_normals()));
     objs.swap_remove(2);
 
+
     Scene {
         camera: cornel_box_cam(nx, ny, t_off, t_span, ttl),
-        renderer: RendererImpl::RGB(RgbRenderer {
-            hittable: Box::new(HittableList::new(objs)),
-            important: Box::new(light),
-            miss_shader: self::const_color_dark,
-        }),
+        renderer: RendererImpl::pick_renderer(
+            r_type,
+            Box::new(HittableList::new(objs)),
+            Box::new(light),
+            self::const_color_dark,
+            ttl,
+        )
     }
 }
 
-pub fn weekend_final(complexity: i8, nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
+pub fn weekend_final(r_type: RendererType, complexity: i8, nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
     let mut objs: Vec<Box<dyn Hittable>> = vec![
         Box::new(Sphere::new(V3::new(0.0, -1000.0, 0.0), 1000.0,
             Lambertian::texture(Box::new(Checker::new(
@@ -318,15 +343,17 @@ pub fn weekend_final(complexity: i8, nx: u32, ny: u32, t_off: f32, t_span: f32, 
     }
     Scene {
         camera: get_cam(nx, ny, t_off, t_span, ttl),
-        renderer: RendererImpl::RGB(RgbRenderer {
-            hittable: BVH::new(objs),
-            important: Box::new(NoHit),
-            miss_shader: self::sky,
-        }),
+        renderer: RendererImpl::pick_renderer(
+            r_type,
+            BVH::new(objs),
+            Box::new(NoHit),
+            self::sky,
+            ttl
+        ),
     }
 }
 
-pub fn next_week(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
+pub fn next_week(r_type: RendererType, nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
     let nb = 20;
     let ground = Arc::new(Lambertian::new(Color(V3::new(0.48, 0.83, 0.53))));
     let mut objs: Vec<Box<dyn Hittable>> = vec![];
@@ -404,15 +431,13 @@ pub fn next_week(nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
     );*/
     Scene {
         camera: next_week_cam(nx, ny, t_off, t_span, ttl),
-//        renderer: TtlRenderer {
-        renderer: RendererImpl::RGB(RgbRenderer {
-            // time for 200x200x200x12
-//            hittable: Box::new(HittableList::new(objs)), //real: 1m17.845s, user: 9m28.076s, sys: 0m13.122s
-            hittable: BVH::new(objs), // real: 1m15.038s user: 9m17.559s, sys: 0m13.148s
-//            ttl,
-            important: Box::new(light.flip_normals()),
-            miss_shader: |_| V3::zeros(),
-        }),
+        renderer: RendererImpl::pick_renderer(
+            r_type,
+            BVH::new(objs),
+            Box::new(light.flip_normals()),
+            |_| V3::zeros(),
+            ttl
+        ),
     }
 }
 
