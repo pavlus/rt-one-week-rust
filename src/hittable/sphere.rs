@@ -10,6 +10,14 @@ pub struct Sphere<M> {
     pub radius: f64,
     pub material: M,
 }
+impl<M: Clone> Clone for Sphere<M>{
+    fn clone(&self) -> Self {
+        Sphere{
+            material: self.material.clone(),
+            ..*self
+        }
+    }
+}
 
 impl<M:Material> Sphere<M> {
     pub fn new(center: V3, radius: f64, material: M) -> Sphere<M> {

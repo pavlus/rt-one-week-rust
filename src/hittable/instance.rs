@@ -89,13 +89,15 @@ impl<T: Hittable> Hittable for Translate<T> {
     }
 
     fn pdf_value(&self, origin: &V3, direction: &V3, hit: &Hit) -> f64 {
-        // self.target.pdf_value(&(*origin - self.offset), direction, hit)
-        self.target.pdf_value(origin, direction, hit)
+        let tmp = &Hit {
+            point: hit.point - self.offset,
+            ..*hit
+        };
+        self.target.pdf_value(&(*origin - self.offset), direction, tmp)
     }
 
     fn random(&self, origin: &V3) -> V3 {
-        // self.target.random(&(*origin - self.offset))
-        self.target.random(origin)
+        self.target.random(&(*origin - self.offset))
     }
 }
 
@@ -185,5 +187,52 @@ impl<I> RotateY<I> {
             0.0, 1.0, 0.0,
             self.sin, 0.0, self.cos
         )
+    }
+}
+
+mod test {
+    use crate::hittable::{Sphere, Hittable, RotateYOp, Hit, AABox};
+    use crate::texture::Color;
+    use crate::vec::V3;
+    use crate::material::Dielectric;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_rotation_pdf_sphere(){
+        let mat = Dielectric::new(1.5);
+        let sphere = Sphere::new(V3::new(10.0, 20.0, 30.0), 2.0, mat.clone());
+        let rotated= sphere.clone().rotate_y(30.0);
+        let origin = V3::zeros();
+        let direction = V3::new(1.0,0.0,0.0);
+        let hit = Hit::new(10.0, V3::zeros(),
+                           V3::new(1.0, 2.0,3.0).unit(), &mat, 0.0, 0.0);
+        assert_eq!(
+            sphere.pdf_value(&origin, &direction, &hit),
+            rotated.pdf_value(&origin, &direction, &hit)
+        );
+    }
+    #[test]
+    fn test_rotation_pdf_aabox(){
+        let mat = Dielectric::new(1.5);
+        let aabox = AABox::mono(
+            8.0..12.0, -2.0..2.0, 28.0..32.0, Arc::new(mat.clone()));
+        let origin = V3::zeros();
+        let direction = V3::new(1.0,0.0,0.0);
+        let hit = Hit::new(10.0, V3::zeros(),
+                           V3::new(1.0, 0.0, 3.0).unit(), &mat, 0.0, 0.0);
+        let rotated= aabox.clone().rotate_y(180.0);
+        assert!(
+            f64::abs(aabox.pdf_value(&origin, &direction, &hit)
+            -
+            rotated.pdf_value(&origin, &direction, &hit))
+            < 0.000001
+        );
+        let rotated= aabox.clone().rotate_y(90.0);
+        assert!(
+            f64::abs(aabox.pdf_value(&origin, &direction, &hit)
+            -
+            rotated.pdf_value(&origin, &direction, &hit))
+            > 1.0
+        );
     }
 }

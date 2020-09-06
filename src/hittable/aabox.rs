@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use super::{AABB, Hit, Hittable, Material, Ray, V3};
 use std::borrow::Borrow;
+use crate::random::{next_std_f64_in_range, next_std_i32};
 
 #[derive(Debug, Clone)]
 pub struct AABoxMono {
@@ -153,6 +154,17 @@ impl Hittable for AABoxMono {
     fn bounding_box(&self, _: f32, _: f32) -> Option<AABB> {
         Some(self.aabb)
     }
+
+    fn pdf_value(&self, _: &V3, direction: &V3, hit: &Hit) -> f64 {
+        let width = self.x.end - self.x.start;
+        let height = self.y.end - self.y.start;
+        let depth = self.z.end - self.z.start;
+        box_pdf_value(width, height, depth, direction, hit)
+    }
+
+    fn random(&self, origin: &V3) -> V3 {
+        box_random([&self.x, &self.y, &self.z], origin)
+    }
 }
 
 
@@ -234,24 +246,11 @@ impl Hittable for AABoxHetero {
         let width = self.x.end - self.x.start;
         let height = self.y.end - self.y.start;
         let depth = self.z.end - self.z.start;
-        let area = width * height + height * depth + width * depth;
-        let sqr_dist = (hit.dist * hit.dist) * direction.sqr_length();
-        let cosine = f64::abs(direction.dot(hit.normal) / direction.length());
-        sqr_dist / (cosine * area)
+        box_pdf_value(width, height, depth, direction, hit)
     }
 
     fn random(&self, origin: &V3) -> V3 {
-        let o: [f64;3] = (*origin).into();
-        let k = crate::random::next_std_i32() as usize;
-        let a = k + 1;
-        let b = k + 2;
-        let (k, a, b) = (k % 3, a % 3, b % 3);
-        let axes = [&self.x, &self.y, &self.z];
-        let mut tmp: [f64; 3] = [0., 0., 0.];
-        tmp[a] = crate::random::next_std_f64_in_range(axes[a]);
-        tmp[b] = crate::random::next_std_f64_in_range(axes[b]);
-        tmp[k] = f64::min(axes[k].start - o[k], axes[k].end - o[k]);
-        tmp.into()
+        box_random([&self.x, &self.y, &self.z], origin)
     }
 }
 
@@ -283,3 +282,22 @@ impl AABox {
     }
 }
 
+fn box_pdf_value(width: f64, height: f64, depth: f64, direction: &V3, hit: &Hit) -> f64 {
+    let area = width * height + height * depth + width * depth;
+    let sqr_dist = (hit.dist * hit.dist) * direction.sqr_length();
+    let cosine = f64::abs(direction.dot(hit.normal) / direction.length());
+    sqr_dist / (cosine * area)
+}
+
+fn box_random(axes: [&Range<f64>; 3], origin: &V3) -> V3 {
+    let o: [f64;3] = (*origin).into();
+    let k = next_std_i32() as usize;
+    let a = k + 1;
+    let b = k + 2;
+    let (k, a, b) = (k % 3, a % 3, b % 3);
+    let mut tmp: [f64; 3] = [0., 0., 0.];
+    tmp[a] = next_std_f64_in_range(axes[a]);
+    tmp[b] = next_std_f64_in_range(axes[b]);
+    tmp[k] = f64::min(axes[k].start - o[k], axes[k].end - o[k]);
+    tmp.into()
+}

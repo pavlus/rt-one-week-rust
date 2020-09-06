@@ -242,10 +242,10 @@ pub fn cornel_box_with_is(r_type: RendererType, nx: u32, ny: u32, t_off: f32, t_
     )));
 
     let sphere = Sphere::new(
-        V3::new(-87.5 + 165.0 + 130.0, 87.5 + 165.0, -12.5 + 165.0 + 65.0),
+        V3::new(-87.5 + 130.0, 87.5, -12.5 + 65.0),
         88.5,
         Dielectric::new(2.2),
-    );
+    ).translate(V3::new(165.0, 165.0, 165.0));
 
     let important = Box::new(HittableList::new(vec![
         Box::new(light),
