@@ -1,10 +1,7 @@
-use rayon::prelude::*;
-
-use crate::renderer::{Renderer, RendererImpl};
 use crate::scenes::Scene;
 use crate::vec::V3;
-use crate::random;
-use itertools::Itertools;
+use crate::{random, clamp};
+use rayon::prelude::*;
 
 pub type Postprocessor = fn(V3) -> V3;
 
@@ -23,10 +20,11 @@ impl Sampler {
         println!("{} {}", self.width, self.height);
         println!("255");
         for j in (0..self.height).rev() {
-            for i in 0..self.width {
-                let scale = self.samples as f64;
-//            let col: V3 = (0..aa).map(|_| {
-                let col: V3 = rayon::iter::repeatn((), self.samples).map(|_| {
+            let scale = self.samples as f64;
+            let aa = self.samples;
+            let row : Vec<(u32,u32,u32)> = (0..self.width).into_par_iter().map(|i| {
+                let col: V3 = (0..aa).map(|_| {
+                    // let col: V3 = rayon::iter::repeatn((), self.samples).map(|_| {
                     let [du, dv] = random::rand_in_unit_disc();
                     let u = (i as f64 + du) / (self.width as f64);
                     let v = (j as f64 + dv) / (self.height as f64);
@@ -43,8 +41,9 @@ impl Sampler {
                 assert![ig < 256];
                 assert![ib < 256];
 
-                print!("{} {} {} ", ir, ig, ib);
-            }
+                (ir, ig, ib)
+            }).collect();
+            row.iter().for_each(|(ir, ig, ib)| { print!("{} {} {} ", ir, ig, ib); });
             println!();
         }
     }

@@ -3,6 +3,7 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use super::{AABB, Hit, Hittable, Material, Ray, V3};
+use crate::random::next_std_f64_in_range;
 
 macro_rules! aarect_aabb {
     {$slf:ident, $a:tt, $b:tt, $off:expr} => {
@@ -21,6 +22,7 @@ macro_rules! norm_vec {
     {x, z} => {V3::new(0.0,1.0,0.0)};
     {y, z} => {V3::new(1.0,0.0,0.0)};
 }
+
 macro_rules! aarect {
     {$name:tt, $a:tt, $b:tt, normal: $k:tt} =>{
         #[derive(Debug, Clone)]
@@ -61,6 +63,24 @@ macro_rules! aarect {
             fn bounding_box(&self, _: f32, _: f32) -> Option<AABB> {
                 Some(aarect_aabb!(self, $a, $b, self.k))
             }
+
+            fn pdf_value(&self, _origin: &V3, direction: &V3, hit: &Hit) -> f64 {
+                let area = (self.$a.end - self.$a.start) * (self.$b.end - self.$b.start);
+                let sqr_dist = (hit.dist * hit.dist);
+                let cosine = direction.$k;
+                let cos_area = f64::abs(cosine * area);
+                sqr_dist / cos_area
+            }
+
+            fn random(&self, origin: &V3) -> V3 {
+                let random_point = V3{
+                    $a: next_std_f64_in_range(&self.$a),
+                    $b: next_std_f64_in_range(&self.$b),
+                    $k: self.k
+                 };
+                (random_point - *origin)
+            }
+
         }
 
     };

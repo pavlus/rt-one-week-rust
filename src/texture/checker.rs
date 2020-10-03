@@ -17,7 +17,7 @@ impl Checker {
 }
 
 impl Texture for Checker {
-    fn value(&self, u: f64, v: f64, point: V3) -> Color {
+    fn value(&self, _u: f64, _v: f64, point: V3) -> Color {
         let sines = f64::sin(self.step * point.x)
             * f64::sin(self.step * point.y)
             * f64::sin(self.step * point.z);

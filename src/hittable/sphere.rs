@@ -2,38 +2,42 @@ use std::borrow::Borrow;
 use std::f64::consts;
 
 use super::{AABB, Hit, Hittable, Material, Ray, V3};
+use crate::random::rand_in_unit_hemisphere;
 
 #[derive(Debug)]
-pub struct Sphere {
-    center: V3,
-    radius: f64,
-    material: Box<dyn Material>,
+pub struct Sphere<M> {
+    pub center: V3,
+    pub radius: f64,
+    pub material: M,
+}
+impl<M: Clone> Clone for Sphere<M>{
+    fn clone(&self) -> Self {
+        Sphere{
+            material: self.material.clone(),
+            ..*self
+        }
+    }
 }
 
-impl Sphere {
-    pub fn new(center: V3, radius: f64, material: Box<dyn Material>) -> Sphere {
+impl<M:Material> Sphere<M> {
+    pub fn new(center: V3, radius: f64, material: M) -> Sphere<M> {
         Sphere { center, radius, material }
     }
+    #[inline]
     fn center(&self, _: f32) -> V3 {
         self.center
     }
-    fn radius(&self) -> f64 { self.radius }
-    fn material(&self) -> &Box<dyn Material> { &self.material }
 
     fn aabb(&self, _: f32, _: f32) -> AABB {
         AABB::new(self.center - self.radius, self.center + self.radius)
     }
 
-    fn uv(unit_point: V3) -> (f64, f64) {
-        let phi = f64::atan2(unit_point.z, unit_point.x);
-        let theta = unit_point.y.asin();
-
-        let u = 1.0 - (phi + consts::PI) / (2.0 * consts::PI);
-        let v = (theta + consts::FRAC_PI_2) / consts::PI;
-        (u, v)
+}
+impl<M> Borrow<M> for Sphere<M>{
+    fn borrow(&self) -> &M {
+        &self.material
     }
 }
-
 #[derive(Debug)]
 pub struct MovingSphere {
     center_t0: V3,
@@ -55,29 +59,33 @@ impl MovingSphere {
             material,
         }
     }
+    #[inline]
     fn center(&self, time: f32) -> V3 {
         let scale = (time - self.time0) / self.duration;
         self.center_t0 + scale * (self.center_t1 - self.center_t0)
     }
+    #[inline]
     fn radius(&self) -> f64 { self.radius }
     fn aabb(&self, t: f32) -> AABB {
         AABB::new(self.center(t) - self.radius(), self.center(t) + self.radius())
     }
 }
 
-impl Hittable for Sphere {
+impl<M: Material> Hittable for Sphere<M> {
     fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
-        let oc = ray.origin - self.center(ray.time);
+        let center =self.center(ray.time);
+        let radius = self.radius;
+        let oc = ray.origin - center;
         let a = ray.direction.sqr_length();
         let b = oc.dot(ray.direction);
-        let c = oc.sqr_length() - (self.radius() * self.radius()) as f64;
+        let c = oc.sqr_length() - (radius * radius) as f64;
         let discr_sqr = b * b - a * c;
 
         let get_hit = |ray: &Ray, dist: f64| -> Hit {
             let p = ray.point_at(dist);
-            let n = (p - self.center(ray.time)) / self.radius();
-            let (u, v) = Sphere::uv(n);
-            return Hit::new(dist, p, n, self.material().borrow(), u, v);
+            let n = (p - center) / radius;
+            let (u, v) = uv(n);
+            return Hit::new(dist, p, n, &self.material, u, v);
         };
 
         if discr_sqr > 0.0 {
@@ -99,14 +107,26 @@ impl Hittable for Sphere {
     fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
         Some(self.aabb(t_min, t_max))
     }
+
+    fn pdf_value(&self, origin: &V3, _direction: &V3, _hit: &Hit) -> f64 {
+        let sqr_r = self.radius * self.radius;
+        let direction = self.center - *origin;
+        let cos_theta_max = f64::sqrt(1.0 - sqr_r / direction.sqr_length());
+        let solid_angle = 2.0 * consts::PI * (1.0 - cos_theta_max);
+
+        1.0/solid_angle
+    }
+
+    fn random(&self, origin: &V3) -> V3 {
+        let norm = (*origin - self.center).unit();
+        self.radius * rand_in_unit_hemisphere(&norm) + self.center - *origin
+    }
 }
 
 impl Hittable for MovingSphere {
     fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
-//        if !self.bounding_box(ray.time(), ray.time())
-//            .unwrap().hit(ray, dist_min, dist_max) { return None; }
-
-        let oc = ray.origin - self.center(ray.time);
+        let center = self.center(ray.time);
+        let oc = ray.origin - center;
         let a = ray.direction.sqr_length();
         let b = oc.dot(ray.direction);
         let c = oc.sqr_length() - (self.radius * self.radius) as f64;
@@ -114,8 +134,8 @@ impl Hittable for MovingSphere {
 
         let get_hit = |ray: &Ray, dist: f64| -> Hit {
             let p = ray.point_at(dist);
-            let n = (p - self.center(ray.time)) / self.radius;
-            let (u, v) = Sphere::uv(n);
+            let n = (p - center) / self.radius;
+            let (u, v) = uv(n);
             return Hit::new(dist, p, n, self.material.borrow(), u, v);
         };
 
@@ -138,4 +158,39 @@ impl Hittable for MovingSphere {
     fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
         Some(self.aabb(t_min) + self.aabb(t_max))
     }
+
 }
+
+fn uv(unit_point: V3) -> (f64, f64) {
+    let phi = f64::atan2(unit_point.z, unit_point.x);
+    let theta = unit_point.y.asin();
+
+    let u = 1.0 - (phi + consts::PI) / (2.0 * consts::PI);
+    let v = (theta + consts::FRAC_PI_2) / consts::PI;
+    (u, v)
+}
+
+#[cfg(test)]
+mod test {
+    use crate::random::{rand_in_unit_sphere, next_std_f64, rand_in_unit_hemisphere};
+    use crate::hittable::{Sphere, Hit, Hittable};
+    use crate::material::{Lambertian, Material};
+    use crate::vec::V3;
+    use crate::texture::Color;
+    use crate::ray::Ray;
+    use crate::hittable::test::test_pdf_integration;
+
+    #[test]
+    fn test_pdf() {
+        for _ in 0..100 {
+            let count = 10_000;
+
+            let center = 6.0 * rand_in_unit_sphere();
+            let radius = 1.0 + next_std_f64();
+            let sphere = Sphere::new(center, radius, Lambertian::new(Color(V3::ones())));
+
+            test_pdf_integration(sphere, count);
+        }
+    }
+}
+

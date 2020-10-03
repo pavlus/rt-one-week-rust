@@ -57,23 +57,16 @@ impl V3 {
     }
 
     pub fn sqr_length(self) -> f64 {
-        unsafe {
-            let s = _mm_loadu_pd(&self.x as *const f64); // x, y
-            let p1 = _mm_dp_pd(s, s, 0b00110001);
-            self.z.mul_add(self.z, _mm_cvtsd_f64(p1))
-        }
+        self.dot(self)
     }
     pub fn length(&self) -> f64 {
         self.sqr_length().sqrt()
     }
 
     pub fn dot(&self, other: V3) -> f64 {
-        unsafe {
-            let s = _mm_loadu_pd(&self.x as *const f64); // x, y
-            let o = _mm_loadu_pd(&other.x as *const f64); // x, y
-            let p1 = _mm_dp_pd(s, o, 0b00110001);
-            self.z.mul_add(other.z, _mm_cvtsd_f64(p1))
-        }
+        self.x * other.x
+            + self.y * other.y
+            + self.z * other.z
     }
     pub fn cross(&self, other: V3) -> V3 {
         V3 {
