@@ -6,10 +6,17 @@ RPATH=`pwd`/renders
 PPMPATH=$RPATH/$PPMNAME.ppm
 echo "Started rendering $PPMNAME"
 
+RENDERER=biased
+#RENDERER=unbiased
+#RENDERER=bounces-heatmap
+SCENE=cornel_is
+#SCENE=cornel_volumes
+#SCENE=cornel_instances
 #./target/$1/rust-rt-one-weekend | imvr -
-time ./target/$1/rust-rt-one-weekend \
-  --bounces 16 --width 1000 --height 1000 --samples 2000 \
-  cornel_is > $PPMPATH
+time ./target/$1/rust-rt-one-weekend.exe \
+  --renderer $RENDERER \
+  --bounces 16 --width 400 --height 400 --samples 5000 \
+  $SCENE > $PPMPATH
 #  cornel_volumes > $PPMPATH
 #  --bounces 10 --width 384 --height 216 --samples 100 \
 #  --bounces 50 --width 384 --height 216 --samples 100 > $PPMPATH

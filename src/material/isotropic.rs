@@ -6,6 +6,7 @@ use crate::scatter::Scatter;
 use crate::scatter::Scatter::Diffuse;
 use crate::pdf::IsotropicPDF;
 use core::f64::consts;
+use crate::vec::V3;
 
 #[derive(Debug)]
 pub struct Isotropic<T> {
@@ -15,6 +16,12 @@ pub struct Isotropic<T> {
 impl<T: Texture> Isotropic<T> {
     pub fn new(albedo: T) -> Isotropic<T> {
         Isotropic { albedo }
+    }
+}
+
+impl<T: Clone> Clone for Isotropic<T> {
+    fn clone(&self) -> Self {
+        Isotropic { albedo: self.albedo.clone() }
     }
 }
 
@@ -40,8 +47,9 @@ impl<T: Texture> Material for Isotropic<T> {
         )
     }
 
+    //todo: check that integrates to the same value as others
     #[inline]
-    fn scattering_pdf(&self, hit: &Hit, scattered: &Ray) -> f64 {
+    fn scattering_pdf(&self, _hit: &Hit, _direction: &V3) -> f64 {
         // 1/ (4*pi), where 4*pi is the solid angle of full sphere
         0.25 * consts::FRAC_1_PI
     }

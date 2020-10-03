@@ -1,10 +1,6 @@
-use rayon::prelude::*;
-
-use crate::renderer::{Renderer, RendererImpl};
 use crate::scenes::Scene;
 use crate::vec::V3;
 use crate::{random, clamp};
-use itertools::Itertools;
 use rayon::prelude::*;
 
 pub type Postprocessor = fn(V3) -> V3;
@@ -32,7 +28,7 @@ impl Sampler {
                     let [du, dv] = random::rand_in_unit_disc();
                     let u = (i as f64 + du) / (self.width as f64);
                     let v = (j as f64 + dv) / (self.height as f64);
-                    clamp(scene.color(u, v))
+                    scene.color(u, v)
                 }).sum();
 
                 let col = (self.pixel_postprocessor)(col / scale);

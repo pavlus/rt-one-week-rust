@@ -2,7 +2,7 @@ use structopt::StructOpt;
 
 use vec::V3;
 
-use crate::renderer::{Renderer, RendererType};
+use crate::renderer::RendererType;
 use crate::sampler::Sampler;
 use crate::scenes::*;
 
@@ -100,11 +100,6 @@ fn clamp(color: V3) -> V3 {
         texture::clamp(color.y, 0.0, 1.0),
         texture::clamp(color.z, 0.0, 1.0),
     )
-}
-
-fn _clamp(color: V3) -> V3 {
-    let max = f64::max(color.x, f64::max(color.y, color.z));
-    if max > 1.0 { color / max } else { color }
 }
 
 fn gamma(color: V3) -> V3 {

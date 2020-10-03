@@ -64,11 +64,12 @@ macro_rules! aarect {
                 Some(aarect_aabb!(self, $a, $b, self.k))
             }
 
-            fn pdf_value(&self, origin: &V3, direction: &V3, hit: &Hit) -> f64 {
+            fn pdf_value(&self, _origin: &V3, direction: &V3, hit: &Hit) -> f64 {
                 let area = (self.$a.end - self.$a.start) * (self.$b.end - self.$b.start);
-                let sqr_dist = (hit.dist * hit.dist) * direction.sqr_length();
-                let cosine = f64::abs(direction.dot(hit.normal) / direction.length());
-                sqr_dist / (cosine * area)
+                let sqr_dist = (hit.dist * hit.dist);
+                let cosine = direction.$k;
+                let cos_area = f64::abs(cosine * area);
+                sqr_dist / cos_area
             }
 
             fn random(&self, origin: &V3) -> V3 {

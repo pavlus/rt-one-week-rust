@@ -5,7 +5,9 @@ use std::ops::Deref;
 use crate::hittable::{Hittable, Hit};
 use std::fmt::Debug;
 use crate::ray::Ray;
-use core::f64::consts;
+use core::f64::consts::PI;
+use std::f64::consts;
+
 pub trait PDF: Debug {
     fn value(&self, direction: &V3, hit: &Hit) -> f64;
     fn generate(&self) -> V3;
@@ -17,9 +19,6 @@ pub struct CosinePDF {
 }
 
 impl CosinePDF {
-    pub fn new(onb: ONB) -> Self {
-        CosinePDF { onb }
-    }
     pub fn from_w(w: &V3) -> Self {
         CosinePDF { onb: ONB::from_w(w) }
     }
@@ -27,14 +26,8 @@ impl CosinePDF {
 
 impl PDF for CosinePDF {
     fn value(&self, direction: &V3, _: &Hit) -> f64 {
-        let cosine = direction.unit().dot(self.onb.w);
-        if cosine < 0.0 {
-            0.0
-        } else if cosine >= consts::PI {
-            1.0
-        } else {
-            cosine / consts::PI
-        }
+        let cosine = self.onb.w.dot(direction.unit());
+        if cosine < 0.0 { 0.0 } else if cosine >= PI { 1.0 } else { cosine / PI }
     }
 
     fn generate(&self) -> V3 {
@@ -48,16 +41,13 @@ pub struct IsotropicPDF {
 }
 
 impl IsotropicPDF {
-    pub fn new(onb: ONB) -> Self {
-        IsotropicPDF { onb }
-    }
     pub fn from_w(w: &V3) -> Self {
         IsotropicPDF { onb: ONB::from_w(w) }
     }
 }
 
 impl PDF for IsotropicPDF {
-    fn value(&self, direction: &V3, _: &Hit) -> f64 {
+    fn value(&self, _direction: &V3, _: &Hit) -> f64 {
         0.25 * consts::FRAC_1_PI
     }
 

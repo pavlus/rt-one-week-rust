@@ -30,7 +30,8 @@ impl Material for Metal {
         }
     }
 
-    fn scattering_pdf(&self, hit: &Hit, scattered: &Ray) -> f64 {
+    #[allow(unused_variables)]
+    fn scattering_pdf(&self, hit: &Hit, direction: &V3) -> f64 {
         0.0
     }
 

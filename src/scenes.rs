@@ -1,28 +1,13 @@
 use std::sync::Arc;
 
-use crate::hittable::{
-    AABox,
-    ConstantMedium,
-    Hittable,
-    HittableList,
-    RotateYOp,
-    FlipNormalsOp,
-    TranslateOp,
-    MovingSphere,
-    Sphere,
-    XYRect,
-    XZRect,
-    YZRect,
-    NoHit,
-    AABoxMono,
-};
+use crate::hittable::{AABox, ConstantMedium, Hittable, HittableList, RotateYOp, FlipNormalsOp, TranslateOp, MovingSphere, Sphere, XYRect, XZRect, YZRect, NoHit, AABoxMono, Translate};
 use crate::material::{Dielectric, DiffuseLight, Lambertian, Metal};
 use crate::noise::Perlin;
 use crate::random::{next_color, next_std_f64, with_rnd, next_std_u32};
 use crate::texture::{Checker, Color, ImageTexture, PerlinTexture};
 use crate::vec::V3;
 use crate::camera::Camera;
-use crate::renderer::{Renderer, RgbRenderer, TtlRenderer, RendererImpl, RendererType};
+use crate::renderer::{Renderer, RendererImpl, RendererType};
 use crate::ray::Ray;
 use crate::bvh::BVH;
 
@@ -175,15 +160,15 @@ pub fn cornel_box_with_instances(r_type: RendererType, nx: u32, ny: u32, t_off: 
             .translate(V3::new(130.0, 0.0, 65.0))
         ));
 
-    objs.push(
-        Box::new(AABox::mono(0.0..165.0, 0.0..330.0, 0.0..165.0,
-                             // Arc::new(Lambertian::new(Color(V3::all(0.73)))))
-                             Arc::new(Metal::new(V3::all(1.0))))
-            .rotate_y(15.0)
-            .translate(V3::new(265.0, 0.0, 295.0))
-        ));
+    let shiny_box = Box::new(AABox::mono(0.0..165.0, 0.0..330.0, 0.0..165.0,
+                                 // Arc::new(Lambertian::new(Color(V3::all(0.73)))))
+                                 Arc::new(Metal::new(V3::all(1.0))))
+        .rotate_y(15.0)
+        .translate(V3::new(265.0, 0.0, 295.0))
+    );
+    objs.push(shiny_box.clone());
 
-    let light_mat = Arc::new(DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 1.0)), 2.0));
+    let light_mat = Arc::new(DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 1.0)), 15.0));
     let light = XZRect::new(213.0..343.0, 227.0..332.0, 554.0, light_mat);
     objs.push(Box::new(light.clone().flip_normals()));
     objs.swap_remove(2);
@@ -193,7 +178,7 @@ pub fn cornel_box_with_instances(r_type: RendererType, nx: u32, ny: u32, t_off: 
         renderer: RendererImpl::pick_renderer(
             r_type,
             Box::new(HittableList::new(objs)),
-            Box::new(light),
+            Box::new(HittableList::new(vec![shiny_box, Box::new(light)])),
             self::const_color_black,
             ttl
         ),
@@ -202,56 +187,69 @@ pub fn cornel_box_with_instances(r_type: RendererType, nx: u32, ny: u32, t_off: 
 
 pub fn cornel_box_with_is(r_type: RendererType, nx: u32, ny: u32, t_off: f32, t_span: f32, ttl: i32) -> Scene {
     let mut objs = cornel_box_prototype();
+    let mut important: Vec<Box<dyn Hittable>> = vec![];
     /*objs.push(
         AABox::mono(0.0..165.0, 0.0..165.0, 0.0..165.0,
                     Arc::new(Lambertian::new(Color(V3::all(0.73)))))
             .rotate_y(-18.0)
             .translate(V3::new(130.0, 0.0, 65.0))
     );*/
-    objs.push(Box::new(ConstantMedium::new(
+    let fog = Box::new(ConstantMedium::new(
+        // Box::new(AABox::mono(0.0..165.0, 0.0..165.0, 0.0..165.0,
         Box::new(AABox::mono(0.0..165.0, 0.0..165.0, 0.0..165.0,
                              // todo: null-texture/null-material?
                              Arc::new(Lambertian::new(Color(V3::new(1.0, 0.0, 1.0)))))
+            .translate(V3::new(130.0, 0.0, 65.0))
             .rotate_y(-18.0)
-            .translate(V3::new(130.0, 0.0, 65.0))),
+        ),
         0.01,
         Color::new(1.0, 1.0, 1.0))
-    ));
+    );
 
     let lamb = Arc::new(Lambertian::new(Color(V3::all(0.73))));
     let metal = Arc::new(Metal::new(V3::all(1.0)));
-    let shiny_box = AABox::new(0.0..165.0, 0.0..330.0, 0.0..165.0,
+    let shiny_box =
+        AABox::new(0.0..165.0, 0.0..330.0, 0.0..165.0,
                        // AABox::new(265.0..(165.0+265.0), 0.0..330.0, 295.0..(165.0+265.0),
                        lamb.clone(),
                        lamb.clone(),
                        lamb.clone(),
                        lamb.clone(),
+                       // lamb.clone(),
                        metal.clone(),
                        lamb.clone(),
-    );
-    objs.push(Box::new(shiny_box.clone().rotate_y(15.0).translate(V3::new(265.0, 0.0, 295.0))));
+    )
+        .rotate_y(15.0)
+        // .rotate_y(-90.0)
+        // .translate(V3::new(265.0, 80.0, 295.0))
+        .translate(V3::new(265.0, 0.0, 295.0))
+        ;
+
     let light_mat = Arc::new(DiffuseLight::new(Box::new(Color::new(1.0, 1.0, 1.0)), 15.0));
-    let light = Box::new(XZRect::new(213.0..343.0, 227.0..332.0, 554.0, light_mat));
-    objs.push(Box::new(light.clone().flip_normals()));
+    let light = Box::new(XZRect::new(213.0..343.0, 227.0..332.0, 554.0, light_mat).flip_normals());
+    objs.push(light.clone());
     objs.swap_remove(2);
 
-    objs.push(Box::new(Sphere::new(
-        V3::new(-87.5 + 295.0, 87.5 + 165.0, -12.5 + 230.0),
-        88.5,
-        Dielectric::new(1.5),
-    )));
+    let sphere: Box<Translate<Sphere<Dielectric>>> = Box::new(
+        Sphere::new(
+            V3::new(-87.5, 87.5, -12.5),
+            88.5,
+            Dielectric::new(1.5),
+        )
+            .translate(V3::new(130.0, 0.0, 65.0))
+            .translate(V3::new(165.0, 165.0, 165.0))
+    );
 
-    let sphere = Sphere::new(
-        V3::new(-87.5 + 130.0, 87.5, -12.5 + 65.0),
-        88.5,
-        Dielectric::new(2.2),
-    ).translate(V3::new(165.0, 165.0, 165.0));
+    objs.push(fog.clone());
+    objs.push(Box::new(shiny_box.clone()));
+    objs.push(sphere.clone());
 
-    let important = Box::new(HittableList::new(vec![
-        Box::new(light),
-        Box::new(sphere),
-        Box::new(shiny_box.rotate_y(15.0).translate(V3::new(265.0, 0.0, 295.0)))
-    ]));
+    important.push(fog);
+    important.push(Box::new(shiny_box.clone()));
+    important.push(sphere);
+    important.push(light);
+    let important = Box::new(HittableList::new(important));
+
     Scene {
         camera: cornel_box_cam(nx, ny, t_off, t_span, ttl),
         renderer: RendererImpl::pick_renderer(

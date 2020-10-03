@@ -1,13 +1,9 @@
 use super::{Hittable, Ray, Renderer, V3};
 use std::borrow::Borrow;
-use crate::random::next_std_f64;
-use std::ops::Range;
 use crate::texture::Color;
 use crate::pdf::{PDF, HittablePDF, MixturePDF};
-use crate::material::Material;
 use crate::scatter::Scatter::{Specular, Diffuse};
-use rand::random;
-use crate::onb::ONB;
+use crate::hittable::Hit;
 
 pub struct RgbRenderer {
     pub hittable: Box<dyn Hittable>,
@@ -20,70 +16,76 @@ impl Renderer for RgbRenderer {
         match self.hittable.hit(&r, 0.0001, 99999.0) {
             Some(hit) => {
                 let emitted = if hit.normal.dot(r.direction.unit()) < 0.0 {
-                    hit.material.emmit(&hit)
+                    hit.material.emmit(&hit).0
                 } else {
-                    Color(V3::zeros())
+                    V3::zeros()
                 };
-                match hit
+                emitted + match hit
                     .material
                     .scatter_with_pdf(r, &hit) {
                     Some(scatter) => {
                         match scatter {
                             Specular(scattered) => {
-                                if let Some(valid) = scattered.validate() {
-                                    let scattered_color = self.color(&valid);
-                                    emitted.0 + valid.attenuation * scattered_color
-                                } else {
-                                    emitted.0
-                                }
+                                self.specular(scattered)
                             }
-                            Diffuse(pdf, attenuation) => {
-                                // let pdf = HittablePDF::new(hit.point, &self.important);
-                                let pdf = MixturePDF::new(pdf, HittablePDF::new(hit.point, &self.important));
-                                if let Some(scattered) = r.produce(
-                                    hit.point,
-                                    pdf.generate().unit(),
-                                    attenuation.0
-                                ).validate() {
-                                    let pdf_value = pdf.value(&scattered.direction, &hit);
-                                    let spdf = hit.material.scattering_pdf(&hit, &scattered);
-                                    let mut weight = spdf / pdf_value;
-                                    if weight.is_nan() {
-                                        weight = 0.0
-                                    } /*else if weight > 1.0 {
-                                        *//*if weight > 2.0 {
-                                            dbg!(weight);
-                                        }*//*
-                                        weight = 1.0
-                                    }*/
-                                    let scattered_color = self.color(&scattered);
-                                    let result = emitted.0 +
-                                        weight * scattered.attenuation * scattered_color;
-                                    result
-                                // 0.5*scattered.direction.unit() + 0.5
-                                // scattered.attenuation // color without light
-                                // V3::all(weight) * scattered_color // light without color
-                                // V3::all(pdf_value) * scattered_color
-                                //     V3::all(weight) * scattered_color
-                                // V3::all(spdf) * scattered_color
-                                } else {
-                                    emitted.0
-                                }
+                            Diffuse(mat_pdf, attenuation) => {
+                                self.biased_diffuse(r, &hit, attenuation, mat_pdf)
                             }
                         }
                     }
-                    None => emitted.0
+                    None => V3::zeros() // no hit
                 }
             }
             None => {
-                return self.miss_shader.borrow()(r);
+                self.miss_shader.borrow()(r)
             }
         }
     }
 }
 
-fn next_std_f64_in_range(range: Range<f64>) -> f64 {
-    let offset = range.start;
-    let scale = range.end - range.start;
-    next_std_f64() * scale + offset
+impl RgbRenderer {
+    fn biased_diffuse<'a>(&self, r: &Ray, hit: &Hit, attenuation: Color, mat_pdf: Box<dyn PDF>) -> V3 {
+        let mat_dir = mat_pdf.generate();  // unbiased sample, just in case we need it
+        let pdf = MixturePDF::new(
+            mat_pdf,
+            HittablePDF::new(hit.point, &self.important)
+        );
+        if let Some(mut scattered) = r.produce(
+            hit.point,
+            pdf.generate().unit(),
+            attenuation.0,
+        ).validate() {
+            let pdf_value = pdf.value(&scattered.direction, &hit);
+            let spdf = hit.material.scattering_pdf(&hit, &scattered.direction);
+            let mut weight = spdf / pdf_value;
+            if weight.is_nan() {
+                // coin toss of mixture PDF gave us ray from non-overlapping part of importance PDF,
+                // and weighted probability of hitting that important object is zero too or NaN,
+                // so we get NaN weight. Let's scatter light unbiased, by material PDF, this will
+                // also give us pdf_value = spdf, since they are from same material, so weight is 1.
+                weight = 1.0;
+                scattered.direction = mat_dir;
+            }
+            let scattered_color = self.color(&scattered);
+            // let scattered_color = 0.5 * scattered.direction.unit() + 0.5; // scatter direction
+            // let scattered_color = 0.5 * hit.normal + 0.5; // surface normal vectors
+            // scattered.attenuation // color without weight
+            // V3::all(weight) * scattered_color // weight without color
+            // V3::new(weight, spdf, pdf_value) // neon party for debugging probability density
+            weight * scattered.attenuation * scattered_color
+        } else {
+            V3::zeros() // max depth
+        }
+    }
+}
+
+impl RgbRenderer {
+    fn specular(&self, scattered: Ray) -> V3 {
+        if let Some(valid) = scattered.validate() {
+            let scattered_color = self.color(&valid);
+            valid.attenuation * scattered_color
+        } else {
+            V3::zeros() // max depth
+        }
+    }
 }

@@ -13,7 +13,6 @@ use crate::ray::Ray;
 use crate::vec::V3;
 use crate::random::rand_in_unit_sphere;
 use std::f64::consts::PI;
-use std::ops::Deref;
 
 mod sphere;
 mod aarect;
@@ -38,6 +37,7 @@ impl<'a> Hit<'a> {
     }
 }
 
+#[allow(unused_variables)]
 pub trait Hittable: Debug + Sync {
     fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit>;
     fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> { None }
@@ -92,19 +92,50 @@ impl<T:Hittable> Hittable for Box<T>
 #[derive(Debug)]
 pub struct NoHit;
 impl Hittable for NoHit{
-    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
+    fn hit(&self, _ray: &Ray, _dist_min: f64, _dist_max: f64) -> Option<Hit> {
         None
     }
 
-    fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> {
+    fn bounding_box(&self, _t_min: f32, _t_max: f32) -> Option<AABB> {
         None
     }
 
-    fn pdf_value(&self, _: &V3, _: &V3, _: &Hit) -> f64 {
+    fn pdf_value(&self, _origin: &V3, _direction: &V3, _hit: &Hit) -> f64 {
         1.0/(PI*4.0)
     }
 
-    fn random(&self, origin: &V3) -> V3 {
+    fn random(&self, _origin: &V3) -> V3 {
         rand_in_unit_sphere()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::hittable::Hittable;
+    use crate::random::rand_in_unit_sphere;
+    use crate::texture::Color;
+    use crate::material::Lambertian;
+    use crate::ray::Ray;
+    use crate::vec::V3;
+
+    pub fn test_pdf_integration<T: Hittable>(hittable: T, count: usize) {
+        let normal = rand_in_unit_sphere();
+        let mat = Lambertian::new(Color(V3::ones()));
+
+        let origin = rand_in_unit_sphere();
+        let integral = (0..count).into_iter()
+            .map(|_| {
+                let dir = rand_in_unit_sphere();
+                let ray = Ray::new(origin, dir, V3::ones(), 1.0, 2);
+                if let Some(hit) = hittable.hit(&ray, -99999.0, 99999.0) {
+                    hittable.pdf_value(&origin, &dir, &hit)
+                } else { 0.0 }
+            }).sum::<f64>() / (count as f64);
+        let expected = 1.0 / (2.0 * std::f64::consts::PI);
+        let epsilon = 1.0 / f64::cbrt(count as f64);
+        assert!(
+            f64::abs(integral - expected) < epsilon,
+            format!("Expected: {}, actual: {}, epsilon: {}", expected, integral, epsilon)
+        );
     }
 }

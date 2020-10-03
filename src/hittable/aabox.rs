@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use super::{AABB, Hit, Hittable, Material, Ray, V3};
 use std::borrow::Borrow;
-use crate::random::{next_std_f64_in_range, next_std_i32};
+use crate::random::next_std_f64_in_range;
 
 #[derive(Debug, Clone)]
 pub struct AABoxMono {
@@ -283,21 +283,67 @@ impl AABox {
 }
 
 fn box_pdf_value(width: f64, height: f64, depth: f64, direction: &V3, hit: &Hit) -> f64 {
-    let area = width * height + height * depth + width * depth;
-    let sqr_dist = (hit.dist * hit.dist) * direction.sqr_length();
-    let cosine = f64::abs(direction.dot(hit.normal) / direction.length());
-    sqr_dist / (cosine * area)
+    let dir_unit = direction;
+    let area_xy = f64::abs(width * height * dir_unit.z);
+    let area_xz = f64::abs(depth * width * dir_unit.y);
+    let area_yz = f64::abs(height * depth * dir_unit.x);
+
+    let sqr_dist = hit.dist * hit.dist;
+    let total_area = area_xy + area_yz + area_xz; // no division, since only one of them is non-zero
+    sqr_dist / total_area
 }
 
 fn box_random(axes: [&Range<f64>; 3], origin: &V3) -> V3 {
-    let o: [f64;3] = (*origin).into();
-    let k = next_std_i32() as usize;
-    let a = k + 1;
-    let b = k + 2;
-    let (k, a, b) = (k % 3, a % 3, b % 3);
-    let mut tmp: [f64; 3] = [0., 0., 0.];
-    tmp[a] = next_std_f64_in_range(axes[a]);
-    tmp[b] = next_std_f64_in_range(axes[b]);
-    tmp[k] = f64::min(axes[k].start - o[k], axes[k].end - o[k]);
-    tmp.into()
+    let x = next_std_f64_in_range(&axes[0]);
+    let y= next_std_f64_in_range(&axes[1]);
+    let z = next_std_f64_in_range(&axes[1]);
+    V3::new(x, y, z) - *origin
+}
+
+
+#[cfg(test)]
+mod test{
+    use crate::hittable::{AABox, XYRect, Hit, Hittable, HittableList, XZRect, RotateYOp, RotateY, YZRect};
+    use std::sync::Arc;
+    use crate::material::Lambertian;
+    use crate::V3;
+    use std::borrow::Borrow;
+    use crate::ray::Ray;
+    use crate::random::{rand_in_unit_sphere, next_std_f64_in_range, rand_in_unit_disc, rand_in_unit_hemisphere, next_std_f64};
+    use crate::texture::Color;
+    use crate::hittable::test::test_pdf_integration;
+
+    #[test]
+    fn test_box_rect_pdf(){
+        let mat = Arc::new(Lambertian::color(V3::new(1.0, 1.0, 1.0)));
+        let aabox = AABox::mono(-1.0..1.0, -1.0..1.0, -1.0..1.0, mat.clone());
+        let aarect = XYRect::new(-1.0..1.0, -1.0..1.0, -1.0, mat.clone());
+        let origin = V3::new(0.0, 0.0, -2.0);
+        let direction = V3::new(0.0, 0.0, 1.0);
+        let hit = Hit::new(1.0, V3::new(0.0, 0.0, -1.0), V3::new(0.0, 0.0, -1.0), &*mat, 0.0, 0.0);
+        assert_eq!(
+            aabox.pdf_value(&origin, &direction, &hit),
+            aarect.pdf_value(&origin, &direction, &hit)
+        );
+    }
+
+    #[test]
+    fn test_pdf() {
+        for _ in 0..100 {
+            let count = 10_000;
+
+            let center: V3 = 5.0 * rand_in_unit_sphere();
+            let h_width = 1.0 + next_std_f64();
+            let h_height = 1.0 + next_std_f64();
+            let h_depth = 1.0 + next_std_f64();
+
+            let aabox = AABox::mono(
+                (center.x - h_width)..(center.x + h_width),
+                (center.y - h_height)..(center.y + h_height),
+                (center.z - h_depth)..(center.z + h_depth),
+                Arc::new(Lambertian::new(Color(V3::ones()))),
+            );
+            test_pdf_integration(aabox, count);
+        }
+    }
 }

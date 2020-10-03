@@ -48,11 +48,10 @@ impl Hittable for HittableList {
     }
 
     fn pdf_value(&self, origin: &V3, direction: &V3, hit: &Hit) -> f64 {
-        let weight = 1.0/self.objects.len() as f64;
         self.objects
             .iter()
-            .map(|o| weight * o.pdf_value(origin, direction, hit))
-            .sum()
+            .map(|o| o.pdf_value(origin, direction, hit))
+            .sum::<f64>() / self.objects.len() as f64
     }
 
     fn random(&self, origin: &V3) -> V3 {

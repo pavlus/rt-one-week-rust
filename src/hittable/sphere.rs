@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 use std::f64::consts;
 
 use super::{AABB, Hit, Hittable, Material, Ray, V3};
-use crate::onb::ONB;
+use crate::random::rand_in_unit_hemisphere;
 
 #[derive(Debug)]
 pub struct Sphere<M> {
@@ -27,8 +27,6 @@ impl<M:Material> Sphere<M> {
     fn center(&self, _: f32) -> V3 {
         self.center
     }
-    #[inline]
-    fn radius(&self) -> f64 { self.radius }
 
     fn aabb(&self, _: f32, _: f32) -> AABB {
         AABB::new(self.center - self.radius, self.center + self.radius)
@@ -110,9 +108,8 @@ impl<M: Material> Hittable for Sphere<M> {
         Some(self.aabb(t_min, t_max))
     }
 
-    fn pdf_value(&self, origin: &V3, _: &V3, _: &Hit) -> f64 {
+    fn pdf_value(&self, origin: &V3, _direction: &V3, _hit: &Hit) -> f64 {
         let sqr_r = self.radius * self.radius;
-        // todo: am i sure that hit distance doesn't mean anything?
         let direction = self.center - *origin;
         let cos_theta_max = f64::sqrt(1.0 - sqr_r / direction.sqr_length());
         let solid_angle = 2.0 * consts::PI * (1.0 - cos_theta_max);
@@ -121,25 +118,9 @@ impl<M: Material> Hittable for Sphere<M> {
     }
 
     fn random(&self, origin: &V3) -> V3 {
-        let direction = self.center - *origin;
-        let onb = ONB::from_w(&direction);
-        onb.local(random_to_sphere(self.radius(), direction.sqr_length()))
+        let norm = (*origin - self.center).unit();
+        self.radius * rand_in_unit_hemisphere(&norm) + self.center - *origin
     }
-}
-#[inline]
-fn random_to_sphere(radius: f64, sqr_dist: f64) -> V3 {
-    let r1 = crate::random::next_std_f64();
-    let r2 = crate::random::next_std_f64();
-    let z = 1.0 + r2 * (f64::sqrt(1.0 - radius * radius / sqr_dist) - 1.0);
-
-    let phi = 2.0 * consts::PI * r1;
-    let sin_theta = f64::sqrt(1.0 - z * z);
-
-    let (sin_phi,cos_phi) = f64::sin_cos(phi);
-    let x = cos_phi * sin_theta;
-    let y = sin_phi * sin_theta;
-
-    V3::new(x, y, z)
 }
 
 impl Hittable for MovingSphere {
@@ -188,3 +169,28 @@ fn uv(unit_point: V3) -> (f64, f64) {
     let v = (theta + consts::FRAC_PI_2) / consts::PI;
     (u, v)
 }
+
+#[cfg(test)]
+mod test {
+    use crate::random::{rand_in_unit_sphere, next_std_f64, rand_in_unit_hemisphere};
+    use crate::hittable::{Sphere, Hit, Hittable};
+    use crate::material::{Lambertian, Material};
+    use crate::vec::V3;
+    use crate::texture::Color;
+    use crate::ray::Ray;
+    use crate::hittable::test::test_pdf_integration;
+
+    #[test]
+    fn test_pdf() {
+        for _ in 0..100 {
+            let count = 10_000;
+
+            let center = 6.0 * rand_in_unit_sphere();
+            let radius = 1.0 + next_std_f64();
+            let sphere = Sphere::new(center, radius, Lambertian::new(Color(V3::ones())));
+
+            test_pdf_integration(sphere, count);
+        }
+    }
+}
+

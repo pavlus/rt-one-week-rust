@@ -70,3 +70,12 @@ impl<B:Hittable, M: Material> Hittable for ConstantMedium<B,M> {
 
 }
 
+impl<B: Clone, M: Clone> Clone for ConstantMedium<B, M>{
+    fn clone(&self) -> Self {
+        ConstantMedium{
+            boundary: self.boundary.clone(),
+            density: self.density,
+            phase_function: self.phase_function.clone(),
+        }
+    }
+}

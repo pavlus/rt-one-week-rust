@@ -1,5 +1,3 @@
-use structopt::StructOpt;
-
 pub use rgb_renderer::RgbRenderer;
 pub use rgb_renderer_unbiased::RgbRendererUnbiased;
 pub use ttl_renderer::TtlRenderer;
@@ -89,7 +87,7 @@ impl RendererImpl {
 
 impl Renderer for RendererImpl {
     fn color(&self, ray: &Ray) -> V3 {
-        match (self) {
+        match self {
             RendererImpl::RGB(renderer) => renderer.color(ray),
             RendererImpl::RGBUnbiased(renderer) => renderer.color(ray),
             RendererImpl::TTL(renderer) => renderer.color(ray),

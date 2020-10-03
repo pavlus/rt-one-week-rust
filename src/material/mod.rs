@@ -20,6 +20,7 @@ pub mod isotropic;
 
 type PDF = f64;
 
+#[allow(unused_variables)]
 pub trait Material: Debug + Sync + Send {
     fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<Ray> { None }
     fn emmit(&self, hit: &Hit) -> Color { Color(V3::zeros()) }
@@ -27,5 +28,5 @@ pub trait Material: Debug + Sync + Send {
     fn scatter_with_pdf(&self, ray: &Ray, hit: &Hit) -> Option<Scatter> {
         self.scatter(ray, hit).map(|ray| Scatter::Specular(ray))
     }
-    fn scattering_pdf(&self, hit: &Hit, scattered: &Ray) -> PDF { 0.0 }
+    fn scattering_pdf(&self, hit: &Hit, direction: &V3) -> PDF { 0.0 }
 }

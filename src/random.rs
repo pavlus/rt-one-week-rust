@@ -37,6 +37,11 @@ pub fn next_std_f32() -> f32 {
         Standard.sample((*rnd_cell.borrow_mut()).borrow_mut()))
 }
 
+pub fn flip_coin() -> bool {
+    RND.with(|rnd_cell|
+        Standard.sample((*rnd_cell.borrow_mut()).borrow_mut()))
+}
+
 pub fn next_std_u32() -> u32 {
     RND.with(|rnd_cell|
         Standard.sample((*rnd_cell.borrow_mut()).borrow_mut()))
