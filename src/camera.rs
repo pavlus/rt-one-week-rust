@@ -1,4 +1,4 @@
-use crate::ray::Ray;
+use crate::ray::RayCtx;
 use crate::vec::V3;
 use crate::random;
 
@@ -55,11 +55,11 @@ impl Camera {
         }
     }
 
-    pub fn get_ray(&self, s: f64, t: f64) -> Ray {
+    pub fn get_ray(&self, s: f64, t: f64) -> RayCtx {
         let [dx, dy] = random::rand_in_unit_disc();
         let offset = self.lens_radius as f64 * dx * self.u + self.lens_radius as f64 * dy * self.v;
         let tmp_origin = self.origin + offset;
-        Ray::new(
+        RayCtx::new(
             tmp_origin,
             self.lower_left
                 + ((s * self.horizontal)

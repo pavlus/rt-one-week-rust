@@ -4,7 +4,7 @@ use crate::random::{rand_cosine_direction, next_std_f32, rand_in_unit_sphere};
 use std::ops::Deref;
 use crate::hittable::{Hittable, Hit};
 use std::fmt::Debug;
-use crate::ray::Ray;
+use crate::ray::RayCtx;
 use core::f64::consts::PI;
 use std::f64::consts;
 
@@ -70,7 +70,7 @@ impl<'a> HittablePDF<'a> {
 
 impl PDF for HittablePDF<'_> {
     fn value(&self, direction: &V3, hit: &Hit) -> f64 {
-        let tmp_ray = Ray::new(hit.point, *direction, V3::zeros(), 0.0, 1);
+        let tmp_ray = RayCtx::new(hit.point, *direction, V3::zeros(), 0.0, 1);
         if let Some(hit) = self.hittable.hit(&tmp_ray, 0.0001, f64::MAX){
             self.hittable.pdf_value(&self.origin, direction, &hit)
         } else {

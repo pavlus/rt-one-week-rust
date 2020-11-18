@@ -1,6 +1,6 @@
 
 use super::{Color, Texture};
-use super::{Hit, Material, Ray, V3};
+use super::{Hit, Material, RayCtx, V3};
 use crate::scatter::Scatter;
 use crate::pdf::{CosinePDF, PDF};
 
@@ -17,13 +17,13 @@ impl Lambertian {
 }
 
 impl Material for Lambertian {
-    fn scatter(&self, ray: &Ray, &hit: &Hit) -> Option<Ray> {
+    fn scatter(&self, ray_ctx: &RayCtx, &hit: &Hit) -> Option<RayCtx> {
         let albedo = self.texture.value(hit.u, hit.v, hit.point);
         let target = CosinePDF::from_w(&hit.normal).generate();
-        Some(ray.produce(hit.point, target, albedo.0))
+        Some(ray_ctx.produce(hit.point, target, albedo.0))
     }
 
-    fn scatter_with_pdf(&self, _: &Ray, hit: &Hit) -> Option<Scatter> {
+    fn scatter_with_pdf(&self, _: &RayCtx, hit: &Hit) -> Option<Scatter> {
         let albedo = self.texture.value(hit.u, hit.v, hit.point);
         Some(Scatter::Diffuse(Box::new(CosinePDF::from_w(&hit.normal)), albedo))
     }

@@ -1,6 +1,6 @@
 use crate::random;
 
-use super::{Hit, Material, Ray, V3};
+use super::{Hit, Material, RayCtx, V3};
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub struct Dielectric {
@@ -31,8 +31,8 @@ impl Dielectric {
 }
 
 impl Material for Dielectric {
-    fn scatter(&self, ray: &Ray, &hit: &Hit) -> Option<Ray> {
-        let unit_direction = ray.direction.unit();
+    fn scatter(&self, ray_ctx: &RayCtx, &hit: &Hit) -> Option<RayCtx> {
+        let unit_direction = ray_ctx.ray.direction.unit();
 
         let cosine: f64;
         let outward_normal: V3;
@@ -50,11 +50,11 @@ impl Material for Dielectric {
         }
 
         let refracted: Option<V3> = Dielectric::refract(unit_direction, outward_normal, ni_over_nt);
-        let reflected = ray.direction.reflect(hit.normal);
+        let reflected = ray_ctx.ray.direction.reflect(hit.normal);
 
         refracted
             .filter(|_| self.schlick(cosine) < random::next_std_f64())
-            .map(|refracted| ray.produce(hit.point, refracted, self.albedo))
-            .or_else(|| Some(ray.produce(hit.point, reflected, V3::ones())))
+            .map(|refracted| ray_ctx.produce(hit.point, refracted, self.albedo))
+            .or_else(|| Some(ray_ctx.produce(hit.point, reflected, V3::ones())))
     }
 }

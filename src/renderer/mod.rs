@@ -3,7 +3,7 @@ pub use rgb_renderer_unbiased::RgbRendererUnbiased;
 pub use ttl_renderer::TtlRenderer;
 
 use crate::hittable::Hittable;
-use crate::ray::Ray;
+use crate::ray::{RayCtx, Ray};
 use crate::vec::V3;
 use std::str::FromStr;
 
@@ -34,7 +34,7 @@ impl FromStr for RendererType{
 }
 
 pub trait Renderer {
-    fn color(&self, r: &Ray) -> V3;
+    fn color(&self, r: &RayCtx) -> V3;
 }
 
 pub enum RendererImpl {
@@ -86,11 +86,11 @@ impl RendererImpl {
 }
 
 impl Renderer for RendererImpl {
-    fn color(&self, ray: &Ray) -> V3 {
+    fn color(&self, ray_ctx: &RayCtx) -> V3 {
         match self {
-            RendererImpl::RGB(renderer) => renderer.color(ray),
-            RendererImpl::RGBUnbiased(renderer) => renderer.color(ray),
-            RendererImpl::TTL(renderer) => renderer.color(ray),
+            RendererImpl::RGB(renderer) => renderer.color(ray_ctx),
+            RendererImpl::RGBUnbiased(renderer) => renderer.color(ray_ctx),
+            RendererImpl::TTL(renderer) => renderer.color(ray_ctx),
         }
     }
 }

@@ -9,7 +9,7 @@ pub use sphere::*;
 
 use crate::aabb::AABB;
 use crate::material::Material;
-use crate::ray::Ray;
+use crate::ray::RayCtx;
 use crate::vec::V3;
 use crate::random::rand_in_unit_sphere;
 use std::f64::consts::PI;
@@ -39,7 +39,7 @@ impl<'a> Hit<'a> {
 
 #[allow(unused_variables)]
 pub trait Hittable: Debug + Sync {
-    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit>;
+    fn hit(&self, ray: &RayCtx, dist_min: f64, dist_max: f64) -> Option<Hit>;
     fn bounding_box(&self, t_min: f32, t_max: f32) -> Option<AABB> { None }
 
     fn pdf_value(&self, origin: &V3, direction: &V3, hit: &Hit) -> f64 {
@@ -54,7 +54,7 @@ pub trait Hittable: Debug + Sync {
 
 impl Hittable for Box<dyn Hittable>
 {
-    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
+    fn hit(&self, ray: &RayCtx, dist_min: f64, dist_max: f64) -> Option<Hit> {
         Hittable::hit(&**self, ray, dist_min, dist_max)
     }
 
@@ -72,7 +72,7 @@ impl Hittable for Box<dyn Hittable>
 }
 impl<T:Hittable> Hittable for Box<T>
 {
-    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
+    fn hit(&self, ray: &RayCtx, dist_min: f64, dist_max: f64) -> Option<Hit> {
         Hittable::hit(&**self, ray, dist_min, dist_max)
     }
 
@@ -92,7 +92,7 @@ impl<T:Hittable> Hittable for Box<T>
 #[derive(Debug)]
 pub struct NoHit;
 impl Hittable for NoHit{
-    fn hit(&self, _ray: &Ray, _dist_min: f64, _dist_max: f64) -> Option<Hit> {
+    fn hit(&self, _ray: &RayCtx, _dist_min: f64, _dist_max: f64) -> Option<Hit> {
         None
     }
 
@@ -115,7 +115,7 @@ mod test {
     use crate::random::rand_in_unit_sphere;
     use crate::texture::Color;
     use crate::material::Lambertian;
-    use crate::ray::Ray;
+    use crate::ray::RayCtx;
     use crate::vec::V3;
 
     pub fn test_pdf_integration<T: Hittable>(hittable: T, count: usize) {
@@ -126,7 +126,7 @@ mod test {
         let integral = (0..count).into_iter()
             .map(|_| {
                 let dir = rand_in_unit_sphere();
-                let ray = Ray::new(origin, dir, V3::ones(), 1.0, 2);
+                let ray = RayCtx::new(origin, dir, V3::ones(), 1.0, 2);
                 if let Some(hit) = hittable.hit(&ray, -99999.0, 99999.0) {
                     hittable.pdf_value(&origin, &dir, &hit)
                 } else { 0.0 }

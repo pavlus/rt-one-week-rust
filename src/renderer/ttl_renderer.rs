@@ -1,4 +1,4 @@
-use super::{Hittable, Ray, Renderer, V3};
+use super::{Hittable, RayCtx, Renderer, V3};
 
 #[allow(dead_code)]
 pub struct TtlRenderer{
@@ -6,21 +6,21 @@ pub struct TtlRenderer{
     pub ttl: i32
 }
 impl Renderer for TtlRenderer {
-    fn color(&self, r: &Ray) -> V3 {
-        match self.hittable.hit(&r, 0.0001, 99999.0) {
+    fn color(&self, ray_ctx: &RayCtx) -> V3 {
+        match self.hittable.hit(&ray_ctx, 0.0001, 99999.0) {
             Some(hit) => {
                 return match hit
                     .material
-                    .scatter(r, &hit)
-                    .and_then(Ray::validate) {
+                    .scatter(ray_ctx, &hit)
+                    .and_then(RayCtx::validate) {
                     Some(scattered) => {
                         ttl_color(scattered.ttl, self.ttl) * self.color(&scattered)
                     }
-                    None => ttl_color(r.ttl, self.ttl)
+                    None => ttl_color(ray_ctx.ttl, self.ttl)
                 };
             }
             None => {
-                return ttl_color(r.ttl, self.ttl)
+                return ttl_color(ray_ctx.ttl, self.ttl)
             }
         };
     }

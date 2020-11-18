@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 use std::f64::consts;
 
-use super::{AABB, Hit, Hittable, Material, Ray, V3};
+use super::{AABB, Hit, Hittable, Material, RayCtx, V3};
 use crate::random::rand_in_unit_hemisphere;
 
 #[derive(Debug)]
@@ -72,17 +72,17 @@ impl MovingSphere {
 }
 
 impl<M: Material> Hittable for Sphere<M> {
-    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
-        let center =self.center(ray.time);
+    fn hit(&self, ray_ctx: &RayCtx, dist_min: f64, dist_max: f64) -> Option<Hit> {
+        let center =self.center(ray_ctx.time);
         let radius = self.radius;
-        let oc = ray.origin - center;
-        let a = ray.direction.sqr_length();
-        let b = oc.dot(ray.direction);
+        let oc = ray_ctx.ray.origin - center;
+        let a = ray_ctx.ray.direction.sqr_length();
+        let b = oc.dot(ray_ctx.ray.direction);
         let c = oc.sqr_length() - (radius * radius) as f64;
         let discr_sqr = b * b - a * c;
 
-        let get_hit = |ray: &Ray, dist: f64| -> Hit {
-            let p = ray.point_at(dist);
+        let get_hit = |ray_ctx: &RayCtx, dist: f64| -> Hit {
+            let p = ray_ctx.ray.point_at(dist);
             let n = (p - center) / radius;
             let (u, v) = uv(n);
             return Hit::new(dist, p, n, &self.material, u, v);
@@ -92,11 +92,11 @@ impl<M: Material> Hittable for Sphere<M> {
             let tmp = (b * b - a * c).sqrt();
             let x1 = (-b - tmp) / a;
             if (dist_min..dist_max).contains(&x1) {
-                return Option::Some(get_hit(ray, x1));
+                return Option::Some(get_hit(ray_ctx, x1));
             }
             let x2 = (-b + tmp) / a;
             if (dist_min..dist_max).contains(&x2) {
-                return Option::Some(get_hit(ray, x2));
+                return Option::Some(get_hit(ray_ctx, x2));
             }
             return None;
         } else {
@@ -124,16 +124,16 @@ impl<M: Material> Hittable for Sphere<M> {
 }
 
 impl Hittable for MovingSphere {
-    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
-        let center = self.center(ray.time);
-        let oc = ray.origin - center;
-        let a = ray.direction.sqr_length();
-        let b = oc.dot(ray.direction);
+    fn hit(&self, ray_ctx: &RayCtx, dist_min: f64, dist_max: f64) -> Option<Hit> {
+        let center = self.center(ray_ctx.time);
+        let oc = ray_ctx.ray.origin - center;
+        let a = ray_ctx.ray.direction.sqr_length();
+        let b = oc.dot(ray_ctx.ray.direction);
         let c = oc.sqr_length() - (self.radius * self.radius) as f64;
         let discr_sqr = b * b - a * c;
 
-        let get_hit = |ray: &Ray, dist: f64| -> Hit {
-            let p = ray.point_at(dist);
+        let get_hit = |ray_ctx: &RayCtx, dist: f64| -> Hit {
+            let p = ray_ctx.ray.point_at(dist);
             let n = (p - center) / self.radius;
             let (u, v) = uv(n);
             return Hit::new(dist, p, n, self.material.borrow(), u, v);
@@ -143,11 +143,11 @@ impl Hittable for MovingSphere {
             let tmp = (b * b - a * c).sqrt();
             let x1 = (-b - tmp) / a;
             if (dist_min..dist_max).contains(&x1) {
-                return Option::Some(get_hit(ray, x1));
+                return Option::Some(get_hit(ray_ctx, x1));
             }
             let x2 = (-b + tmp) / a;
             if (dist_min..dist_max).contains(&x2) {
-                return Option::Some(get_hit(ray, x2));
+                return Option::Some(get_hit(ray_ctx, x2));
             }
             return None;
         } else {
@@ -177,7 +177,7 @@ mod test {
     use crate::material::{Lambertian, Material};
     use crate::vec::V3;
     use crate::texture::Color;
-    use crate::ray::Ray;
+    use crate::ray::RayCtx;
     use crate::hittable::test::test_pdf_integration;
 
     #[test]

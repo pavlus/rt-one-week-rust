@@ -1,7 +1,7 @@
 
 use crate::vec::V3;
 
-use super::{AABB, Hit, Hittable, Ray};
+use super::{AABB, Hit, Hittable, RayCtx};
 
 #[derive(Debug)]
 pub struct HittableList {
@@ -21,7 +21,7 @@ impl HittableList {
 }
 
 impl Hittable for HittableList {
-    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
+    fn hit(&self, ray: &RayCtx, dist_min: f64, dist_max: f64) -> Option<Hit> {
         let mut selected: (f64, Option<Hit>) = (f64::MAX, None);
         for o in &self.objects {
             if let Some(hit) = o.hit(ray, dist_min, dist_max){

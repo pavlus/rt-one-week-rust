@@ -1,6 +1,6 @@
 use crate::random;
 
-use super::{Hit, Material, Ray, V3};
+use super::{Hit, Material, RayCtx, V3};
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub struct Metal {
@@ -20,11 +20,11 @@ impl Metal {
 }
 
 impl Material for Metal {
-    fn scatter(&self, ray: &Ray, &hit: &Hit) -> Option<Ray> {
-        let unit_direction = ray.direction.unit();
+    fn scatter(&self, ray_ctx: &RayCtx, &hit: &Hit) -> Option<RayCtx> {
+        let unit_direction = ray_ctx.ray.direction.unit();
         let reflected = unit_direction.reflect(hit.normal);
         if reflected.dot(hit.normal) > 0.0 {
-            Some(ray.produce(hit.point, self.fuzz(reflected), self.albedo))
+            Some(ray_ctx.produce(hit.point, self.fuzz(reflected), self.albedo))
         } else {
             None
         }

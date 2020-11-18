@@ -5,7 +5,7 @@ use crate::material::Isotropic;
 use crate::random::{next_f64, rand_in_unit_sphere};
 use crate::texture::Texture;
 
-use super::{AABB, Hit, Hittable, Material, Ray, V3};
+use super::{AABB, Hit, Hittable, Material, RayCtx, V3};
 
 #[derive(Debug)]
 pub struct ConstantMedium<B,M> {
@@ -28,12 +28,13 @@ impl<B:Hittable, T: Texture> ConstantMedium<B, Isotropic<T>> {
 }
 
 impl<B:Hittable, M: Material> Hittable for ConstantMedium<B,M> {
-    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
-        self.boundary.hit(ray, MIN, MAX).and_then(|enter_hit| {
-            self.boundary.hit(ray, enter_hit.dist + 0.001, MAX).and_then(|exit_hit| {
+    fn hit(&self, ray_ctx: &RayCtx, dist_min: f64, dist_max: f64) -> Option<Hit> {
+        self.boundary.hit(ray_ctx, MIN, MAX).and_then(|enter_hit| {
+            self.boundary.hit(ray_ctx, enter_hit.dist + 0.001, MAX).and_then(|exit_hit| {
                 let enter_dist = f64::max(dist_min, enter_hit.dist);
                 let exit_dist = f64::min(exit_hit.dist, dist_max);
                 if enter_dist < exit_dist {
+                    let ray = ray_ctx.ray;
                     // TODO: describe why such distribution?
                     //  isotropic scattering follows Poisson point process?
                     let hit_dist = next_f64(rand_distr::Exp1) / self.density;

@@ -1,7 +1,7 @@
 use std::ops::Range;
 use std::sync::Arc;
 
-use super::{AABB, Hit, Hittable, Material, Ray, V3};
+use super::{AABB, Hit, Hittable, Material, RayCtx, V3};
 use std::borrow::Borrow;
 use crate::random::next_std_f64_in_range;
 
@@ -82,8 +82,8 @@ impl AABoxHetero {
 }
 
 impl Hittable for AABoxMono {
-    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
-
+    fn hit(&self, ray_ctx: &RayCtx, dist_min: f64, dist_max: f64) -> Option<Hit> {
+        let ray = &ray_ctx.ray;
         let dist_front =  (self.z.end - ray.origin.z) / ray.direction.z;
         let dist_back =   (self.z.start - ray.origin.z) / ray.direction.z;
         let dist_top =    (self.y.end - ray.origin.y) / ray.direction.y;
@@ -169,8 +169,8 @@ impl Hittable for AABoxMono {
 
 
 impl Hittable for AABoxHetero {
-    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
-
+    fn hit(&self, ray_ctx: &RayCtx, dist_min: f64, dist_max: f64) -> Option<Hit> {
+        let ray = &ray_ctx.ray;
         let dist_front =  (self.z.end - ray.origin.z) / ray.direction.z;
         let dist_back =   (self.z.start - ray.origin.z) / ray.direction.z;
         let dist_top =    (self.y.end - ray.origin.y) / ray.direction.y;
@@ -308,7 +308,7 @@ mod test{
     use crate::material::Lambertian;
     use crate::V3;
     use std::borrow::Borrow;
-    use crate::ray::Ray;
+    use crate::ray::RayCtx;
     use crate::random::{rand_in_unit_sphere, next_std_f64_in_range, rand_in_unit_disc, rand_in_unit_hemisphere, next_std_f64};
     use crate::texture::Color;
     use crate::hittable::test::test_pdf_integration;

@@ -2,7 +2,8 @@ use std::f64::consts::PI;
 
 use itertools::Itertools;
 
-use super::{AABB, Hit, Hittable, Ray, V3};
+use super::{AABB, Hit, Hittable, RayCtx, V3};
+use crate::ray::Ray;
 
 pub trait FlipNormalsOp<I, O>{
     fn flip_normals(self) -> O;
@@ -30,7 +31,7 @@ impl<I: Hittable> FlipNormalsOp<FlipNormals<I>, I> for FlipNormals<I> {
 }
 
 impl<T: Hittable> Hittable for FlipNormals<T> {
-    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
+    fn hit(&self, ray: &RayCtx, dist_min: f64, dist_max: f64) -> Option<Hit> {
         self.0
             .hit(ray, dist_min, dist_max)
             .map(|hit| Hit { normal: -hit.normal, ..hit })
@@ -75,8 +76,14 @@ impl<T: Hittable + Sized> TranslateOp<T, Translate<T>> for Translate<T> {
 }
 
 impl<T: Hittable> Hittable for Translate<T> {
-    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
-        let moved_r = Ray { origin: ray.origin - self.offset, ..*ray };
+    fn hit(&self, ray_ctx: &RayCtx, dist_min: f64, dist_max: f64) -> Option<Hit> {
+        let moved_r = RayCtx {
+            ray: Ray {
+                origin: ray_ctx.ray.origin - self.offset,
+                direction: ray_ctx.ray.direction,
+            },
+            ..*ray_ctx
+        };
         self.target
             .hit(&moved_r, dist_min, dist_max)
             .map(|hit| Hit { point: hit.point + self.offset, ..hit })
@@ -131,11 +138,12 @@ impl<I: Hittable + Sized> RotateYOp<I> for I {
 }
 
 impl<T: Hittable> Hittable for RotateY<T> {
-    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
+    fn hit(&self, ray_ctx: &RayCtx, dist_min: f64, dist_max: f64) -> Option<Hit> {
+        let ray = ray_ctx.ray;
         let origin = self.forward_transform(ray.origin);
         let direction = self.forward_transform(ray.direction);
 
-        let rotated_ray = Ray { origin, direction, ..*ray };
+        let rotated_ray = RayCtx { ray: Ray { origin, direction }, ..*ray_ctx };
         self.target.hit(&rotated_ray, dist_min, dist_max)
             .map(|hit| {
                 let point = self.backward_transform(hit.point);

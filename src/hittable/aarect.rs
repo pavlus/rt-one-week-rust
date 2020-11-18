@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 use std::ops::Range;
 use std::sync::Arc;
 
-use super::{AABB, Hit, Hittable, Material, Ray, V3};
+use super::{AABB, Hit, Hittable, Material, RayCtx, V3};
 use crate::random::next_std_f64_in_range;
 
 macro_rules! aarect_aabb {
@@ -45,7 +45,8 @@ macro_rules! aarect {
         }
 
         impl Hittable for $name {
-            fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
+            fn hit(&self, ray_ctx: &RayCtx, dist_min: f64, dist_max: f64) -> Option<Hit> {
+                let ray = &ray_ctx.ray;
                 let dist = (self.k - ray.origin.$k) / ray.direction.$k;
                 if !(dist_min..dist_max).contains(&dist) { return None; };
 
