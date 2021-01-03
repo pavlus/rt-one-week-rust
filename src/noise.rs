@@ -2,11 +2,12 @@ use rand::{Rng, RngCore};
 use rand::distributions::Standard;
 use rand::seq::SliceRandom;
 
-use crate::vec::V3;
+use crate::types::V3;
+use nalgebra::Vector3;
 
 #[derive(Copy, Clone)]
 pub struct Perlin {
-    ranvec: [V3; 256],
+    ranvec: [Vector3<f64>; 256],
     permx: [u8; 256],
     permy: [u8; 256],
     permz: [u8; 256],
@@ -23,11 +24,11 @@ impl Perlin {
     }
 
     /// returns values in range [-1.0, 1.0)
-    pub fn noise(&self, point: V3) -> f64 {
+    pub fn noise(&self, point: &V3) -> f64 {
         // offsets inside cell
-        let u = point.x - point.x.floor();
-        let v = point.y - point.y.floor();
-        let w = point.z - point.z.floor();
+        let u = (point.x - point.x.floor()) as f64;
+        let v = (point.y - point.y.floor()) as f64;
+        let w = (point.z - point.z.floor()) as f64;
 
         // cell coordinates
         let i = point.x.floor() as usize & 255;
@@ -35,7 +36,7 @@ impl Perlin {
         let k = point.z.floor() as usize & 255;
 
         // cell corner vectors
-        let mut c: [[[V3; 2]; 2]; 2] = [[[V3::zeros(); 2]; 2]; 2];
+        let mut c: [[[Vector3<f64>; 2]; 2]; 2] = [[[Vector3::from_element(0.0); 2]; 2]; 2];
         for di in 0..=1 {
             for dj in 0..=1 {
                 for dk in 0..=1 {
@@ -44,21 +45,21 @@ impl Perlin {
                             ^ self.permy[(j + dj) & 255]
                             ^ self.permz[(k + dk) & 255]
                         ) as usize
-                        ];
+                        ].clone_owned();
                 }
             }
         }
         trilerp(&c, u, v, w)
     }
 
-    fn generate<R: RngCore + ?Sized>(rnd: &mut R) -> [V3; 256] {
-        let mut result: [V3; 256] = [V3::zeros(); 256];
+    fn generate<R: RngCore + ?Sized>(rnd: &mut R) -> [Vector3<f64>; 256] {
+        let mut result: [Vector3<f64>; 256] = [Vector3::from_element(0.0); 256];
         for i in 0..256 {
-            result[i] = V3::new(
+            result[i] = Vector3::new(
                 2.0 * rnd.sample::<f64, Standard>(Standard) - 1.0,
                 2.0 * rnd.sample::<f64, Standard>(Standard) - 1.0,
                 2.0 * rnd.sample::<f64, Standard>(Standard) - 1.0,
-            ).unit();
+            ).normalize();
         }
         result
     }
@@ -72,14 +73,14 @@ impl Perlin {
         result
     }
 
-    pub fn turb(&self, p: V3) -> f64 {
+    pub fn turb(&self, p: &V3) -> f64 {
         let mut acc = 0.0;
-        let mut temp = p;
+        let mut temp = p.to_owned();
         let mut weight = 1.0;
         for _ in 0..7 {
-            acc += weight * self.noise(temp);
+            acc += weight * self.noise(&temp.into());
             weight *= 0.5;
-            temp = 2.0 * temp;
+            temp = 2.0 * &temp;
         }
         let result = acc.abs();
         result
@@ -89,7 +90,7 @@ impl Perlin {
 /// trilinear cubic inerpolated values of Perlin noise
 /// c -- cell corner vectors
 /// u, v, w -- coordinates inside cell
-fn trilerp(c: &[[[V3; 2]; 2]; 2], u: f64, v: f64, w: f64) -> f64 {
+fn trilerp(c: &[[[Vector3<f64>; 2]; 2]; 2], u: f64, v: f64, w: f64) -> f64 {
     // Cubic Hermite spline h01:
     let uu = u * u * (3.0 - 2.0 * u);
     let vv = v * v * (3.0 - 2.0 * v);
@@ -99,11 +100,11 @@ fn trilerp(c: &[[[V3; 2]; 2]; 2], u: f64, v: f64, w: f64) -> f64 {
     for i in 0..=1 {
         for j in 0..=1 {
             for k in 0..=1 {
-                let weight = V3::new(u - i as f64, v - j as f64, w - k as f64);
+                let weight = Vector3::new(u - i as f64, v - j as f64, w - k as f64);
                 acc += (i as f64 * uu + (1.0 - i as f64) * (1.0 - uu))
                     * (j as f64 * vv + (1.0 - j as f64) * (1.0 - vv))
                     * (k as f64 * ww + (1.0 - k as f64) * (1.0 - ww))
-                    * c[i][j][k].dot(weight);
+                    * c[i][j][k].dot(&weight);
             }
         }
     }

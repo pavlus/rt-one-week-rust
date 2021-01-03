@@ -2,42 +2,43 @@ use std::borrow::Borrow;
 use std::ops::Range;
 use std::sync::Arc;
 
-use super::{AABB, Hit, Hittable, Material, RayCtx, V3};
-use crate::random::next_std_f64_in_range;
+use super::{AABB, Hit, Hittable, Material, RayCtx, P3, V3};
+use crate::random::next_std_in_range;
+use crate::types::Distance;
 
 macro_rules! aarect_aabb {
     {$slf:ident, $a:tt, $b:tt, $off:expr} => {
         AABB::new(
-            aarect_aabb!($slf, start, $a, $b, $off - 0.001),
-            aarect_aabb!($slf, end  , $a, $b, $off + 0.001)
+            aarect_aabb!($slf, start, $a, $b, $off - 0.000001),
+            aarect_aabb!($slf, end  , $a, $b, $off + 0.000001)
         )
     };
-    {$slf:ident, $bound:ident, x, y, $off:expr} => {V3::new($slf.x.$bound, $slf.y.$bound, $off)};
-    {$slf:ident, $bound:ident, x, z, $off:expr} => {V3::new($slf.x.$bound, $off, $slf.z.$bound)};
-    {$slf:ident, $bound:ident, y, z, $off:expr} => {V3::new($off, $slf.y.$bound, $slf.z.$bound)};
+    {$slf:ident, $bound:ident, x, y, $off:expr} => {P3::new($slf.x.$bound, $slf.y.$bound, $off)};
+    {$slf:ident, $bound:ident, x, z, $off:expr} => {P3::new($slf.x.$bound, $off, $slf.z.$bound)};
+    {$slf:ident, $bound:ident, y, z, $off:expr} => {P3::new($off, $slf.y.$bound, $slf.z.$bound)};
 }
 
 macro_rules! norm_vec {
-    {x, y} => {V3::new(0.0,0.0,1.0)};
-    {x, z} => {V3::new(0.0,1.0,0.0)};
-    {y, z} => {V3::new(1.0,0.0,0.0)};
+    {x, y} => {V3::z()};
+    {x, z} => {V3::y()};
+    {y, z} => {V3::x()};
 }
 
 macro_rules! aarect {
     {$name:tt, $a:tt, $b:tt, normal: $k:tt} =>{
-        #[derive(Debug, Clone)]
+        #[derive(Clone)]
         pub struct $name {
-            $a: Range<f64>,
-            $b: Range<f64>,
-            k: f64,
+            $a: Range<Distance>,
+            $b: Range<Distance>,
+            k: Distance,
             material: Arc<dyn Material>
         }
         impl $name {
-            pub fn new($a: Range<f64>, $b:Range<f64>, k:f64, material: Arc<dyn Material>) -> $name {
+            pub fn new($a: Range<Distance>, $b:Range<Distance>, k:Distance, material: Arc<dyn Material>) -> $name {
                 $name { $a, $b, k, material }
             }
 
-            fn uv(&self, $a:f64, $b: f64) -> (f64, f64) {
+            fn uv(&self, $a:Distance, $b: Distance) -> (Distance, Distance) {
                 let u = ($a - self.$a.start)/(self.$a.end-self.$a.start);
                 let v = ($b - self.$b.start)/(self.$b.end-self.$b.start);
                 (u, v)
@@ -45,7 +46,7 @@ macro_rules! aarect {
         }
 
         impl Hittable for $name {
-            fn hit(&self, ray_ctx: &RayCtx, dist_min: f64, dist_max: f64) -> Option<Hit> {
+            fn hit(&self, ray_ctx: &RayCtx, dist_min: Distance, dist_max: Distance) -> Option<Hit> {
                 let ray = &ray_ctx.ray;
                 let dist = (self.k - ray.origin.$k) / ray.direction.$k;
                 if !(dist_min..dist_max).contains(&dist) { return None; };
@@ -65,21 +66,21 @@ macro_rules! aarect {
                 Some(aarect_aabb!(self, $a, $b, self.k))
             }
 
-            fn pdf_value(&self, _origin: &V3, direction: &V3, hit: &Hit) -> f64 {
+            fn pdf_value(&self, _origin: &P3, direction: &V3, hit: &Hit) -> f64 {
                 let area = (self.$a.end - self.$a.start) * (self.$b.end - self.$b.start);
-                let sqr_dist = (hit.dist * hit.dist);
+                // let sqr_dist = (hit.dist * hit.dist).sqrt();
+                let sqr_dist = (hit.point - _origin).norm_squared();
                 let cosine = direction.$k;
-                let cos_area = f64::abs(cosine * area);
-                sqr_dist / cos_area
+                let cos_area = Distance::abs(cosine * area);
+                sqr_dist as f64 / cos_area as f64
             }
 
-            fn random(&self, origin: &V3) -> V3 {
-                let random_point = V3{
-                    $a: next_std_f64_in_range(&self.$a),
-                    $b: next_std_f64_in_range(&self.$b),
-                    $k: self.k
-                 };
-                (random_point - *origin)
+            fn random(&self, origin: &P3) -> V3 {
+                let mut random_point = V3::from_element(1.0);
+                random_point.$a = next_std_in_range(&self.$a);
+                random_point.$b = next_std_in_range(&self.$b);
+                random_point.$k = self.k;
+                (&random_point - origin.coords)
             }
 
         }

@@ -1,25 +1,25 @@
-use super::{Hittable, RayCtx, Renderer, V3};
+use super::{Hittable, RayCtx, Renderer};
 use std::borrow::Borrow;
-use crate::texture::Color;
 use crate::pdf::{PDF, HittablePDF, MixturePDF};
 use crate::scatter::Scatter::{Specular, Diffuse};
 use crate::hittable::Hit;
 use crate::ray::Ray;
+use crate::types::Color;
 
 pub struct RgbRenderer {
     pub hittable: Box<dyn Hittable>,
     pub important: Box<dyn Hittable>,
-    pub miss_shader: fn(&Ray) -> V3,
+    pub miss_shader: fn(&Ray) -> Color,
 }
 
 impl Renderer for RgbRenderer {
-    fn color(&self, ray_ctx: &RayCtx) -> V3 {
+    fn color(&self, ray_ctx: &RayCtx) -> Color {
         match self.hittable.hit(&ray_ctx, 0.0001, 99999.0) {
             Some(hit) => {
-                let emitted = if hit.normal.dot(ray_ctx.ray.direction.unit()) < 0.0 {
-                    hit.material.emmit(&hit).0
+                let emitted = if hit.normal.dot(&ray_ctx.ray.direction.normalize()) < 0.0 {
+                    hit.material.emmit(&hit)
                 } else {
-                    V3::zeros()
+                    Color::from_element(0.0)
                 };
                 emitted + match hit
                     .material
@@ -34,7 +34,7 @@ impl Renderer for RgbRenderer {
                             }
                         }
                     }
-                    None => V3::zeros() // no hit
+                    None => Color::from_element(0.0) // no hit
                 }
             }
             None => {
@@ -45,16 +45,16 @@ impl Renderer for RgbRenderer {
 }
 
 impl RgbRenderer {
-    fn biased_diffuse<'a>(&self, r: &RayCtx, hit: &Hit, attenuation: Color, mat_pdf: Box<dyn PDF>) -> V3 {
+    fn biased_diffuse<'a>(&self, ray_ctx: &RayCtx, hit: &Hit, attenuation: Color, mat_pdf: Box<dyn PDF>) -> Color {
         let mat_dir = mat_pdf.generate();  // unbiased sample, just in case we need it
         let pdf = MixturePDF::new(
             mat_pdf,
             HittablePDF::new(hit.point, &self.important)
         );
-        if let Some(mut scattered) = r.produce(
+        if let Some(mut scattered) = ray_ctx.produce(
             hit.point,
-            pdf.generate().unit(),
-            attenuation.0,
+            pdf.generate().normalize(),
+            attenuation,
         ).validate() {
             let pdf_value = pdf.value(&scattered.ray.direction, &hit);
             let spdf = hit.material.scattering_pdf(&hit, &scattered.ray.direction);
@@ -68,25 +68,35 @@ impl RgbRenderer {
                 scattered.ray.direction = mat_dir;
             }
             let scattered_color = self.color(&scattered);
-            // let scattered_color = 0.5 * scattered.direction.unit() + 0.5; // scatter direction
+            // let scattered_color = 0.5 * scattered.direction.normalize() + 0.5; // scatter direction
             // let scattered_color = 0.5 * hit.normal + 0.5; // surface normal vectors
             // scattered.attenuation // color without weight
             // V3::all(weight) * scattered_color // weight without color
             // V3::new(weight, spdf, pdf_value) // neon party for debugging probability density
-            weight * scattered.attenuation * scattered_color
+            // V3::from_element(weight) // contribution
+            // weight
+            sigmoid(weight)
+                * scattered.attenuation.component_mul(&scattered_color)
         } else {
-            V3::zeros() // max depth
+            Color::from_element(0.0) // max depth
         }
     }
 }
 
+/// fight fireflies by non-linear weight transformations,
+/// slightly affects material perception, though
+fn sigmoid(value: f64) -> f64 {
+    let x = value * 3.0;
+    x / (1.0 + x * x).sqrt()
+}
+
 impl RgbRenderer {
-    fn specular(&self, scattered: RayCtx) -> V3 {
+    fn specular(&self, scattered: RayCtx) -> Color {
         if let Some(valid) = scattered.validate() {
             let scattered_color = self.color(&valid);
-            valid.attenuation * scattered_color
+            valid.attenuation.component_mul(&scattered_color)
         } else {
-            V3::zeros() // max depth
+            Color::from_element(0.0) // max depth
         }
     }
 }

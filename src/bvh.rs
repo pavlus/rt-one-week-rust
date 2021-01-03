@@ -2,8 +2,8 @@ use crate::aabb::AABB;
 use crate::hittable::{Hit, HittableList, Hittable};
 use crate::ray::RayCtx;
 use crate::random::random_axis;
+use crate::types::Distance;
 
-#[derive(Debug)]
 pub struct BVH {
     left: Box<dyn Hittable>,
     right: Box<dyn Hittable>,
@@ -39,7 +39,7 @@ impl BVH {
 }
 
 impl Hittable for BVH {
-    fn hit(&self, ray_ctx: &RayCtx, dist_min: f64, dist_max: f64) -> Option<Hit> {
+    fn hit(&self, ray_ctx: &RayCtx, dist_min: Distance, dist_max: Distance) -> Option<Hit> {
         if !self.aabb.unwrap().hit(&ray_ctx.ray, dist_min, dist_max) { return None; }
         let left = self.left.hit(ray_ctx, dist_min, dist_max);
         let right = self.right.hit(ray_ctx, dist_min, dist_max);

@@ -1,24 +1,25 @@
 use std::ops::Range;
 use std::sync::Arc;
 
-use super::{AABB, Hit, Hittable, Material, RayCtx, V3};
+use super::{AABB, Hit, Hittable, Material, RayCtx, P3, V3};
 use std::borrow::Borrow;
-use crate::random::next_std_f64_in_range;
+use crate::random::next_std_in_range;
+use crate::types::Distance;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct AABoxMono {
-    x: Range<f64>,
-    y: Range<f64>,
-    z: Range<f64>,
+    x: Range<Distance>,
+    y: Range<Distance>,
+    z: Range<Distance>,
     aabb: AABB,
     material: Arc<dyn Material>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct AABoxHetero {
-    x: Range<f64>,
-    y: Range<f64>,
-    z: Range<f64>,
+    x: Range<Distance>,
+    y: Range<Distance>,
+    z: Range<Distance>,
     aabb: AABB,
     front: Arc<dyn Material>,
     back: Arc<dyn Material>,
@@ -31,9 +32,9 @@ pub struct AABoxHetero {
 
 impl AABoxMono {
     pub fn new(
-        x: Range<f64>,
-        y: Range<f64>,
-        z: Range<f64>,
+        x: Range<Distance>,
+        y: Range<Distance>,
+        z: Range<Distance>,
         material: Arc<dyn Material>,
     ) -> AABoxMono {
         let Range { start: x_start, end: x_end } = x;
@@ -43,8 +44,8 @@ impl AABoxMono {
             x,
             y,
             z,
-            aabb: AABB::new(V3::new(x_start, y_start, z_start),
-                            V3::new(x_end, y_end, z_end)),
+            aabb: AABB::new(P3::new(x_start, y_start, z_start),
+                            P3::new(x_end, y_end, z_end)),
             material,
         }
     }
@@ -52,9 +53,9 @@ impl AABoxMono {
 
 impl AABoxHetero {
     pub fn new(
-        x: Range<f64>,
-        y: Range<f64>,
-        z: Range<f64>,
+        x: Range<Distance>,
+        y: Range<Distance>,
+        z: Range<Distance>,
         front: Arc<dyn Material>,
         back: Arc<dyn Material>,
         top: Arc<dyn Material>,
@@ -75,14 +76,14 @@ impl AABoxHetero {
             bottom,
             left,
             right,
-            aabb: AABB::new(V3::new(x_start, y_start, z_start),
-                            V3::new(x_end, y_end, z_end)),
+            aabb: AABB::new(P3::new(x_start, y_start, z_start),
+                            P3::new(x_end, y_end, z_end)),
         }
     }
 }
 
 impl Hittable for AABoxMono {
-    fn hit(&self, ray_ctx: &RayCtx, dist_min: f64, dist_max: f64) -> Option<Hit> {
+    fn hit(&self, ray_ctx: &RayCtx, dist_min: Distance, dist_max: Distance) -> Option<Hit> {
         let ray = &ray_ctx.ray;
         let dist_front =  (self.z.end - ray.origin.z) / ray.direction.z;
         let dist_back =   (self.z.start - ray.origin.z) / ray.direction.z;
@@ -123,7 +124,7 @@ impl Hittable for AABoxMono {
         let v_right =  (z_right  - self.z.start)/(self.z.end-self.z.start);
 
         let mut result: Option<Hit> = None;
-        let mut dist: f64 = dist_max;
+        let mut dist: Distance = dist_max;
         if self.x.contains(&x_front) && self.y.contains(&y_front) && dist_min < dist_front && dist_front < dist {
             result = Some(Hit::new(dist_front, ray.point_at(dist_front), V3::new(0., 0., 1.), self.material.borrow(), u_front, v_front));
             dist = dist_front;
@@ -146,7 +147,7 @@ impl Hittable for AABoxMono {
         }
         if self.y.contains(&y_right) && self.z.contains(&z_right) && dist_min < dist_right && dist_right < dist {
             result = Some(Hit::new(dist_right, ray.point_at(dist_right), V3::new(-1., 0., 0.), self.material.borrow(), u_right, v_right));
-            dist = dist_right;
+            // dist = dist_right;
         }
         result
     }
@@ -155,21 +156,21 @@ impl Hittable for AABoxMono {
         Some(self.aabb)
     }
 
-    fn pdf_value(&self, _: &V3, direction: &V3, hit: &Hit) -> f64 {
+    fn pdf_value(&self, _: &P3, direction: &V3, hit: &Hit) -> f64 {
         let width = self.x.end - self.x.start;
         let height = self.y.end - self.y.start;
         let depth = self.z.end - self.z.start;
         box_pdf_value(width, height, depth, direction, hit)
     }
 
-    fn random(&self, origin: &V3) -> V3 {
+    fn random(&self, origin: &P3) -> V3 {
         box_random([&self.x, &self.y, &self.z], origin)
     }
 }
 
 
 impl Hittable for AABoxHetero {
-    fn hit(&self, ray_ctx: &RayCtx, dist_min: f64, dist_max: f64) -> Option<Hit> {
+    fn hit(&self, ray_ctx: &RayCtx, dist_min: Distance, dist_max: Distance) -> Option<Hit> {
         let ray = &ray_ctx.ray;
         let dist_front =  (self.z.end - ray.origin.z) / ray.direction.z;
         let dist_back =   (self.z.start - ray.origin.z) / ray.direction.z;
@@ -210,7 +211,7 @@ impl Hittable for AABoxHetero {
         let v_right =  (z_right  - self.z.start)/(self.z.end-self.z.start);
 
         let mut result: Option<Hit> = None;
-        let mut dist: f64 = dist_max;
+        let mut dist: Distance = dist_max;
         if self.x.contains(&x_front) && self.y.contains(&y_front) && dist_min < dist_front && dist_front < dist {
             result = Some(Hit::new(dist_front, ray.point_at(dist_front), V3::new(0., 0., 1.), self.front.borrow(), u_front, v_front));
             dist = dist_front;
@@ -233,7 +234,7 @@ impl Hittable for AABoxHetero {
         }
         if self.y.contains(&y_right) && self.z.contains(&z_right) && dist_min < dist_right && dist_right < dist {
             result = Some(Hit::new(dist_right, ray.point_at(dist_right), V3::new(-1., 0., 0.), self.right.borrow(), u_right, v_right));
-            dist = dist_right;
+            // dist = dist_right;
         }
         result
     }
@@ -242,14 +243,14 @@ impl Hittable for AABoxHetero {
         Some(self.aabb)
     }
 
-    fn pdf_value(&self, _: &V3, direction: &V3, hit: &Hit) -> f64 {
+    fn pdf_value(&self, _: &P3, direction: &V3, hit: &Hit) -> f64 {
         let width = self.x.end - self.x.start;
         let height = self.y.end - self.y.start;
         let depth = self.z.end - self.z.start;
         box_pdf_value(width, height, depth, direction, hit)
     }
 
-    fn random(&self, origin: &V3) -> V3 {
+    fn random(&self, origin: &P3) -> V3 {
         box_random([&self.x, &self.y, &self.z], origin)
     }
 }
@@ -259,9 +260,9 @@ pub struct AABox;
 
 impl AABox {
     pub fn new(
-        x: Range<f64>,
-        y: Range<f64>,
-        z: Range<f64>,
+        x: Range<Distance>,
+        y: Range<Distance>,
+        z: Range<Distance>,
         top: Arc<dyn Material>,
         bottom: Arc<dyn Material>,
         front: Arc<dyn Material>,
@@ -273,31 +274,31 @@ impl AABox {
     }
 
     pub fn mono(
-        x: Range<f64>,
-        y: Range<f64>,
-        z: Range<f64>,
+        x: Range<Distance>,
+        y: Range<Distance>,
+        z: Range<Distance>,
         material: Arc<dyn Material>,
     ) -> AABoxMono {
         AABoxMono::new(x, y, z, Arc::clone(&material))
     }
 }
 
-fn box_pdf_value(width: f64, height: f64, depth: f64, direction: &V3, hit: &Hit) -> f64 {
+fn box_pdf_value(width: Distance, height: Distance, depth: Distance, direction: &V3, hit: &Hit) -> f64 {
     let dir_unit = direction;
-    let area_xy = f64::abs(width * height * dir_unit.z);
-    let area_xz = f64::abs(depth * width * dir_unit.y);
-    let area_yz = f64::abs(height * depth * dir_unit.x);
+    let area_xy = Distance::abs(width * height * dir_unit.z);
+    let area_xz = Distance::abs(depth * width * dir_unit.y);
+    let area_yz = Distance::abs(height * depth * dir_unit.x);
 
     let sqr_dist = hit.dist * hit.dist;
     let total_area = area_xy + area_yz + area_xz; // no division, since only one of them is non-zero
-    sqr_dist / total_area
+    sqr_dist as f64 / total_area as f64
 }
 
-fn box_random(axes: [&Range<f64>; 3], origin: &V3) -> V3 {
-    let x = next_std_f64_in_range(&axes[0]);
-    let y= next_std_f64_in_range(&axes[1]);
-    let z = next_std_f64_in_range(&axes[1]);
-    V3::new(x, y, z) - *origin
+fn box_random(axes: [&Range<Distance>; 3], origin: &P3) -> V3 {
+    let x = next_std_in_range(&axes[0]);
+    let y= next_std_in_range(&axes[1]);
+    let z = next_std_in_range(&axes[1]);
+    V3::new(x, y, z) - origin.coords
 }
 
 
@@ -309,9 +310,10 @@ mod test{
     use crate::V3;
     use std::borrow::Borrow;
     use crate::ray::RayCtx;
-    use crate::random::{rand_in_unit_sphere, next_std_f64_in_range, rand_in_unit_disc, rand_in_unit_hemisphere, next_std_f64};
+    use crate::random::{rand_in_unit_sphere, next_std_in_range, rand_in_unit_disc, rand_in_unit_hemisphere, next_std};
     use crate::texture::Color;
     use crate::hittable::test::test_pdf_integration;
+    use crate::types::Distance;
 
     #[test]
     fn test_box_rect_pdf(){
@@ -333,17 +335,18 @@ mod test{
             let count = 10_000;
 
             let center: V3 = 5.0 * rand_in_unit_sphere();
-            let h_width = 1.0 + next_std_f64();
-            let h_height = 1.0 + next_std_f64();
-            let h_depth = 1.0 + next_std_f64();
+            let h_width:Distance = 1.0 + next_std();
+            let h_height:Distance = 1.0 + next_std();
+            let h_depth:Distance = 1.0 + next_std();
 
             let aabox = AABox::mono(
                 (center.x - h_width)..(center.x + h_width),
                 (center.y - h_height)..(center.y + h_height),
                 (center.z - h_depth)..(center.z + h_depth),
-                Arc::new(Lambertian::new(Color(V3::ones()))),
+                Arc::new(Lambertian::new(Color(V3::from_element(1.0)))),
             );
             test_pdf_integration(aabox, count);
         }
     }
 }
+

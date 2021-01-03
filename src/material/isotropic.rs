@@ -6,7 +6,7 @@ use crate::scatter::Scatter;
 use crate::scatter::Scatter::Diffuse;
 use crate::pdf::IsotropicPDF;
 use core::f64::consts;
-use crate::vec::V3;
+use crate::types::V3;
 
 #[derive(Debug)]
 pub struct Isotropic<T> {
@@ -34,16 +34,16 @@ impl<T: Texture> Material for Isotropic<T> {
         Some(
             ray_ctx.produce(
                 hit.point,
-                rand_in_unit_sphere(),
-                self.albedo.value(hit.u, hit.v, hit.point).0)
+                rand_in_unit_sphere().coords,
+                self.albedo.value(hit.u, hit.v, &hit.point))
         )
     }
 
     #[inline]
     fn scatter_with_pdf(&self, _: &RayCtx, hit: &Hit) -> Option<Scatter> {
         Some(Diffuse(
-            Box::new(IsotropicPDF::from_w(&hit.normal.unit())),
-            self.albedo.value(hit.u, hit.v, hit.point))
+            Box::new(IsotropicPDF::from_w(&hit.normal.normalize())),
+            self.albedo.value(hit.u, hit.v, &hit.point))
         )
     }
 

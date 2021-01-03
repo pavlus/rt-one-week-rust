@@ -10,7 +10,8 @@ use rand::seq::SliceRandom;
 use rand_distr::{UnitDisc, UnitSphere};
 use rand_xoshiro::Xoshiro256Plus;
 
-use crate::vec::{Axis, V3};
+use crate::types::{V3, P3, Distance, Scale, Color};
+use crate::consts::PI;
 
 thread_local! {
     static RND: RefCell<Xoshiro256Plus> =
@@ -22,12 +23,22 @@ pub fn next_std_f64() -> f64 {
         Standard.sample((*rnd_cell.borrow_mut()).borrow_mut()))
 }
 
+pub fn next_std() -> Distance {
+    RND.with(|rnd_cell|
+        Standard.sample((*rnd_cell.borrow_mut()).borrow_mut()))
+}
+
 pub fn next_std_i32() -> i32 {
     RND.with(|rnd_cell|
         Standard.sample((*rnd_cell.borrow_mut()).borrow_mut()))
 }
 
 pub fn next_f64<D: Distribution<f64>>(d: D) -> f64 {
+    RND.with(|rnd_cell|
+        d.sample((*rnd_cell.borrow_mut()).borrow_mut()))
+}
+
+pub fn next<T, D: Distribution<T>>(d: D) -> T {
     RND.with(|rnd_cell|
         d.sample((*rnd_cell.borrow_mut()).borrow_mut()))
 }
@@ -53,13 +64,13 @@ pub fn next_f32<D: Distribution<f32>>(d: D) -> f32 {
         d.sample((*rnd_cell.borrow_mut()).borrow_mut()))
 }
 
-pub fn next_color() -> V3 {
-    V3::new(next_std_f64(), next_std_f64(), next_std_f64())
+pub fn next_color() -> Color {
+    Color::new(next_std_f64(), next_std_f64(), next_std_f64())
 }
 
-pub fn random_axis() -> &'static Axis {
+pub fn random_axis() -> usize {
     RND.with(|rnd_cell|
-        Axis::random((*rnd_cell.borrow_mut()).borrow_mut()))
+        ((*rnd_cell.borrow_mut()).borrow_mut().next_u32() % 3) as usize)
 }
 
 pub fn random_item<T>(from: &[T]) -> Option<&T> {
@@ -73,23 +84,29 @@ pub fn next_std_f64_in_range(range: &Range<f64>) -> f64 {
     value.mul_add(range.end - range.start, range.start)
 }
 
-pub fn rand_in_unit_sphere() -> V3 {
-    V3::from(RND.with(|rnd_cell| UnitSphere.sample((*rnd_cell.borrow_mut()).borrow_mut())))
+pub fn next_std_in_range(range: &Range<Distance>) -> Distance {
+    let value: Distance =  RND.with(|rnd_cell|
+        Standard.sample((*rnd_cell.borrow_mut()).borrow_mut()));
+    value.mul_add(range.end - range.start, range.start)
 }
 
-pub fn rand_in_unit_hemisphere(normal: &V3) -> V3 {
+pub fn rand_in_unit_sphere() -> P3 {
+    RND.with(|rnd_cell| UnitSphere.sample((*rnd_cell.borrow_mut()).borrow_mut())).into()
+}
+
+pub fn rand_in_unit_hemisphere(normal: &V3) -> P3 {
     let result = rand_in_unit_sphere();
-    if result.dot(*normal) > 0.0 { result } else { -result }
+    if result.coords.dot(normal) > 0.0 { result } else { -result }
 }
 
 pub fn rand_cosine_direction() -> V3 {
-    let r1 = next_std_f64();
-    let r2 = next_std_f64();
-    let z = f64::sqrt(1.0 - r2);
+    let r1 = next_std();
+    let r2 = next_std();
+    let z = Scale::sqrt(1.0 - r2);
 
-    let phi = r1 * 2.0 * core::f64::consts::PI;
-    let (sin, cos) = f64::sin_cos(phi);
-    let sqrt_r2 = f64::sqrt(r2);
+    let phi = r1 * 2.0 * PI;
+    let (sin, cos) = Scale::sin_cos(phi);
+    let sqrt_r2 = Scale::sqrt(r2);
 
     let x = cos * sqrt_r2;
     let y = sin * sqrt_r2;
@@ -98,8 +115,11 @@ pub fn rand_cosine_direction() -> V3 {
     result
 }
 
-pub fn rand_in_unit_disc() -> [f64; 2] {
-    RND.with(|rnd_cell| UnitDisc.sample((*rnd_cell.borrow_mut()).borrow_mut()))
+pub fn rand_in_unit_disc() -> V3 {
+    RND.with(|rnd_cell| {
+        let [x, y] = UnitDisc.sample((*rnd_cell.borrow_mut()).borrow_mut());
+        V3::new(x, y, 0.0)
+    })
 }
 
 pub fn with_rnd<T, F>(op: F) -> T

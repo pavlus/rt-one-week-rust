@@ -4,7 +4,7 @@ pub use ttl_renderer::TtlRenderer;
 
 use crate::hittable::Hittable;
 use crate::ray::{RayCtx, Ray};
-use crate::vec::V3;
+use crate::types::Color;
 use std::str::FromStr;
 
 mod rgb_renderer;
@@ -34,7 +34,7 @@ impl FromStr for RendererType{
 }
 
 pub trait Renderer {
-    fn color(&self, r: &RayCtx) -> V3;
+    fn color(&self, r: &RayCtx) -> Color;
 }
 
 pub enum RendererImpl {
@@ -44,14 +44,14 @@ pub enum RendererImpl {
 }
 
 impl RendererImpl {
-    pub fn biased(scene_graph: Box<dyn Hittable>, important: Box<dyn Hittable>, miss_shader: fn(&Ray) -> V3) -> RendererImpl{
+    pub fn biased(scene_graph: Box<dyn Hittable>, important: Box<dyn Hittable>, miss_shader: fn(&Ray) -> Color) -> RendererImpl{
         RendererImpl::RGB(RgbRenderer {
             hittable: scene_graph,
             important,
             miss_shader,
         })
     }
-    pub fn unbiased(scene_graph: Box<dyn Hittable>, miss_shader: fn(&Ray) -> V3) -> RendererImpl{
+    pub fn unbiased(scene_graph: Box<dyn Hittable>, miss_shader: fn(&Ray) -> Color) -> RendererImpl{
         RendererImpl::RGBUnbiased(RgbRendererUnbiased {
             hittable: scene_graph,
             miss_shader,
@@ -68,7 +68,7 @@ impl RendererImpl {
     pub fn pick_renderer(
         renderer_type: RendererType, scene_graph: Box<dyn Hittable>,
         important: Box<dyn Hittable>,
-        miss_shader: fn(&Ray) -> V3,
+        miss_shader: fn(&Ray) -> Color,
         ttl: i32
     ) -> RendererImpl{
         match renderer_type {
@@ -86,7 +86,7 @@ impl RendererImpl {
 }
 
 impl Renderer for RendererImpl {
-    fn color(&self, ray_ctx: &RayCtx) -> V3 {
+    fn color(&self, ray_ctx: &RayCtx) -> Color {
         match self {
             RendererImpl::RGB(renderer) => renderer.color(ray_ctx),
             RendererImpl::RGBUnbiased(renderer) => renderer.color(ray_ctx),

@@ -1,31 +1,31 @@
-use crate::vec::V3;
+use crate::types::{V3, P3, Distance, Time, Color};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Ray{
-    pub origin: V3,
-    pub direction: V3,
+    pub origin: P3,
+    pub direction: V3, // todo: make it unit length type
 }
 
 impl Ray {
-    pub fn point_at(self, p: f64) -> V3 {
-        self.origin + p * self.direction
+    pub fn point_at(self, p: Distance) -> P3 {
+        (self.origin.coords + p * self.direction).into()
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RayCtx {
     pub ray: Ray,
-    pub attenuation: V3,
-    pub time: f32,
+    pub attenuation: Color,
+    pub time: Time,
     pub ttl: i32,
 }
 
 impl RayCtx {
-    pub fn new(origin: V3, direction: V3, attenuation: V3, time: f32, ttl: i32) -> RayCtx {
+    pub fn new(origin: P3, direction: V3, attenuation: Color, time: Time, ttl: i32) -> RayCtx {
         RayCtx { ray: Ray { origin, direction }, attenuation, time, ttl }
     }
 
-    pub fn produce(self, origin: V3, direction: V3, attenuation: V3) -> RayCtx {
+    pub fn produce(&self, origin: P3, direction: V3, attenuation: Color) -> RayCtx {
         RayCtx::new(origin, direction, attenuation, self.time, self.ttl - 1)
     }
 

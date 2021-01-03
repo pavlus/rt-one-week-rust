@@ -1,7 +1,7 @@
 
 use crate::ray::RayCtx;
-use crate::texture::Color;
 use crate::pdf::PDF;
+use crate::types::Color;
 
 pub enum Scatter {
     Specular(RayCtx),
