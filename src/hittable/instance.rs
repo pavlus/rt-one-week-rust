@@ -78,11 +78,10 @@ impl<T: Hittable + Sized> TranslateOp<T, Translate<T>> for Translate<T> {
 
 impl<T: Hittable> Hittable for Translate<T> {
     fn hit(&self, ray_ctx: &RayCtx, dist_min: Distance, dist_max: Distance) -> Option<Hit> {
-        let cloned = ray_ctx.ray.clone();
         let moved_r = RayCtx {
             ray: Ray {
-                origin: cloned.origin - &self.offset,
-                direction: cloned.direction,
+                origin: &ray_ctx.ray.origin - &self.offset,
+                direction: ray_ctx.ray.direction,
             },
             attenuation: ray_ctx.attenuation,
             time: ray_ctx.time,
@@ -111,16 +110,14 @@ impl<T: Hittable> Hittable for Translate<T> {
 #[derive(Debug,Clone)]
 pub struct RotateY<T> {
     target: T,
-    sin: Scale,
-    cos: Scale,
-    angle: Angle,
+    forward: Rotation3<Angle>,
     aabb: Option<AABB>,
 }
 
 impl<I: Hittable + Sized> RotateYOp<I> for I {
     fn rotate_y(self, angle_degrees: Angle) -> RotateY<I> {
         let angle = Angle::to_radians(-angle_degrees);
-        let (sin, cos) = Angle::sin_cos((PI / 180.0) * angle);
+        let (sin, cos) = Angle::sin_cos(angle);
 
         let aabb = self.bounding_box(0.0, 1.0).map(|aabb| {
             let min_max = [&aabb.min, &aabb.max, &aabb.min, &aabb.max];
@@ -139,21 +136,21 @@ impl<I: Hittable + Sized> RotateYOp<I> for I {
                 P3::new(max_x, aabb.max.y, max_z),
             )
         });
-        RotateY { target: self, sin, cos, angle, aabb }
+        RotateY { target: self, forward : Rotation3::from_axis_angle(&Vector3::y_axis(), angle), aabb }
     }
 }
 
 impl<T: Hittable> Hittable for RotateY<T> {
     fn hit(&self, ray_ctx: &RayCtx, dist_min: Distance, dist_max: Distance) -> Option<Hit> {
         let ray = ray_ctx.ray;
-        let origin = self.forward_transform(&ray.origin.coords).into();
-        let direction = self.forward_transform(&ray.direction);
+        let origin = self.forward.transform_point(&ray.origin);
+        let direction =  self.forward.transform_vector(&ray.direction);
 
         let rotated_ray = RayCtx { ray: Ray { origin, direction }, ..*ray_ctx };
         self.target.hit(&rotated_ray, dist_min, dist_max)
             .map(|hit| {
-                let point = self.backward_transform(&hit.point.coords).into();
-                let normal = self.backward_transform(&hit.normal);
+                let point =  self.forward.inverse_transform_point(&hit.point);
+                let normal = self.forward.inverse_transform_vector(&hit.normal);
 
                 Hit {
                     point,
@@ -168,27 +165,14 @@ impl<T: Hittable> Hittable for RotateY<T> {
     }
 
     fn pdf_value(&self, origin: &P3, direction: &V3, hit: &Hit) -> f64 {
-        let origin = self.forward_transform(&origin.coords).into();
-        let direction = self.forward_transform(direction);
+        let origin = self.forward.transform_point(&origin);
+        let direction = self.forward.inverse_transform_vector(direction);
         self.target.pdf_value(&origin, &direction, hit)
     }
 
     // todo: check rotation, unsure, if we need backward transformation here
     fn random(&self, origin: &P3) -> V3 {
-        self.backward_transform(&self.target.random(&self.forward_transform(&origin.coords).into()))
-    }
-}
-
-impl<I> RotateY<I> {
-    #[inline]
-    fn forward_transform(&self, vec: &V3) -> V3 {
-        let rot = Rotation3::from_axis_angle(&Vector3::y_axis(), self.angle);
-        rot * vec
-    }
-    #[inline]
-    fn backward_transform(&self, vec: &V3) -> V3 {
-        let rot = Rotation3::from_axis_angle(&Vector3::y_axis(), -self.angle);
-        rot * vec
+        self.forward.inverse_transform_vector(&self.target.random(&self.forward.transform_point(&origin)))
     }
 }
 
