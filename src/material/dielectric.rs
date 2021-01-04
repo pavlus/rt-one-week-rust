@@ -23,22 +23,22 @@ impl Dielectric {
     }
 
 
-    fn refract(v: &V3, normal: &V3, ni_over_nt: Scale) -> Option<V3> {
-        let unit = v.normalize();
-        let dt = unit.dot(&normal);
+    fn refract(v: &Unit<V3>, normal: &Unit<V3>, ni_over_nt: Scale) -> Option<Unit<V3>> {
+        let unit = v.as_ref();
+        let dt = unit.dot(normal.as_ref());
         let discriminant = 1.0 - ni_over_nt * ni_over_nt * (1.0 - dt * dt);
         return if discriminant > 0.0 {
-            Some(ni_over_nt * (v - dt * normal) - discriminant.sqrt() * normal)
+            Some(Unit::new_normalize(ni_over_nt * (v.as_ref() - dt * normal.as_ref()) - discriminant.sqrt() * normal.as_ref()))
         } else { None };
     }
 }
 
 impl Material for Dielectric {
     fn scatter(&self, ray_ctx: &RayCtx, &hit: &Hit) -> Option<RayCtx> {
-        let unit_direction = ray_ctx.ray.direction.normalize();
+        let unit_direction = ray_ctx.ray.direction;
 
         let cosine: Scale;
-        let outward_normal: V3;
+        let outward_normal: Unit<V3>;
         let ni_over_nt: Scale;
 
         let vector_cosine = unit_direction.dot(&hit.normal);
@@ -56,10 +56,10 @@ impl Material for Dielectric {
             .filter(|_| self.schlick(cosine) < random::next_std())
             .map(|refracted| ray_ctx.produce(hit.point, refracted, self.albedo))
             .or_else(|| {
-                let mut reflected = ray_ctx.ray.direction;
-                Reflection::new(Unit::new_unchecked(outward_normal), 0.0)
+                let mut reflected = ray_ctx.ray.direction.clone_owned();
+                Reflection::new(outward_normal, 0.0)
                     .reflect(&mut reflected);
-                Some(ray_ctx.produce(hit.point, reflected, Color::from_element(1.0)))
+                Some(ray_ctx.produce(hit.point, Unit::new_unchecked(reflected), Color::from_element(1.0)))
             })
     }
 }

@@ -2,6 +2,7 @@ use crate::ray::RayCtx;
 use crate::types::{V3, Distance, Timespan, P2, Scale, Color};
 use crate::random;
 use crate::onb::ONB;
+use nalgebra::Unit;
 
 #[derive(Clone, Debug)]
 pub struct Camera {
@@ -28,12 +29,12 @@ impl Camera {
         let width = aspect * height;
 
         // normalized vector from origin to POI
-        let w = (&from - &at).normalize();
+        let w = Unit::new_normalize(&from - &at);
         // cross-product of upwards vector and w will give us normal to plane they are in.
         // it's also normal to both of them, being normal to upwards direction makes it horizontal
-        let u = up.cross(&w);
+        let u = Unit::new_normalize(up.cross(&w)); // fixme: this normalize looks strange
         // given that we have u and w is normal to plane of viewport -- v is their cross-product
-        let v = w.cross(&u);
+        let v = Unit::new_normalize(w.cross(&u)); // fixme: this normalize looks strange
         let onb = ONB { u, v, w };
         Camera {
             // from origin subtract half of horizontal viewport and half of vertical viewport,
@@ -58,7 +59,7 @@ impl Camera {
         let y: V3 = coordinates.y * &self.vertical;
         RayCtx::new(
             (&self.origin + &offset).into(),
-            (&self.lower_left + x + y - &offset).normalize(),
+            Unit::new_normalize(&self.lower_left + x + y - &offset),
             default_color,
             interpolation::lerp(&self.timespan.start, &self.timespan.end, &random::next_std_f32()),
             self.ttl,

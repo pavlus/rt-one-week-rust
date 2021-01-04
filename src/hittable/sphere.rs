@@ -3,7 +3,8 @@ use std::borrow::Borrow;
 use super::{AABB, Hit, Hittable, Material, RayCtx, V3};
 use crate::random::rand_in_unit_hemisphere;
 use crate::types::{P3, Time, Distance, Timespan, Angle, Scale, P2};
-use crate::consts::{FRAC_PI_2, PI};
+use crate::consts::{FRAC_PI_2, PI, TAU};
+use nalgebra::Unit;
 
 #[derive(Debug)]
 pub struct Sphere<M> {
@@ -84,7 +85,7 @@ impl<M: Material> Hittable for Sphere<M> {
 
         let get_hit = |ray_ctx: &RayCtx, dist: Distance| -> Hit {
             let p = ray_ctx.ray.point_at(dist);
-            let n = (p - center) / radius;
+            let n = Unit::new_unchecked((p - center) / radius);
             let  point = uv(n);
             return Hit::new(dist, p, n, &self.material, point.x, point.y);
         };
@@ -109,18 +110,18 @@ impl<M: Material> Hittable for Sphere<M> {
         Some(self.aabb(t_min..t_max))
     }
 
-    fn pdf_value(&self, origin: &P3, _direction: &V3, _hit: &Hit) -> f64 {
+    fn pdf_value(&self, origin: &P3, _direction: &Unit<V3>, _hit: &Hit) -> f64 {
         let sqr_r = self.radius * self.radius;
         let direction = &self.center - origin;
         let cos_theta_max = Distance::sqrt(1.0 - sqr_r / direction.norm_squared());
-        let solid_angle = 2.0 * (PI) * (1.0 - cos_theta_max);
+        let solid_angle = TAU * (1.0 - cos_theta_max);
 
         (1.0/solid_angle) as f64
     }
 
-    fn random(&self, origin: &P3) -> V3 {
+    fn random(&self, origin: &P3) -> Unit<V3> {
         let norm = (origin - &self.center).normalize();
-        self.radius * rand_in_unit_hemisphere(&norm).coords + (&self.center - origin)
+        Unit::new_normalize(self.radius * rand_in_unit_hemisphere(&norm).coords + (&self.center - origin))
     }
 }
 
@@ -135,7 +136,7 @@ impl Hittable for MovingSphere {
 
         let get_hit = |ray_ctx: &RayCtx, dist: Distance| -> Hit {
             let p = ray_ctx.ray.point_at(dist);
-            let n = (p - center) / self.radius;
+            let n = Unit::new_unchecked((p - center) / self.radius);
             let point = uv(n);
             return Hit::new(dist, p, n, self.material.borrow(), point.x, point.y);
         };
@@ -162,11 +163,11 @@ impl Hittable for MovingSphere {
 
 }
 
-fn uv(unit_point: V3) -> P2 {
+fn uv(unit_point: Unit<V3>) -> P2 {
     let phi = Angle::atan2(unit_point.z, unit_point.x);
     let theta = unit_point.y.asin();
 
-    let u = 1.0 - (phi + PI) / (2.0 * PI);
+    let u = 1.0 - (phi + PI) / TAU;
     let v = (theta + FRAC_PI_2) / PI;
     P2::new(u, v)
 }
