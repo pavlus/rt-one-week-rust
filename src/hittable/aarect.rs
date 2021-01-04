@@ -5,6 +5,7 @@ use std::sync::Arc;
 use super::{AABB, Hit, Hittable, Material, RayCtx, P3, V3};
 use crate::random::next_std_in_range;
 use crate::types::Distance;
+use nalgebra::Unit;
 
 macro_rules! aarect_aabb {
     {$slf:ident, $a:tt, $b:tt, $off:expr} => {
@@ -19,9 +20,9 @@ macro_rules! aarect_aabb {
 }
 
 macro_rules! norm_vec {
-    {x, y} => {V3::z()};
-    {x, z} => {V3::y()};
-    {y, z} => {V3::x()};
+    {x, y} => {Unit::new_unchecked(V3::z())};
+    {x, z} => {Unit::new_unchecked(V3::y())};
+    {y, z} => {Unit::new_unchecked(V3::x())};
 }
 
 macro_rules! aarect {
@@ -66,21 +67,21 @@ macro_rules! aarect {
                 Some(aarect_aabb!(self, $a, $b, self.k))
             }
 
-            fn pdf_value(&self, _origin: &P3, direction: &V3, hit: &Hit) -> f64 {
+            fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> f64 {
                 let area = (self.$a.end - self.$a.start) * (self.$b.end - self.$b.start);
                 // let sqr_dist = (hit.dist * hit.dist).sqrt();
-                let sqr_dist = (hit.point - _origin).norm_squared();
+                let sqr_dist = hit.dist * hit.dist;
                 let cosine = direction.$k;
                 let cos_area = Distance::abs(cosine * area);
                 sqr_dist as f64 / cos_area as f64
             }
 
-            fn random(&self, origin: &P3) -> V3 {
+            fn random(&self, origin: &P3) -> Unit<V3> {
                 let mut random_point = V3::from_element(1.0);
                 random_point.$a = next_std_in_range(&self.$a);
                 random_point.$b = next_std_in_range(&self.$b);
                 random_point.$k = self.k;
-                (&random_point - origin.coords)
+                Unit::new_normalize(&random_point - origin.coords)
             }
 
         }

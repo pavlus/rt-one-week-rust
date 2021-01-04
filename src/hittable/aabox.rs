@@ -5,6 +5,7 @@ use super::{AABB, Hit, Hittable, Material, RayCtx, P3, V3};
 use std::borrow::Borrow;
 use crate::random::next_std_in_range;
 use crate::types::Distance;
+use nalgebra::Unit;
 
 #[derive(Clone)]
 pub struct AABoxMono {
@@ -126,27 +127,27 @@ impl Hittable for AABoxMono {
         let mut result: Option<Hit> = None;
         let mut dist: Distance = dist_max;
         if self.x.contains(&x_front) && self.y.contains(&y_front) && dist_min < dist_front && dist_front < dist {
-            result = Some(Hit::new(dist_front, ray.point_at(dist_front), V3::new(0., 0., 1.), self.material.borrow(), u_front, v_front));
+            result = Some(Hit::new(dist_front, ray.point_at(dist_front), Unit::new_unchecked(V3::new(0., 0., 1.)), self.material.borrow(), u_front, v_front));
             dist = dist_front;
         };
         if self.x.contains(&x_back) && self.y.contains(&y_back) && dist_min < dist_back && dist_back < dist {
-            result = Some(Hit::new(dist_back, ray.point_at(dist_back), V3::new(0., 0., -1.), self.material.borrow(), u_back, v_back));
+            result = Some(Hit::new(dist_back, ray.point_at(dist_back), Unit::new_unchecked(V3::new(0., 0., -1.)), self.material.borrow(), u_back, v_back));
             dist = dist_back;
         }
         if self.x.contains(&x_top) && self.z.contains(&z_top) && dist_min < dist_top && dist_top < dist {
-            result = Some(Hit::new(dist_top, ray.point_at(dist_top), V3::new(0., 1., 0.), self.material.borrow(), u_top, v_top));
+            result = Some(Hit::new(dist_top, ray.point_at(dist_top), Unit::new_unchecked(V3::new(0., 1., 0.)), self.material.borrow(), u_top, v_top));
             dist = dist_top;
         }
         if self.x.contains(&x_bottom) && self.z.contains(&z_bottom) && dist_min < dist_bottom && dist_bottom < dist {
-            result = Some(Hit::new(dist_bottom, ray.point_at(dist_bottom), V3::new(0., -1., 0.), self.material.borrow(), u_bottom, v_bottom));
+            result = Some(Hit::new(dist_bottom, ray.point_at(dist_bottom), Unit::new_unchecked(V3::new(0., -1., 0.)), self.material.borrow(), u_bottom, v_bottom));
             dist = dist_bottom;
         }
         if self.y.contains(&y_left) && self.z.contains(&z_left) && dist_min < dist_left && dist_left < dist {
-            result = Some(Hit::new(dist_left, ray.point_at(dist_left), V3::new(1., 0., 0.), self.material.borrow(), u_left, v_left));
+            result = Some(Hit::new(dist_left, ray.point_at(dist_left), Unit::new_unchecked(V3::new(1., 0., 0.)), self.material.borrow(), u_left, v_left));
             dist = dist_left;
         }
         if self.y.contains(&y_right) && self.z.contains(&z_right) && dist_min < dist_right && dist_right < dist {
-            result = Some(Hit::new(dist_right, ray.point_at(dist_right), V3::new(-1., 0., 0.), self.material.borrow(), u_right, v_right));
+            result = Some(Hit::new(dist_right, ray.point_at(dist_right), Unit::new_unchecked(V3::new(-1., 0., 0.)), self.material.borrow(), u_right, v_right));
             // dist = dist_right;
         }
         result
@@ -156,14 +157,14 @@ impl Hittable for AABoxMono {
         Some(self.aabb)
     }
 
-    fn pdf_value(&self, _: &P3, direction: &V3, hit: &Hit) -> f64 {
+    fn pdf_value(&self, _: &P3, direction: &Unit<V3>, hit: &Hit) -> f64 {
         let width = self.x.end - self.x.start;
         let height = self.y.end - self.y.start;
         let depth = self.z.end - self.z.start;
         box_pdf_value(width, height, depth, direction, hit)
     }
 
-    fn random(&self, origin: &P3) -> V3 {
+    fn random(&self, origin: &P3) -> Unit<V3> {
         box_random([&self.x, &self.y, &self.z], origin)
     }
 }
@@ -213,27 +214,27 @@ impl Hittable for AABoxHetero {
         let mut result: Option<Hit> = None;
         let mut dist: Distance = dist_max;
         if self.x.contains(&x_front) && self.y.contains(&y_front) && dist_min < dist_front && dist_front < dist {
-            result = Some(Hit::new(dist_front, ray.point_at(dist_front), V3::new(0., 0., 1.), self.front.borrow(), u_front, v_front));
+            result = Some(Hit::new(dist_front, ray.point_at(dist_front), Unit::new_unchecked(V3::new(0., 0., 1.)), self.front.borrow(), u_front, v_front));
             dist = dist_front;
         };
         if self.x.contains(&x_back) && self.y.contains(&y_back) && dist_min < dist_back && dist_back < dist {
-            result = Some(Hit::new(dist_back, ray.point_at(dist_back), V3::new(0., 0., -1.), self.back.borrow(), u_back, v_back));
+            result = Some(Hit::new(dist_back, ray.point_at(dist_back), Unit::new_unchecked(V3::new(0., 0., -1.)), self.back.borrow(), u_back, v_back));
             dist = dist_back;
         }
         if self.x.contains(&x_top) && self.z.contains(&z_top) && dist_min < dist_top && dist_top < dist {
-            result = Some(Hit::new(dist_top, ray.point_at(dist_top), V3::new(0., 1., 0.), self.top.borrow(), u_top, v_top));
+            result = Some(Hit::new(dist_top, ray.point_at(dist_top), Unit::new_unchecked(V3::new(0., 1., 0.)), self.top.borrow(), u_top, v_top));
             dist = dist_top;
         }
         if self.x.contains(&x_bottom) && self.z.contains(&z_bottom) && dist_min < dist_bottom && dist_bottom < dist {
-            result = Some(Hit::new(dist_bottom, ray.point_at(dist_bottom), V3::new(0., -1., 0.), self.bottom.borrow(), u_bottom, v_bottom));
+            result = Some(Hit::new(dist_bottom, ray.point_at(dist_bottom), Unit::new_unchecked(V3::new(0., -1., 0.)), self.bottom.borrow(), u_bottom, v_bottom));
             dist = dist_bottom;
         }
         if self.y.contains(&y_left) && self.z.contains(&z_left) && dist_min < dist_left && dist_left < dist {
-            result = Some(Hit::new(dist_left, ray.point_at(dist_left), V3::new(1., 0., 0.), self.left.borrow(), u_left, v_left));
+            result = Some(Hit::new(dist_left, ray.point_at(dist_left), Unit::new_unchecked(V3::new(1., 0., 0.)), self.left.borrow(), u_left, v_left));
             dist = dist_left;
         }
         if self.y.contains(&y_right) && self.z.contains(&z_right) && dist_min < dist_right && dist_right < dist {
-            result = Some(Hit::new(dist_right, ray.point_at(dist_right), V3::new(-1., 0., 0.), self.right.borrow(), u_right, v_right));
+            result = Some(Hit::new(dist_right, ray.point_at(dist_right), Unit::new_unchecked(V3::new(-1., 0., 0.)), self.right.borrow(), u_right, v_right));
             // dist = dist_right;
         }
         result
@@ -243,14 +244,14 @@ impl Hittable for AABoxHetero {
         Some(self.aabb)
     }
 
-    fn pdf_value(&self, _: &P3, direction: &V3, hit: &Hit) -> f64 {
+    fn pdf_value(&self, _: &P3, direction: &Unit<V3>, hit: &Hit) -> f64 {
         let width = self.x.end - self.x.start;
         let height = self.y.end - self.y.start;
         let depth = self.z.end - self.z.start;
         box_pdf_value(width, height, depth, direction, hit)
     }
 
-    fn random(&self, origin: &P3) -> V3 {
+    fn random(&self, origin: &P3) -> Unit<V3> {
         box_random([&self.x, &self.y, &self.z], origin)
     }
 }
@@ -283,7 +284,7 @@ impl AABox {
     }
 }
 
-fn box_pdf_value(width: Distance, height: Distance, depth: Distance, direction: &V3, hit: &Hit) -> f64 {
+fn box_pdf_value(width: Distance, height: Distance, depth: Distance, direction: &Unit<V3>, hit: &Hit) -> f64 {
     let dir_unit = direction;
     let area_xy = Distance::abs(width * height * dir_unit.z);
     let area_xz = Distance::abs(depth * width * dir_unit.y);
@@ -294,11 +295,11 @@ fn box_pdf_value(width: Distance, height: Distance, depth: Distance, direction: 
     sqr_dist as f64 / total_area as f64
 }
 
-fn box_random(axes: [&Range<Distance>; 3], origin: &P3) -> V3 {
+fn box_random(axes: [&Range<Distance>; 3], origin: &P3) -> Unit<V3> {
     let x = next_std_in_range(&axes[0]);
     let y= next_std_in_range(&axes[1]);
     let z = next_std_in_range(&axes[1]);
-    V3::new(x, y, z) - origin.coords
+    Unit::new_normalize(V3::new(x, y, z) - origin.coords)
 }
 
 

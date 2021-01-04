@@ -1,7 +1,8 @@
 
-use crate::types::{V3, P3, Distance, Time};
+use crate::types::{V3, P3, Distance, Time, Color};
 
 use super::{AABB, Hit, Hittable, RayCtx};
+use nalgebra::Unit;
 
 pub struct HittableList {
     objects: Vec<Box<dyn Hittable>>,
@@ -46,14 +47,14 @@ impl Hittable for HittableList {
         Some(self.aabb)
     }
 
-    fn pdf_value(&self, origin: &P3, direction: &V3, hit: &Hit) -> f64 {
+    fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> f64 {
         self.objects
             .iter()
             .map(|o| o.pdf_value(origin, direction, hit))
             .sum::<f64>() / self.objects.len() as f64
     }
 
-    fn random(&self, origin: &P3) -> V3 {
+    fn random(&self, origin: &P3) -> Unit<V3> {
         crate::random::random_item(&self.objects)
             .unwrap()
             .random(origin)

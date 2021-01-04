@@ -6,6 +6,7 @@ use crate::texture::Texture;
 
 use super::{AABB, Hit, Hittable, Material, RayCtx, V3};
 use crate::types::{P3, Distance, Time, Scale};
+use nalgebra::Unit;
 
 #[derive(Debug)]
 pub struct ConstantMedium<B,M> {
@@ -33,23 +34,28 @@ impl<B:Hittable, M: Material> Hittable for ConstantMedium<B,M> {
             self.boundary.hit(ray_ctx, enter_hit.dist + 0.001, Distance::MAX).and_then(|exit_hit| {
                 let enter_dist = Distance::max(dist_min, enter_hit.dist);
                 let exit_dist = Distance::min(exit_hit.dist, dist_max);
-                if enter_dist < exit_dist {
-                    let ray = ray_ctx.ray;
-                    // TODO: describe why such distribution?
-                    //  isotropic scattering follows Poisson point process?
-                    let hit_dist: Distance = next::<Distance, rand_distr::Exp1>(rand_distr::Exp1) / self.density;
-                    let inner_travel_distance = (exit_dist - enter_dist) * ray.direction.norm();
-                    if hit_dist < inner_travel_distance {
-                        let dist = enter_dist + hit_dist / ray.direction.norm();
-                        Some(Hit::new(
-                            dist,
-                            ray.point_at(dist),
-                            rand_in_unit_sphere().coords,
-                            self.phase_function.borrow(),
-                            enter_hit.u, enter_hit.v,
-                        ))
-                    } else { None }
-                } else { None }
+                if enter_dist >= exit_dist {
+                    return None
+                }
+
+                let ray = ray_ctx.ray;
+                // TODO: describe why such distribution?
+                //  isotropic scattering follows Poisson point process?
+                let hit_dist: Distance = next::<Distance, rand_distr::Exp1>(rand_distr::Exp1) / self.density;
+                let dir_norm = ray.direction.norm();
+                let inner_travel_distance = (exit_dist - enter_dist) * dir_norm;
+                if hit_dist >= inner_travel_distance {
+                    return None
+                }
+
+                let dist = enter_dist + hit_dist / dir_norm;
+                Some(Hit::new(
+                    dist,
+                    ray.point_at(dist),
+                    Unit::new_unchecked(rand_in_unit_sphere().coords),
+                    &self.phase_function,
+                    enter_hit.u, enter_hit.v,
+                ))
             })
         })
     }
@@ -60,12 +66,12 @@ impl<B:Hittable, M: Material> Hittable for ConstantMedium<B,M> {
     }
 
     #[inline]
-    fn pdf_value(&self, origin: &P3, direction: &V3, hit: &Hit) -> f64 {
+    fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> f64 {
         self.boundary.pdf_value(origin, direction, hit)
     }
 
     #[inline]
-    fn random(&self, origin: &P3) -> V3 {
+    fn random(&self, origin: &P3) -> Unit<V3> {
         self.boundary.random(origin)
     }
 

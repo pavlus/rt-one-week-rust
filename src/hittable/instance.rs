@@ -2,7 +2,7 @@ use itertools::Itertools;
 
 use super::{AABB, Hit, Hittable, RayCtx, V3};
 use crate::ray::Ray;
-use nalgebra::{Rotation3, Vector3};
+use nalgebra::{Rotation3, Vector3, Unit};
 use crate::types::{P3, Distance, Time, Angle, Scale};
 use crate::consts::PI;
 
@@ -42,11 +42,11 @@ impl<T: Hittable> Hittable for FlipNormals<T> {
         self.0.bounding_box(t_min, t_max)
     }
 
-    fn pdf_value(&self, origin: &P3, direction: &V3, hit: &Hit) -> f64 {
+    fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> f64 {
         self.0.pdf_value(origin, direction, hit)
     }
 
-    fn random(&self, origin: &P3) -> V3 {
+    fn random(&self, origin: &P3) -> Unit<V3> {
         self.0.random(origin)
     }
 }
@@ -98,11 +98,11 @@ impl<T: Hittable> Hittable for Translate<T> {
             .map(|aabb| AABB::new(aabb.min + self.offset, aabb.max + self.offset))
     }
 
-    fn pdf_value(&self, origin: &P3, direction: &V3, hit: &Hit) -> f64 {
+    fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> f64 {
         self.target.pdf_value(&(*origin - self.offset), direction, hit)
     }
 
-    fn random(&self, origin: &P3) -> V3 {
+    fn random(&self, origin: &P3) -> Unit<V3> {
         self.target.random(&(*origin - self.offset))
     }
 }
@@ -144,13 +144,13 @@ impl<T: Hittable> Hittable for RotateY<T> {
     fn hit(&self, ray_ctx: &RayCtx, dist_min: Distance, dist_max: Distance) -> Option<Hit> {
         let ray = ray_ctx.ray;
         let origin = self.forward.transform_point(&ray.origin);
-        let direction =  self.forward.transform_vector(&ray.direction);
+        let direction =  &self.forward * &ray.direction;
 
         let rotated_ray = RayCtx { ray: Ray { origin, direction }, ..*ray_ctx };
         self.target.hit(&rotated_ray, dist_min, dist_max)
             .map(|hit| {
                 let point =  self.forward.inverse_transform_point(&hit.point);
-                let normal = self.forward.inverse_transform_vector(&hit.normal);
+                let normal = Unit::new_unchecked(self.forward.inverse_transform_vector(&hit.normal));
 
                 Hit {
                     point,
@@ -164,15 +164,15 @@ impl<T: Hittable> Hittable for RotateY<T> {
         self.aabb
     }
 
-    fn pdf_value(&self, origin: &P3, direction: &V3, hit: &Hit) -> f64 {
+    fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> f64 {
         let origin = self.forward.transform_point(&origin);
         let direction = self.forward.inverse_transform_vector(direction);
-        self.target.pdf_value(&origin, &direction, hit)
+        self.target.pdf_value(&origin, &Unit::new_unchecked(direction), hit)
     }
 
     // todo: check rotation, unsure, if we need backward transformation here
-    fn random(&self, origin: &P3) -> V3 {
-        self.forward.inverse_transform_vector(&self.target.random(&self.forward.transform_point(&origin)))
+    fn random(&self, origin: &P3) -> Unit<V3> {
+        Unit::new_unchecked(self.forward.inverse_transform_vector(&self.target.random(&self.forward.transform_point(&origin))))
     }
 }
 

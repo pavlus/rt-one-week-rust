@@ -3,6 +3,7 @@ use super::{Color, Texture};
 use super::{Hit, Material, RayCtx, V3};
 use crate::scatter::Scatter;
 use crate::pdf::{CosinePDF, PDF};
+use nalgebra::Unit;
 
 pub struct Lambertian {
     texture: Box<dyn Texture>
@@ -27,7 +28,4 @@ impl Material for Lambertian {
         Some(Scatter::Diffuse(Box::new(CosinePDF::from_w(&hit.normal)), albedo))
     }
 
-    fn scattering_pdf(&self, hit: &Hit, direction: &V3) -> f64 {
-        CosinePDF::from_w(&hit.normal).value(direction, hit)
-    }
 }

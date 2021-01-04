@@ -5,8 +5,9 @@ use super::{Hit, Material, RayCtx};
 use crate::scatter::Scatter;
 use crate::scatter::Scatter::Diffuse;
 use crate::pdf::IsotropicPDF;
-use core::f64::consts;
 use crate::types::V3;
+use nalgebra::Unit;
+use crate::consts::FRAC_1_PI;
 
 #[derive(Debug)]
 pub struct Isotropic<T> {
@@ -34,7 +35,7 @@ impl<T: Texture> Material for Isotropic<T> {
         Some(
             ray_ctx.produce(
                 hit.point,
-                rand_in_unit_sphere().coords,
+                Unit::new_unchecked(rand_in_unit_sphere().coords),
                 self.albedo.value(hit.u, hit.v, &hit.point))
         )
     }
@@ -46,13 +47,5 @@ impl<T: Texture> Material for Isotropic<T> {
             self.albedo.value(hit.u, hit.v, &hit.point))
         )
     }
-
-    //todo: check that integrates to the same value as others
-    #[inline]
-    fn scattering_pdf(&self, _hit: &Hit, _direction: &V3) -> f64 {
-        // 1/ (4*pi), where 4*pi is the solid angle of full sphere
-        0.25 * consts::FRAC_1_PI
-    }
-
 
 }

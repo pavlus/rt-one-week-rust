@@ -9,6 +9,7 @@ use crate::ray::RayCtx;
 use crate::texture::Texture;
 use crate::types::{V3, Color};
 use crate::scatter::Scatter;
+use nalgebra::Unit;
 
 pub mod lambertian;
 pub mod metal;
@@ -26,5 +27,4 @@ pub trait Material: Sync + Send {
     fn scatter_with_pdf(&self, ray_ctx: &RayCtx, hit: &Hit) -> Option<Scatter> {
         self.scatter(ray_ctx, hit).map(|ray| Scatter::Specular(ray))
     }
-    fn scattering_pdf(&self, hit: &Hit, direction: &V3) -> PDF { 0.0 }
 }

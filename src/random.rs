@@ -11,7 +11,8 @@ use rand_distr::{UnitDisc, UnitSphere};
 use rand_xoshiro::Xoshiro256Plus;
 
 use crate::types::{V3, P3, Distance, Scale, Color};
-use crate::consts::PI;
+use crate::consts::{PI, TAU};
+use nalgebra::Unit;
 
 thread_local! {
     static RND: RefCell<Xoshiro256Plus> =
@@ -99,12 +100,12 @@ pub fn rand_in_unit_hemisphere(normal: &V3) -> P3 {
     if result.coords.dot(normal) > 0.0 { result } else { -result }
 }
 
-pub fn rand_cosine_direction() -> V3 {
+pub fn rand_cosine_direction() -> Unit<V3> {
     let r1 = next_std();
     let r2 = next_std();
     let z = Scale::sqrt(1.0 - r2);
 
-    let phi = r1 * 2.0 * PI;
+    let phi = r1 * TAU;
     let (sin, cos) = Scale::sin_cos(phi);
     let sqrt_r2 = Scale::sqrt(r2);
 
@@ -112,7 +113,7 @@ pub fn rand_cosine_direction() -> V3 {
     let y = sin * sqrt_r2;
 
     let result = V3::new(x, y, z);
-    result
+    Unit::new_unchecked(result)
 }
 
 pub fn rand_in_unit_disc() -> V3 {

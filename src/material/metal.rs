@@ -24,17 +24,12 @@ impl Metal {
 impl Material for Metal {
     fn scatter(&self, ray_ctx: &RayCtx, &hit: &Hit) -> Option<RayCtx> {
         let mut reflected = ray_ctx.ray.direction.normalize();
-        Reflection::new(Unit::new_unchecked(hit.normal), 0.0).reflect(&mut reflected);
+        Reflection::new(hit.normal, 0.0).reflect(&mut reflected);
         if reflected.dot(&hit.normal) > 0.0 {
-            Some(ray_ctx.produce(hit.point, self.fuzz(&reflected), self.albedo))
+            Some(ray_ctx.produce(hit.point, Unit::new_normalize(self.fuzz(&reflected)), self.albedo))
         } else {
             None
         }
-    }
-
-    #[allow(unused_variables)]
-    fn scattering_pdf(&self, hit: &Hit, direction: &V3) -> f64 {
-        0.0
     }
 
 }

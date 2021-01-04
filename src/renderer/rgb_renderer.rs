@@ -14,17 +14,18 @@ pub struct RgbRenderer {
 
 impl Renderer for RgbRenderer {
     fn color(&self, ray_ctx: &RayCtx) -> Color {
-        match self.hittable.hit(&ray_ctx, 0.0001, 99999.0) {
-            Some(hit) => {
+        self.hittable.hit(&ray_ctx, 0.0001, 99999.0)
+            .map(|hit|{
+
                 let emitted = if hit.normal.dot(&ray_ctx.ray.direction.normalize()) < 0.0 {
                     hit.material.emmit(&hit)
                 } else {
                     Color::from_element(0.0)
                 };
-                emitted + match hit
+                emitted + hit
                     .material
-                    .scatter_with_pdf(ray_ctx, &hit) {
-                    Some(scatter) => {
+                    .scatter_with_pdf(ray_ctx, &hit)
+                    .map(|scatter| {
                         match scatter {
                             Specular(scattered) => {
                                 self.specular(scattered)
@@ -33,31 +34,25 @@ impl Renderer for RgbRenderer {
                                 self.biased_diffuse(ray_ctx, &hit, attenuation, mat_pdf)
                             }
                         }
-                    }
-                    None => Color::from_element(0.0) // no hit
-                }
-            }
-            None => {
-                self.miss_shader.borrow()(&ray_ctx.ray)
-            }
+                    }).unwrap_or(Color::from_element(0.0)) // no hit
+            }).unwrap_or(self.miss_shader.borrow()(&ray_ctx.ray))
         }
-    }
 }
 
 impl RgbRenderer {
     fn biased_diffuse<'a>(&self, ray_ctx: &RayCtx, hit: &Hit, attenuation: Color, mat_pdf: Box<dyn PDF>) -> Color {
         let mat_dir = mat_pdf.generate();  // unbiased sample, just in case we need it
         let pdf = MixturePDF::new(
-            mat_pdf,
+            mat_pdf.as_ref(),
             HittablePDF::new(hit.point, &self.important)
         );
         if let Some(mut scattered) = ray_ctx.produce(
             hit.point,
-            pdf.generate().normalize(),
+            pdf.generate(),
             attenuation,
         ).validate() {
             let pdf_value = pdf.value(&scattered.ray.direction, &hit);
-            let spdf = hit.material.scattering_pdf(&hit, &scattered.ray.direction);
+            let spdf = mat_pdf.value(&scattered.ray.direction, &hit);
             let mut weight = spdf / pdf_value;
             if weight.is_nan() {
                 // coin toss of mixture PDF gave us ray from non-overlapping part of importance PDF,
@@ -75,7 +70,7 @@ impl RgbRenderer {
             // V3::new(weight, spdf, pdf_value) // neon party for debugging probability density
             // V3::from_element(weight) // contribution
             // weight
-            sigmoid(weight)
+            weight
                 * scattered.attenuation.component_mul(&scattered_color)
         } else {
             Color::from_element(0.0) // max depth
