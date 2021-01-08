@@ -2,6 +2,8 @@ use std::ops::Add;
 
 use crate::ray::Ray;
 use crate::types::{V3, P3, Distance};
+use std::iter::Sum;
+use itertools::Itertools;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct AABB {
@@ -50,5 +52,11 @@ impl Add for AABB {
             Distance::max(self.max.z, rhs.max.z),
         );
         AABB { min, max }
+    }
+}
+
+impl Sum for AABB {
+    fn sum<I: Iterator<Item=AABB>>(iter: I) -> Self {
+        iter.tree_fold1(AABB::add).unwrap()
     }
 }

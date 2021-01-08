@@ -3,20 +3,19 @@ use crate::types::{V3, P3, Distance, Time, Color};
 
 use super::{AABB, Hit, Hittable, RayCtx};
 use nalgebra::Unit;
+use itertools::Itertools;
 
 pub struct HittableList {
     objects: Vec<Box<dyn Hittable>>,
-    aabb: AABB,
+    aabb: Option<AABB>,
 }
 
 impl HittableList {
     pub fn new(objects: Vec<Box<dyn Hittable>>) -> HittableList {
-        let aabb = (|| {
-            let mut aabbs = objects.iter().flat_map(|o| o.bounding_box(0.0, 1.0));
-            let first = aabbs.next()?;
-            Some(aabbs.fold(first, |a, b| a + b))
-        })();
-        HittableList { objects, aabb: aabb.unwrap() }
+        let aabb =  objects.iter()
+            .flat_map(|o| o.bounding_box(0.0, 1.0))
+            .sum1();
+        HittableList { objects, aabb }
     }
 }
 
@@ -31,20 +30,10 @@ impl Hittable for HittableList {
             }
         }
         selected.1
-        /*self.objects
-            .iter()
-            // todo[performance]: try enabling again after implementing heavier object
-//            .filter(|h| h.bounding_box(ray.time, ray.time)
-//                .map(|aabb| aabb.hit(ray, dist_min, dist_max))
-//                .unwrap_or(true)
-//            )
-            .map(|h| h.hit(ray, dist_min, dist_max))
-            .filter_map(std::convert::identity)
-            .min_by(|s, o| s.dist.partial_cmp(&o.dist).unwrap())*/
     }
 
     fn bounding_box(&self, _: Time, _: Time) -> Option<AABB> {
-        Some(self.aabb)
+        self.aabb
     }
 
     fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> f64 {
