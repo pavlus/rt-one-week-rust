@@ -1,9 +1,9 @@
 
-use crate::ray::Ray;
-use crate::texture::Color;
+use crate::ray::RayCtx;
 use crate::pdf::PDF;
+use crate::types::Color;
 
 pub enum Scatter {
-    Specular(Ray),
+    Specular(RayCtx),
     Diffuse(Box<dyn PDF>, Color)
 }

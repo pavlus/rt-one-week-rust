@@ -1,9 +1,9 @@
 use crate::scenes::Scene;
-use crate::vec::V3;
-use crate::{random, clamp};
+use crate::types::{Distance, Color, ColorComponent};
+use crate::random;
 use rayon::prelude::*;
 
-pub type Postprocessor = fn(V3) -> V3;
+pub type Postprocessor = fn(Color) -> Color;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Sampler {
@@ -20,14 +20,14 @@ impl Sampler {
         println!("{} {}", self.width, self.height);
         println!("255");
         for j in (0..self.height).rev() {
-            let scale = self.samples as f64;
+            let scale = self.samples as ColorComponent;
             let aa = self.samples;
             let row : Vec<(u32,u32,u32)> = (0..self.width).into_par_iter().map(|i| {
-                let col: V3 = (0..aa).map(|_| {
+                let col: Color = (0..aa).map(|_| {
                     // let col: V3 = rayon::iter::repeatn((), self.samples).map(|_| {
-                    let [du, dv] = random::rand_in_unit_disc();
-                    let u = (i as f64 + du) / (self.width as f64);
-                    let v = (j as f64 + dv) / (self.height as f64);
+                    let offset = random::rand_in_unit_disc();
+                    let u = (i as Distance + &offset.x) / (self.width as Distance);
+                    let v = (j as Distance + &offset.y) / (self.height as Distance);
                     scene.color(u, v)
                 }).sum();
 

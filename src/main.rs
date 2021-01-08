@@ -1,12 +1,14 @@
 use structopt::StructOpt;
 
-use vec::V3;
+use types::V3;
 
 use crate::renderer::RendererType;
 use crate::sampler::Sampler;
 use crate::scenes::*;
+use crate::types::Color;
 
-mod vec;
+mod consts;
+mod types;
 mod ray;
 mod hittable;
 mod onb;
@@ -37,6 +39,8 @@ enum SceneType {
     CornelInstances,
     #[structopt(name = "cornel_is")]
     CornelIs,
+    #[structopt(name = "cornel_is_reflection")]
+    CornelIsReflection,
     #[structopt(name = "cornel_volumes")]
     CornelVolumes,
     #[structopt(name = "next_week_final")]
@@ -79,9 +83,12 @@ fn main() {
         SceneType::WeekendFinal => weekend_final(renderer_type, 11, w, h, 0.0, 0.2, ttl),
         SceneType::CornelInstances => cornel_box_with_instances(renderer_type, w, h, 0.0, 0.2, ttl),
         SceneType::CornelIs => cornel_box_with_is(renderer_type, w, h, 0.0, 0.2, ttl),
+        SceneType::CornelIsReflection => cornel_box_is_reflection(renderer_type, w, h, 0.0, 0.2, ttl),
         SceneType::CornelVolumes => cornel_box_volumes(renderer_type, w, h, 0.0, 0.2, ttl),
         SceneType::NextWeekFinal => next_week(renderer_type, w, h, 0.0, 0.2, ttl),
         SceneType::Perlin => perlin_scene(renderer_type, w, h, 0.0, 0.2, ttl),
+        // _ => weekend_final(renderer_type, 11, w, h, 0.0, 0.2, ttl),
+
     };
 //    let scene = img_scene(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces);
 //    let scene = img_lit_scene(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces);
@@ -90,20 +97,20 @@ fn main() {
     cfg.do_render(scene);
 }
 
-pub fn postprocess(color: V3) -> V3 {
+pub fn postprocess(color: Color) -> Color {
     gamma(clamp(color))
 }
 
-fn clamp(color: V3) -> V3 {
-    V3::new(
+fn clamp(color: Color) -> Color {
+    Color::new(
         texture::clamp(color.x, 0.0, 1.0),
         texture::clamp(color.y, 0.0, 1.0),
         texture::clamp(color.z, 0.0, 1.0),
     )
 }
 
-fn gamma(color: V3) -> V3 {
-    V3::new(
+fn gamma(color: Color) -> Color {
+    Color::new(
         color.x.powf(1.0 / 2.2),
         color.y.powf(1.0 / 2.2),
         color.z.powf(1.0 / 2.2),

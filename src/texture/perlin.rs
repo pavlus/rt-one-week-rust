@@ -1,13 +1,13 @@
 use std::fmt::{Debug, Error, Formatter};
 
-use crate::vec::V3;
+use crate::types::{P3, Distance, Scale, ColorComponent};
 
 use super::Color;
 use super::Texture;
 
 pub struct PerlinTexture {
-    noise: Box<dyn Fn(V3, f64) -> f64 + Sync + Send>,
-    scale: f64,
+    noise: Box<dyn Fn(&P3, Scale) -> ColorComponent + Sync + Send>,
+    scale: Scale,
 }
 
 impl Debug for PerlinTexture {
@@ -17,16 +17,16 @@ impl Debug for PerlinTexture {
 }
 
 impl PerlinTexture {
-    pub fn new(noise: Box<dyn Fn(V3, f64) -> f64 + Sync + Send>, scale: f64) -> PerlinTexture {
+    pub fn new(noise: Box<dyn Fn(&P3, Scale) -> ColorComponent + Sync + Send>, scale: Scale) -> PerlinTexture {
         PerlinTexture { noise, scale }
     }
 }
 
 impl Texture for PerlinTexture {
-    fn value(&self, _: f64, _: f64, point: V3) -> Color {
-        let noise = (self.noise)(point, self.scale);
+    fn value(&self, _: Distance, _: Distance, point: &P3) -> Color {
+        let noise = (self.noise)(&point, self.scale);
         debug_assert!(noise <= 1.0);
         debug_assert!(noise >= 0.0);
-        Color(noise * V3::ones())
+        noise * Color::from_element(1.0)
     }
 }

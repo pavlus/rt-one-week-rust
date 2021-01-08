@@ -13,7 +13,7 @@ SCENE=cornel_is
 #SCENE=cornel_volumes
 #SCENE=cornel_instances
 #./target/$1/rust-rt-one-weekend | imvr -
-time ./target/$1/rust-rt-one-weekend.exe \
+time ./target/$1/rust-rt-one-weekend \
   --renderer $RENDERER \
   --bounces 16 --width 400 --height 400 --samples 5000 \
   $SCENE > $PPMPATH
