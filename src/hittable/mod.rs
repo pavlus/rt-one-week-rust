@@ -51,26 +51,7 @@ pub trait Hittable: Sync {
 
 }
 
-impl Hittable for Box<dyn Hittable>
-{
-    fn hit(&self, ray: &RayCtx, dist_min: Distance, dist_max: Distance) -> Option<Hit> {
-        Hittable::hit(&**self, ray, dist_min, dist_max)
-    }
-
-    fn bounding_box(&self, t_min: Time, t_max: Time) -> Option<AABB> {
-        Hittable::bounding_box(&**self, t_min, t_max)
-    }
-
-    fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> f64 {
-        Hittable::pdf_value(&**self, origin, direction, hit)
-    }
-
-    fn random(&self, origin: &P3) -> Unit<V3> {
-        Hittable::random(&**self, origin)
-    }
-}
-impl<T:Hittable> Hittable for Box<T>
-{
+impl<T:Hittable + ?Sized> Hittable for Box<T>{
     fn hit(&self, ray: &RayCtx, dist_min: Distance, dist_max: Distance) -> Option<Hit> {
         Hittable::hit(&**self, ray, dist_min, dist_max)
     }
