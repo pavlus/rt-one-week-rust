@@ -6,6 +6,7 @@ use super::{AABB, Hit, Hittable, Material, RayCtx, P3, V3};
 use crate::random::next_std_in_range;
 use crate::types::Distance;
 use nalgebra::Unit;
+use nalgebra::distance_squared;
 
 macro_rules! aarect_aabb {
     {$slf:ident, $a:tt, $b:tt, $off:expr} => {
@@ -70,7 +71,11 @@ macro_rules! aarect {
             fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> f64 {
                 let area = (self.$a.end - self.$a.start) * (self.$b.end - self.$b.start);
                 // let sqr_dist = (hit.dist * hit.dist).sqrt();
-                let sqr_dist = hit.dist * hit.dist;
+                let mut center = P3::new(0.0, 0.0, 0.0);
+                center.$a = (self.$a.end + self.$a.start) / 2.0;
+                center.$b = (self.$b.end + self.$b.start) / 2.0;
+                center.$k = self.k;
+                let sqr_dist = (&center - origin).norm_squared();
                 let cosine = direction.$k;
                 let cos_area = Distance::abs(cosine * area);
                 sqr_dist as f64 / cos_area as f64
