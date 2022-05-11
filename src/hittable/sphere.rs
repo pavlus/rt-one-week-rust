@@ -1,8 +1,9 @@
 use std::borrow::Borrow;
+use std::fmt::Debug;
 
 use super::{AABB, Hit, Hittable, Material, RayCtx, V3};
-use crate::random::rand_in_unit_hemisphere;
-use crate::types::{P3, Time, Distance, Timespan, Angle, Scale, P2};
+use crate::random::rand_in_unit_sphere;
+use crate::types::{P3, Time, Distance, Timespan, Angle, Scale, P2, Probability};
 use crate::consts::{FRAC_PI_2, PI, TAU};
 use nalgebra::Unit;
 
@@ -12,7 +13,7 @@ pub struct Sphere<M> {
     pub radius: Distance,
     pub material: M,
 }
-impl<M: Clone> Clone for Sphere<M>{
+impl<M: Clone + Debug> Clone for Sphere<M>{
     fn clone(&self) -> Self {
         Sphere{
             material: self.material.clone(),
@@ -41,6 +42,7 @@ impl<M> Borrow<M> for Sphere<M>{
         &self.material
     }
 }
+#[derive(Debug)]
 pub struct MovingSphere {
     center_t0: P3,
     center_t1: P3,
@@ -86,8 +88,8 @@ impl<M: Material> Hittable for Sphere<M> {
         let get_hit = |ray_ctx: &RayCtx, dist: Distance| -> Hit {
             let p = ray_ctx.ray.point_at(dist);
             let n = Unit::new_unchecked((p - center) / radius);
-            let  point = uv(n);
-            return Hit::new(dist, p, n, &self.material, point.x, point.y);
+            let uv = uv(n);
+            return Hit::new(dist, p, n, &self.material, uv);
         };
 
         if discr_sqr > 0.0 {
@@ -110,13 +112,13 @@ impl<M: Material> Hittable for Sphere<M> {
         Some(self.aabb(t_min..t_max))
     }
 
-    fn pdf_value(&self, origin: &P3, _direction: &Unit<V3>, _hit: &Hit) -> f64 {
+    fn pdf_value(&self, origin: &P3, _direction: &Unit<V3>, _hit: &Hit) -> Probability {
         let sqr_r = self.radius * self.radius;
         let direction = &self.center - origin;
         let cos_theta_max = Distance::sqrt(1.0 - sqr_r / direction.norm_squared());
         let solid_angle = TAU * (1.0 - cos_theta_max);
 
-        (1.0/solid_angle) as f64
+        (1.0/solid_angle) as Probability
     }
 
     fn random(&self, origin: &P3) -> Unit<V3> {
@@ -137,8 +139,8 @@ impl Hittable for MovingSphere {
         let get_hit = |ray_ctx: &RayCtx, dist: Distance| -> Hit {
             let p = ray_ctx.ray.point_at(dist);
             let n = Unit::new_unchecked((p - center) / self.radius);
-            let point = uv(n);
-            return Hit::new(dist, p, n, self.material.borrow(), point.x, point.y);
+            let uv = uv(n);
+            return Hit::new(dist, p, n, self.material.borrow(), uv);
         };
 
         if discr_sqr > 0.0 {
@@ -174,12 +176,10 @@ fn uv(unit_point: Unit<V3>) -> P2 {
 
 #[cfg(test)]
 mod test {
-    use crate::random::{rand_in_unit_sphere, next_std_f64, rand_in_unit_hemisphere};
-    use crate::hittable::{Sphere, Hit, Hittable};
-    use crate::material::{Lambertian, Material};
-    use crate::types::V3;
-    use crate::texture::Color;
-    use crate::ray::RayCtx;
+    use crate::random::{rand_in_unit_sphere, next_std_f64};
+    use crate::hittable::Sphere;
+    use crate::material::Lambertian;
+    use crate::types::Color;
     use crate::hittable::test::test_pdf_integration;
 
     #[test]
@@ -189,7 +189,7 @@ mod test {
 
             let center = 6.0 * rand_in_unit_sphere();
             let radius = 1.0 + next_std_f64();
-            let sphere = Sphere::new(center, radius, Lambertian::new(Color(V3::from_element(1.0))));
+            let sphere = Sphere::new(center, radius, Lambertian::<Color>::new(Color::from_element(1.0)));
 
             test_pdf_integration(sphere, count);
         }

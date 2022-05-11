@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 pub use aabox::*;
 pub use aarect::*;
 pub use constant_medium::*;
@@ -8,7 +9,7 @@ pub use sphere::*;
 use crate::aabb::AABB;
 use crate::material::Material;
 use crate::ray::RayCtx;
-use crate::types::{V3, P3, Distance, Time};
+use crate::types::{V3, P3, Distance, Time, P2, Probability};
 use crate::random::rand_in_unit_sphere;
 use nalgebra::Unit;
 
@@ -25,23 +26,22 @@ pub struct Hit<'a> {
     pub normal: Unit<V3>,
     pub dist: Distance,
     // material data:
-    pub u: Distance,
-    pub v: Distance,
+    pub uv: P2,
     pub material: &'a dyn Material,
 }
 
 impl<'a> Hit<'a> {
-    pub fn new(dist: Distance, p: P3, n: Unit<V3>, material: &'a dyn Material, u: Distance, v: Distance) -> Hit<'a> {
-        return Hit { dist, point: p, normal: n, material, u, v };
+    pub fn new(dist: Distance, p: P3, n: Unit<V3>, material: &'a dyn Material, uv: P2) -> Hit<'a> {
+        return Hit { dist, point: p, normal: n, material, uv, traversal_cnt: 0 };
     }
 }
 
 #[allow(unused_variables)]
-pub trait Hittable: Sync {
+pub trait Hittable: Sync + Debug {
     fn hit(&self, ray: &RayCtx, dist_min: Distance, dist_max: Distance) -> Option<Hit>;
     fn bounding_box(&self, t_min: Time, t_max: Time) -> Option<AABB> { None }
 
-    fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> f64 {
+    fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> Probability {
         1.0
     }
 
@@ -60,7 +60,7 @@ impl<T:Hittable + ?Sized> Hittable for Box<T>{
         Hittable::bounding_box(&**self, t_min, t_max)
     }
 
-    fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> f64 {
+    fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> Probability {
         Hittable::pdf_value(&**self, origin, direction, hit)
     }
 
@@ -80,7 +80,7 @@ impl Hittable for NoHit{
         None
     }
 
-    fn pdf_value(&self, _origin: &P3, _direction: &Unit<V3>, _hit: &Hit) -> f64 {
+    fn pdf_value(&self, _origin: &P3, _direction: &Unit<V3>, _hit: &Hit) -> Probability {
         1.0
     }
 
@@ -91,28 +91,24 @@ impl Hittable for NoHit{
 
 #[cfg(test)]
 mod test {
+    use nalgebra::Unit;
     use crate::hittable::Hittable;
     use crate::random::rand_in_unit_sphere;
-    use crate::texture::Color;
-    use crate::material::Lambertian;
     use crate::ray::RayCtx;
     use crate::types::V3;
     use crate::consts::TAU;
 
     pub fn test_pdf_integration<T: Hittable>(hittable: T, count: usize) {
-        let normal = rand_in_unit_sphere();
-        let mat = Lambertian::new(Color(V3::from_element(1.0)));
-
         let origin = rand_in_unit_sphere();
         let integral = (0..count).into_iter()
             .map(|_| {
-                let dir = rand_in_unit_sphere();
+                let dir = Unit::new_unchecked(rand_in_unit_sphere().coords);
                 let ray = RayCtx::new(origin, dir, V3::from_element(1.0), 1.0, 2);
                 if let Some(hit) = hittable.hit(&ray, -99999.0, 99999.0) {
                     hittable.pdf_value(&origin, &dir, &hit)
                 } else { 0.0 }
             }).sum::<f64>() / (count as f64);
-        let expected = 1.0 / (TAU);
+        let expected = 1.0 / TAU;
         let epsilon = 1.0 / f64::cbrt(count as f64);
         assert!(
             f64::abs(integral - expected) < epsilon,

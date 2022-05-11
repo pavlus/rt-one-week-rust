@@ -1,4 +1,4 @@
-use crate::types::{P3, Distance, Scale};
+use crate::types::{Distance, P2, P3};
 
 use super::Color;
 use super::Texture;
@@ -7,20 +7,20 @@ use super::Texture;
 pub struct Checker {
     odd: Color,
     even: Color,
-    step: Scale,
+    step: Distance,
 }
 
 impl Checker {
-    pub(crate) fn new(even: Color, odd: Color, step: Scale) -> Checker {
+    pub(crate) fn new(even: Color, odd: Color, step: Distance) -> Checker {
         Checker { even, odd, step }
     }
 }
 
 impl Texture for Checker {
-    fn value(&self, _u: Distance, _v: Distance, point: &P3) -> Color {
-        let sines = Scale::sin(self.step * point.x)
-            * Scale::sin(self.step * point.y)
-            * Scale::sin(self.step * point.z);
+    fn value(&self, _uv: &P2, point: &P3) -> Color {
+        let scaled = point * self.step;
+        let sines = scaled.map(Distance::sin);
+        let sines = sines.x * sines.y * sines.z;
         if sines < 0.0 { self.odd } else { self.even }
     }
 }

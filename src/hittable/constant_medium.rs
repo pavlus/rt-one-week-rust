@@ -1,11 +1,10 @@
-use std::borrow::Borrow;
 
 use crate::material::Isotropic;
-use crate::random::{rand_in_unit_sphere, next};
+use crate::random::next;
 use crate::texture::Texture;
 
 use super::{AABB, Hit, Hittable, Material, RayCtx, V3};
-use crate::types::{P3, Distance, Time, Scale};
+use crate::types::{P3, Distance, Time, Scale, Probability};
 use nalgebra::Unit;
 
 #[derive(Debug)]
@@ -49,7 +48,7 @@ impl<B:Hittable, M: Material> Hittable for ConstantMedium<B,M> {
                 ray.point_at(dist),
                 Unit::new_unchecked(V3::x()),
                 &self.phase_function,
-                enter_hit.u, enter_hit.v,
+                enter_hit.uv
             ))
         } else {
             None
@@ -62,7 +61,7 @@ impl<B:Hittable, M: Material> Hittable for ConstantMedium<B,M> {
     }
 
     #[inline]
-    fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> f64 {
+    fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> Probability {
         self.boundary.pdf_value(origin, direction, hit)
     }
 

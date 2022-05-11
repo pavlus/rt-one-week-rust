@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Error, Formatter};
 
-use crate::types::{P3, Distance, Scale, ColorComponent};
+use crate::types::{P3, Distance, Scale, ColorComponent, P2};
 
 use super::Color;
 use super::Texture;
@@ -23,7 +23,7 @@ impl PerlinTexture {
 }
 
 impl Texture for PerlinTexture {
-    fn value(&self, _: Distance, _: Distance, point: &P3) -> Color {
+    fn value(&self, _: &P2, point: &P3) -> Color {
         let noise = (self.noise)(&point, self.scale);
         debug_assert!(noise <= 1.0);
         debug_assert!(noise >= 0.0);

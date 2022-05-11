@@ -1,14 +1,14 @@
-use crate::types::{V3, P3, Distance, Color};
+use crate::types::{V3, P3, Distance, Color, Probability};
 use crate::onb::ONB;
 use crate::random::{rand_cosine_direction, next_std_f32, rand_in_unit_sphere};
 use std::ops::Deref;
 use crate::hittable::{Hittable, Hit};
 use crate::ray::RayCtx;
-use crate::consts::FRAC_1_PI;
+use crate::consts::{FRAC_1_PI, PI};
 use nalgebra::Unit;
 
 pub trait PDF {
-    fn value(&self, direction: &Unit<V3>, hit: &Hit) -> f64;
+    fn value(&self, direction: &Unit<V3>, hit: &Hit) -> Probability;
     fn generate(&self) -> Unit<V3>;
 }
 
@@ -18,15 +18,17 @@ pub struct CosinePDF {
 }
 
 impl CosinePDF {
-    pub fn from_w(w: &V3) -> Self {
+    pub fn from_w(w: Unit<V3>) -> Self {
         CosinePDF { onb: ONB::from_w(w) }
     }
 }
 
 impl PDF for CosinePDF {
-    fn value(&self, direction: &Unit<V3>, _: &Hit) -> f64 {
-        let cosine = self.onb.w.dot(&direction.normalize()) as f64;
-        if cosine < 0.0 { 0.0 } else if cosine >= std::f64::consts::PI { 1.0 } else { cosine / std::f64::consts::PI }
+    fn value(&self, direction: &Unit<V3>, _: &Hit) -> Probability {
+        let cosine = self.onb.w.dot(&direction.normalize()) as Probability;
+        if cosine < 0.0 { return 0.0; }
+        if cosine >= PI { return 1.0; }
+        return cosine / PI;
     }
 
     fn generate(&self) -> Unit<V3> {
@@ -41,13 +43,13 @@ pub struct IsotropicPDF {
 }
 
 impl IsotropicPDF {
-    pub fn from_w(w: &V3) -> Self {
+    pub fn from_w(w: Unit<V3>) -> Self {
         IsotropicPDF { onb: ONB::from_w(w) }
     }
 }
 
 impl PDF for IsotropicPDF {
-    fn value(&self, _direction: &Unit<V3>, _: &Hit) -> f64 {
+    fn value(&self, _direction: &Unit<V3>, _: &Hit) -> Probability {
         0.25 * FRAC_1_PI
     }
 
@@ -57,18 +59,18 @@ impl PDF for IsotropicPDF {
 }
 
 pub struct HittablePDF<'a> {
-    origin: P3,
+    origin: &'a P3,
     hittable: &'a Box<dyn Hittable>,
 }
 
 impl<'a> HittablePDF<'a> {
-    pub fn new(origin: P3, hittable: &'a Box<dyn Hittable>) -> Self {
+    pub fn new(origin: &'a P3, hittable: &'a Box<dyn Hittable>) -> Self {
         HittablePDF { origin, hittable }
     }
 }
 
 impl PDF for HittablePDF<'_> {
-    fn value(&self, direction: &Unit<V3>, hit: &Hit) -> f64 {
+    fn value(&self, direction: &Unit<V3>, hit: &Hit) -> Probability {
         let tmp_ray = RayCtx::new(hit.point, *direction, Color::from_element(0.0), 0.0, 1);
         if let Some(hit) = self.hittable.hit(&tmp_ray, 0.0001, Distance::MAX){
             self.hittable.pdf_value(&self.origin, direction, &hit)
@@ -94,7 +96,7 @@ impl<A: PDF, B: PDF> MixturePDF<A, B> {
 }
 
 impl<A: PDF, B: PDF> PDF for MixturePDF<A, B> {
-    fn value(&self, direction: &Unit<V3>, hit: &Hit) -> f64 {
+    fn value(&self, direction: &Unit<V3>, hit: &Hit) -> Probability {
         let a_value = self.a.value(direction, hit);
         let b_value = self.b.value(direction, hit);
         let result = 0.5 * a_value + 0.5 * b_value;
@@ -111,7 +113,7 @@ impl<A: PDF, B: PDF> PDF for MixturePDF<A, B> {
 }
 
 impl<T: Deref<Target = dyn PDF>> PDF for T {
-    fn value(&self, direction: &Unit<V3>, hit: &Hit) -> f64 {
+    fn value(&self, direction: &Unit<V3>, hit: &Hit) -> Probability {
         (**self).value(direction, hit)
     }
 

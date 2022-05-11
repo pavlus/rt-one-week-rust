@@ -5,6 +5,7 @@ use nalgebra::{Point2, Point3, Vector2, Vector3};
 pub type Distance = f64;
 pub type Angle = f64;
 pub type Scale = f64;
+pub type Probability = f64;
 pub type V3 = Vector3<Distance>;
 pub type V2 = Vector2<Distance>;
 pub type P3 = Point3<Distance>;

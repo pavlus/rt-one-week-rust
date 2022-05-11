@@ -9,8 +9,7 @@ pub struct ONB {
 }
 
 impl ONB{
-    pub fn from_w(w: &V3) -> ONB {
-        let w= Unit::new_normalize(*w);
+    pub fn from_w(w: Unit<V3>) -> ONB {
         let a = if w.x.abs() > 0.9 { V3::new(0., 1., 0.) } else { V3::new(1., 0., 0.) };
         let v = Unit::new_normalize(w.cross(&a));
         let u = Unit::new_normalize(w.cross(&v));

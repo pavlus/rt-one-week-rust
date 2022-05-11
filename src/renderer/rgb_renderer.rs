@@ -4,7 +4,7 @@ use crate::pdf::{PDF, HittablePDF, MixturePDF};
 use crate::scatter::Scatter::{Specular, Diffuse};
 use crate::hittable::Hit;
 use crate::ray::Ray;
-use crate::types::Color;
+use crate::types::{Color, ColorComponent};
 
 pub struct RgbRenderer {
     pub hittable: Box<dyn Hittable>,
@@ -22,7 +22,7 @@ impl Renderer for RgbRenderer {
                 } else {
                     Color::from_element(0.0)
                 };
-                emitted + hit
+                if let Some(reflected) = hit
                     .material
                     .scatter_with_pdf(ray_ctx, &hit)
                     .map(|scatter| {
@@ -34,7 +34,11 @@ impl Renderer for RgbRenderer {
                                 self.biased_diffuse(ray_ctx, &hit, attenuation, mat_pdf)
                             }
                         }
-                    }).unwrap_or(Color::from_element(0.0)) // no hit
+                    }) {
+                    reflected + emitted
+                } else {
+                    emitted
+                }
             }).unwrap_or(self.miss_shader.borrow()(&ray_ctx.ray))
         }
 }
@@ -54,7 +58,7 @@ impl RgbRenderer {
             let pdf_value = pdf.value(&scattered.ray.direction, &hit);
             let spdf = mat_pdf.value(&scattered.ray.direction, &hit);
             let mut weight = spdf / pdf_value;
-            if weight.is_nan() {
+            if weight.is_nan() || weight.is_infinite() {
                 // coin toss of mixture PDF gave us ray from non-overlapping part of importance PDF,
                 // and weighted probability of hitting that important object is zero too or NaN,
                 // so we get NaN weight. Let's scatter light unbiased, by material PDF, this will
@@ -70,7 +74,7 @@ impl RgbRenderer {
             // V3::new(weight, spdf, pdf_value) // neon party for debugging probability density
             // V3::from_element(weight) // contribution
             // weight
-            weight
+            weight as ColorComponent
                 * scattered.attenuation.component_mul(&scattered_color)
         } else {
             Color::from_element(0.0) // max depth

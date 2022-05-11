@@ -2,11 +2,10 @@ use std::borrow::Borrow;
 use std::ops::Range;
 use std::sync::Arc;
 
-use super::{AABB, Hit, Hittable, Material, RayCtx, P3, V3};
+use super::{AABB, Hit, Hittable, Material, RayCtx, P2, P3, V3};
 use crate::random::next_std_in_range;
-use crate::types::Distance;
+use crate::types::{Distance, Probability};
 use nalgebra::Unit;
-use nalgebra::distance_squared;
 
 macro_rules! aarect_aabb {
     {$slf:ident, $a:tt, $b:tt, $off:expr} => {
@@ -28,7 +27,7 @@ macro_rules! norm_vec {
 
 macro_rules! aarect {
     {$name:tt, $a:tt, $b:tt, normal: $k:tt} =>{
-        #[derive(Clone)]
+        #[derive(Clone, Debug)]
         pub struct $name {
             $a: Range<Distance>,
             $b: Range<Distance>,
@@ -40,10 +39,10 @@ macro_rules! aarect {
                 $name { $a, $b, k, material }
             }
 
-            fn uv(&self, $a:Distance, $b: Distance) -> (Distance, Distance) {
+            fn uv(&self, $a:Distance, $b: Distance) -> P2 {
                 let u = ($a - self.$a.start)/(self.$a.end-self.$a.start);
                 let v = ($b - self.$b.start)/(self.$b.end-self.$b.start);
-                (u, v)
+                P2::new(u, v)
             }
         }
 
@@ -60,15 +59,15 @@ macro_rules! aarect {
                     return None;
                 };
 
-                let (u, v) = self.uv($a, $b);
-                Some(Hit::new(dist, ray.point_at(dist), norm_vec!($a, $b), self.material.borrow(), u, v))
+                let uv = self.uv($a, $b);
+                Some(Hit::new(dist, ray.point_at(dist), norm_vec!($a, $b), self.material.borrow(), uv))
             }
 
             fn bounding_box(&self, _: f32, _: f32) -> Option<AABB> {
                 Some(aarect_aabb!(self, $a, $b, self.k))
             }
 
-            fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> f64 {
+            fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> Probability {
                 let area = (self.$a.end - self.$a.start) * (self.$b.end - self.$b.start);
                 // let sqr_dist = (hit.dist * hit.dist).sqrt();
                 let mut center = P3::new(0.0, 0.0, 0.0);
@@ -78,7 +77,7 @@ macro_rules! aarect {
                 let sqr_dist = (&center - origin).norm_squared();
                 let cosine = direction.$k;
                 let cos_area = Distance::abs(cosine * area);
-                sqr_dist as f64 / cos_area as f64
+                sqr_dist as Probability / cos_area as Probability
             }
 
             fn random(&self, origin: &P3) -> Unit<V3> {

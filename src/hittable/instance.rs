@@ -3,8 +3,7 @@ use itertools::Itertools;
 use super::{AABB, Hit, Hittable, RayCtx, V3};
 use crate::ray::Ray;
 use nalgebra::{Rotation3, Vector3, Unit};
-use crate::types::{P3, Distance, Time, Angle, Scale};
-use crate::consts::PI;
+use crate::types::{P3, Distance, Time, Angle, Probability};
 
 pub trait FlipNormalsOp<I, O>{
     fn flip_normals(self) -> O;
@@ -42,7 +41,7 @@ impl<T: Hittable> Hittable for FlipNormals<T> {
         self.0.bounding_box(t_min, t_max)
     }
 
-    fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> f64 {
+    fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> Probability {
         self.0.pdf_value(origin, direction, hit)
     }
 
@@ -98,7 +97,7 @@ impl<T: Hittable> Hittable for Translate<T> {
             .map(|aabb| AABB::new(aabb.min + self.offset, aabb.max + self.offset))
     }
 
-    fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> f64 {
+    fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> Probability {
         self.target.pdf_value(&(*origin - self.offset), direction, hit)
     }
 
@@ -164,7 +163,7 @@ impl<T: Hittable> Hittable for RotateY<T> {
         self.aabb
     }
 
-    fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> f64 {
+    fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> Probability {
         let origin = self.forward.transform_point(&origin);
         let direction = self.forward.inverse_transform_vector(direction);
         self.target.pdf_value(&origin, &Unit::new_unchecked(direction), hit)
@@ -178,9 +177,8 @@ impl<T: Hittable> Hittable for RotateY<T> {
 
 #[cfg(test)]
 mod test {
-    use crate::hittable::{Sphere, Hittable, RotateYOp, Hit, AABox};
-    use crate::texture::Color;
-    use crate::types::{V3, P3};
+    use crate::hittable::{Sphere, RotateYOp, AABox};
+    use crate::types::{Color, P3};
     use crate::material::{Dielectric, Lambertian};
     use std::sync::Arc;
     use crate::hittable::test::test_pdf_integration;
@@ -213,7 +211,7 @@ mod test {
             (center.x - h_width)..(center.x + h_width),
             (center.y - h_height)..(center.y + h_height),
             (center.z - h_depth)..(center.z + h_depth),
-            Arc::new(Lambertian::new(Color(V3::from_element(1.0)))),
+            Arc::new(Lambertian::<Color>::new(Color::from_element(1.0))),
         );
         let rot_range = (-180.0)..180.0;
         for _ in 0..100 {

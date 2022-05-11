@@ -5,9 +5,7 @@ use super::{Hit, Material, RayCtx};
 use crate::scatter::Scatter;
 use crate::scatter::Scatter::Diffuse;
 use crate::pdf::IsotropicPDF;
-use crate::types::V3;
 use nalgebra::Unit;
-use crate::consts::FRAC_1_PI;
 
 #[derive(Debug)]
 pub struct Isotropic<T> {
@@ -36,15 +34,15 @@ impl<T: Texture> Material for Isotropic<T> {
             ray_ctx.produce(
                 hit.point,
                 Unit::new_unchecked(rand_in_unit_sphere().coords),
-                self.albedo.value(hit.u, hit.v, &hit.point))
+                self.albedo.value(&hit.uv, &hit.point))
         )
     }
 
     #[inline]
     fn scatter_with_pdf(&self, _: &RayCtx, hit: &Hit) -> Option<Scatter> {
         Some(Diffuse(
-            Box::new(IsotropicPDF::from_w(&hit.normal.normalize())),
-            self.albedo.value(hit.u, hit.v, &hit.point))
+            Box::new(IsotropicPDF::from_w(hit.normal)),
+            self.albedo.value(&hit.uv, &hit.point))
         )
     }
 
