@@ -4,13 +4,13 @@ use crate::pdf::{PDF, HittablePDF, MixturePDF};
 use crate::scatter::Scatter::{Specular, Diffuse};
 use crate::hittable::Hit;
 use crate::ray::Ray;
-use crate::types::{Color, ColorComponent};
+use crate::types::{Color, ColorComponent, Probability};
 
 pub struct RgbRenderer {
     pub hittable: Box<dyn Hittable>,
     pub important: Box<dyn Hittable>,
     pub miss_shader: fn(&Ray) -> Color,
-    pub important_weight: f64,
+    pub important_weight: Probability,
 }
 
 impl Renderer for RgbRenderer {

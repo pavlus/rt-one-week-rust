@@ -4,6 +4,9 @@ use crate::ray::Ray;
 use crate::types::{V3, P3, Geometry, Probability};
 use std::iter::Sum;
 use itertools::Itertools;
+use nalgebra::{AbstractRotation, Rotation3, Scalar, SimdPartialOrd, UnitQuaternion};
+use rand_distr::num_traits::Num;
+use crate::hittable::{Orientable, Positionable, Scalable};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct AABB {
@@ -61,9 +64,8 @@ impl AABB {
         let z = self.max.z - self.min.z;
         ((x * y * z) as Probability).abs()
     }
-
-    pub fn center(&self) -> V3 {
-        (&self.max.coords + &self.min.coords) / 2.0
+    pub fn center(&self) -> P3 {
+        ((&self.max.coords + &self.min.coords) / 2.0).into()
     }
 
     pub fn combine(mut self, maybe_other: Option<AABB>) -> Self {
@@ -73,6 +75,62 @@ impl AABB {
         self
     }
 }
+
+impl Positionable for AABB {
+    fn move_by(&mut self, offset: &V3) {
+        self.min += offset;
+        self.max += offset;
+
+        let a = Some(1);
+        let b = Some(2);
+
+        let c = a.and_then(|s| b.map(|t| t.min(s))).or(b);
+        let c = a.zip(b).map(|(x, y)| x.min(y)).or(a).or(b);
+        let c = match (a, b) {
+            (None, None) => None,
+            (None, Some(v)) => Some(v),
+            (Some(v), None) => Some(v),
+            (Some(a), Some(b)) => Some(a.min(b)),
+        };
+    }
+
+
+    fn moved_by(self, offset: &V3) -> Self {
+        AABB {
+            min: self.min + offset,
+            max: self.max + offset,
+        }
+    }
+}
+
+impl Orientable for AABB {
+    fn by_rotation_quat(mut self, rotation: &UnitQuaternion<Geometry>) -> Self {
+        let rotation = rotation.to_rotation_matrix();
+        self.by_rotation(&rotation)
+    }
+
+    fn by_rotation(mut self, rotation: &Rotation3<Geometry>) -> Self {
+        let mut new = AABB { min: P3::default(), max: P3::default() };
+        for i in 0..3 {
+            for j in 0..3 {
+                let e = rotation[(j, i)] * self.min[j];
+                let f = rotation[(j, i)] * self.max[j];
+                let (mi, ma) = if e < f {
+                    (e, f)
+                } else {
+                    (f, e)
+                };
+                new.min[i] += mi;
+                new.max[i] += ma;
+            };
+        };
+        self.min = new.min;
+        self.max = new.max;
+        self
+    }
+
+}
+
 
 impl Add for AABB {
     type Output = AABB;
@@ -113,5 +171,38 @@ impl Add for &AABB {
 impl Sum for AABB {
     fn sum<I: Iterator<Item=AABB>>(iter: I) -> Self {
         iter.tree_fold1(AABB::add).unwrap()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use nalgebra::{Rotation3, Unit, UnitQuaternion};
+    use crate::aabb::AABB;
+    use crate::hittable::Orientable;
+    use crate::types::P3;
+    use crate::V3;
+
+
+    macro_rules! assert_eq_eps {
+        {$left: expr, $right: expr, $epsilon: expr} => {
+            let difference = ($left - $right).abs();
+            assert!(
+                difference <= $epsilon,
+                "Difference {} between {} and {} is greater than {}",
+                difference, $left, $right, $epsilon);
+        }
+    }
+
+    #[test]
+    fn test_rotation() {
+        let aabb = AABB::new(P3::new(-1.0, -1.0, -1.0), P3::new(1.0, 1.0, 1.0));
+        let rotation = UnitQuaternion::from_axis_angle(&Unit::new_unchecked(
+            V3::y()), std::f64::consts::PI / 4.0);
+        let rotated = aabb.clone()
+            .by_rotation_quat(&rotation);
+        dbg!(&rotated);
+        assert_eq_eps!(rotated.max.x, f64::sqrt(2.0), 0.000_000_1);
+        assert_eq!(rotated.max.y, 1.0);
+        assert_eq_eps!(rotated.max.x, f64::sqrt(2.0), 0.000_000_1);
     }
 }

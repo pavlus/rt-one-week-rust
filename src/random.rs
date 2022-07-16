@@ -9,7 +9,7 @@ use rand::seq::SliceRandom;
 use rand_distr::{UnitDisc, UnitSphere};
 use rand_xoshiro::Xoshiro256Plus;
 
-use crate::types::{V3, P3, Geometry, Color, ColorComponent};
+use crate::types::{V3, P3, Geometry, Color, ColorComponent, Direction, Probability};
 use crate::consts::{TAU};
 use nalgebra::Unit;
 
@@ -108,7 +108,7 @@ pub fn rand_in_unit_hemisphere(normal: &V3) -> P3 {
     if result.coords.dot(normal) > 0.0 { result } else { -result }
 }
 
-pub fn rand_cosine_direction() -> Unit<V3> {
+pub fn rand_cosine_direction() -> Direction {
     let r1: Geometry = next_std();
     let r2 = next_std();
     let z = Geometry::sqrt(1.0 - r2);

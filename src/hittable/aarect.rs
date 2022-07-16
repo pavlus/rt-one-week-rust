@@ -3,7 +3,7 @@ use std::ops::Range;
 
 use super::{AABB, Hit, Hittable, Material, RayCtx, P2, P3, V3};
 use crate::random::next_std_in_range;
-use crate::types::{Geometry, Probability, Timespan};
+use crate::types::{Direction, Geometry, Probability, Timespan};
 use nalgebra::Unit;
 
 macro_rules! aarect_aabb {
@@ -66,7 +66,7 @@ macro_rules! aarect {
                 Some(aarect_aabb!(self, $a, $b, self.k))
             }
 
-            fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> Probability {
+            fn pdf_value(&self, origin: &P3, direction: &Direction, hit: &Hit) -> Probability {
                 let area = (self.$a.end - self.$a.start) * (self.$b.end - self.$b.start);
                 let sqr_dist = hit.dist * hit.dist;
                 let cosine = direction.$k;
@@ -83,7 +83,7 @@ macro_rules! aarect {
                 sqr_dist as Probability / cos_area as Probability
             }
 
-            fn random(&self, origin: &P3) -> Unit<V3> {
+            fn random(&self, origin: &P3) -> Direction {
                 let mut random_point = V3::from_element(1.0);
                 random_point.$a = next_std_in_range(&self.$a);
                 random_point.$b = next_std_in_range(&self.$b);

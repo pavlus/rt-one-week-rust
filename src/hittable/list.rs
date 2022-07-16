@@ -1,4 +1,4 @@
-use crate::types::{V3, P3, Geometry, Probability, Timespan};
+use crate::types::{V3, P3, Geometry, Probability, Timespan, Direction};
 
 use super::{AABB, Hit, Hittable, RayCtx};
 use nalgebra::Unit;
@@ -59,14 +59,14 @@ impl <T: Hittable> Hittable for HittableList<T> {
         self.aabb
     }
 
-    fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> Probability {
+    fn pdf_value(&self, origin: &P3, direction: &Direction, hit: &Hit) -> Probability {
         self.objects
             .iter()
             .map(|o| o.pdf_value(origin, direction, hit))
             .sum::<Probability>() / self.objects.len() as Probability
     }
 
-    fn random(&self, origin: &P3) -> Unit<V3> {
+    fn random(&self, origin: &P3) -> Direction {
         crate::random::random_item(&self.objects)
             .unwrap()
             .random(origin)

@@ -27,7 +27,7 @@ impl Sampler {
                 .map(|i| {
                 let col: Color = (0..aa).map(|_| {
                     // let col: V3 = rayon::iter::repeatn((), self.samples).map(|_| {
-                    let offset = random::rand_in_unit_disc();
+                    let offset = random::rand_in_unit_disc(); // todo: better noise
                     let u = (i as Geometry + &offset.x) / (self.width as Geometry);
                     let v = (j as Geometry + &offset.y) / (self.height as Geometry);
                     scene.color(u, v)

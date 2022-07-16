@@ -6,6 +6,7 @@ use crate::scatter::Scatter;
 use crate::scatter::Scatter::Diffuse;
 use crate::pdf::IsotropicPDF;
 use nalgebra::Unit;
+use crate::types::Direction;
 
 #[derive(Debug)]
 pub struct Isotropic<T> {
@@ -33,7 +34,7 @@ impl<T: Texture> Material for Isotropic<T> {
         Some(
             ray_ctx.produce(
                 hit.point,
-                Unit::new_unchecked(rand_in_unit_sphere().coords),
+                Direction::new_unchecked(rand_in_unit_sphere().coords),
                 self.albedo.value(&hit.uv, &hit.point))
         )
     }

@@ -1,3 +1,4 @@
+use crate::hittable::{IsometryT, Rotate};
 use super::*;
 
 pub fn weekend_final(complexity: i8, t_off: Time, t_span: Time, params: &Params) -> Scene {
@@ -40,7 +41,7 @@ pub fn weekend_final(complexity: i8, t_off: Time, t_span: Time, params: &Params)
         }
     }
     Scene {
-        camera: get_cam(params.width, params.height, t_off, t_span, params.bounces as i32),
+        view: get_cam(params.width, params.height, t_off, t_span, params.bounces as i32),
         renderer: RendererImpl::pick_renderer(
             BVH::new(objs),
             Box::new(NoHit),
@@ -127,7 +128,8 @@ pub fn next_week(t_off: Time, t_span: Time, params: &Params) -> Scene {
     }
     let foam_box = Box::new(BVH::new(foam_box)
         .rotate_y(15.0)
-        .translate(V3::new(-200.0, 300.0, 335.0)));
+        .translate(V3::new(-200.0, 300.0, 335.0))
+    );
 
     let mut objs: Vec<Box<dyn Hittable>> = vec![];
     objs.push(light.clone());
@@ -145,7 +147,7 @@ pub fn next_week(t_off: Time, t_span: Time, params: &Params) -> Scene {
     for _ in 0..20 { important.push(light.clone()); }
     important.push(glass_ball);
     Scene {
-        camera: next_week_cam(params.width, params.height, t_off, t_span, params.bounces as i32),
+        view: next_week_cam(params.width, params.height, t_off, t_span, params.bounces as i32),
         renderer: RendererImpl::pick_renderer(
             BVH::new(objs),
             Box::new(important),
@@ -156,7 +158,7 @@ pub fn next_week(t_off: Time, t_span: Time, params: &Params) -> Scene {
 }
 
 
-fn next_week_cam(nx: u32, ny: u32, t_off: Time, t_span: Time, ttl: i32) -> Camera {
+fn next_week_cam(nx: u32, ny: u32, t_off: Time, t_span: Time, ttl: i32) -> View {
     let aspect = (nx as Geometry) / (ny as Geometry);
     let from = V3::new(478.0, 278.0, -680.0);
     // let at = V3::new(278.0, 170.0, 40.0);
@@ -167,7 +169,7 @@ fn next_week_cam(nx: u32, ny: u32, t_off: Time, t_span: Time, ttl: i32) -> Camer
     // let vfov = 22.0;
     let vfov = 62.0;
 
-    Camera::new_look(
+    View::new_look(
         from, at,
         /*    up*/ V3::new(0.0, 1.0, 0.0),
         vfov,

@@ -3,7 +3,7 @@ use crate::random::next;
 use crate::texture::Texture;
 
 use super::{AABB, Hit, Hittable, Material, RayCtx, V3};
-use crate::types::{P3, Geometry, Scale, Probability, Timespan};
+use crate::types::{P3, Geometry, Scale, Probability, Timespan, Direction};
 use nalgebra::Unit;
 use crate::random;
 
@@ -55,35 +55,6 @@ impl<B:Hittable, M: Material> Hittable for ConstantMedium<B,M> {
             None
         }
     }
-/*
-
-impl<B: Hittable, M: Material> Hittable for ConstantMedium<B, M> {
-    fn hit(&self, ray_ctx: &RayCtx, dist_min: Geometry, dist_max: Geometry) -> Option<Hit> {
-        let enter_hit = self.boundary.hit(ray_ctx, dist_min, dist_max)?;
-        let exit_hit = self.boundary.hit(ray_ctx, enter_hit.dist + 0.000001, dist_max)?;
-
-        let uv = enter_hit.uv;
-        let (enter_dist, exit_dist) = sort(enter_hit.dist, exit_hit.dist);
-
-        // random walk which follows Poisson point process, using exponential distribution
-        let hit_dist: Geometry = next::<Geometry, rand_distr::Exp1>(rand_distr::Exp1) / self.density as Geometry;
-        let inner_travel_distance = exit_dist - enter_dist;
-        if hit_dist < inner_travel_distance {
-            let dist = enter_dist + hit_dist;
-            let ray = &ray_ctx.ray;
-            Some(Hit::new(
-                dist,
-                ray.point_at(dist),
-                Unit::new_unchecked(random::rand_in_unit_sphere().coords),
-                &self.phase_function,
-                uv,
-            ))
-        } else {
-            None
-        }
-    }
-
-*/
 
     #[inline]
     fn bounding_box(&self, timespan: Timespan) -> Option<AABB> {
@@ -91,12 +62,12 @@ impl<B: Hittable, M: Material> Hittable for ConstantMedium<B, M> {
     }
 
     #[inline]
-    fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> Probability {
+    fn pdf_value(&self, origin: &P3, direction: &Direction, hit: &Hit) -> Probability {
         self.boundary.pdf_value(origin, direction, hit)
     }
 
     #[inline]
-    fn random(&self, origin: &P3) -> Unit<V3> {
+    fn random(&self, origin: &P3) -> Direction {
         self.boundary.random(origin)
     }
 }

@@ -1,7 +1,7 @@
 use nalgebra::{Reflection, Unit};
 
 use crate::random;
-use crate::types::{Color, Scale};
+use crate::types::{Color, Direction, Scale};
 
 use super::{Hit, Material, RayCtx, V3};
 
@@ -23,9 +23,9 @@ impl Dielectric {
     }
 
 
-    fn refract(v: &Unit<V3>, normal: &Unit<V3>, ni_over_nt: Scale) -> Option<Unit<V3>> {
+    fn refract(v: &Direction, normal: &Direction, ni_over_nt: Scale) -> Option<Direction> {
         let unit = v.as_ref();
-        let dt = unit.dot(normal.as_ref());
+        let dt = unit.dot(normal);
         let discriminant = 1.0 - ni_over_nt * ni_over_nt * (1.0 - dt * dt);
         return if discriminant > 0.0 {
             Some(Unit::new_normalize(ni_over_nt * (v.as_ref() - dt * normal.as_ref()) - discriminant.sqrt() * normal.as_ref()))
@@ -38,7 +38,7 @@ impl Material for Dielectric {
         let unit_direction = ray_ctx.ray.direction;
 
         let cosine: Scale;
-        let outward_normal: Unit<V3>;
+        let outward_normal: Direction;
         let ni_over_nt: Scale;
 
         let vector_cosine = unit_direction.dot(&hit.normal);

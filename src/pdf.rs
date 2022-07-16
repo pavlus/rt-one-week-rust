@@ -5,13 +5,13 @@ use nalgebra::Unit;
 use crate::consts::{FRAC_1_PI, PI};
 use crate::hittable::{Hit, Hittable};
 use crate::onb::ONB;
-use crate::random::{next_std_f64, rand_cosine_direction, rand_in_unit_sphere};
+use crate::random::{next_std, next_std_f64, rand_cosine_direction, rand_in_unit_sphere};
 use crate::ray::RayCtx;
-use crate::types::{Color, Geometry, P3, Probability, V3};
+use crate::types::{Color, Direction, Geometry, P3, Probability, V3};
 
 pub trait PDF {
-    fn value(&self, direction: &Unit<V3>, hit: &Hit) -> Probability;
-    fn generate(&self) -> Unit<V3>;
+    fn value(&self, direction: &Direction, hit: &Hit) -> Probability;
+    fn generate(&self) -> Direction;
 }
 
 #[derive(Copy, Clone)]
@@ -26,28 +26,28 @@ impl CosinePDF {
 }
 
 impl PDF for CosinePDF {
-    fn value(&self, direction: &Unit<V3>, _: &Hit) -> Probability {
-        let cosine = self.onb.w.dot(&direction.normalize()) as Probability;
+    fn value(&self, direction: &Direction, _: &Hit) -> Probability {
+        let cosine = self.onb.w.dot(&direction) as Probability;
         if cosine < 0.0 { return 0.0; }
         if cosine >= PI as Probability { return 1.0; }
         return cosine / PI as Probability;
     }
 
-    fn generate(&self) -> Unit<V3> {
+    fn generate(&self) -> Direction {
         // todo: check if we can do unchecked
-        Unit::new_normalize(self.onb.local(&rand_cosine_direction().as_ref()))
+        Direction::new_normalize(self.onb.local(&rand_cosine_direction().as_ref()))
     }
 }
 
 pub struct IsotropicPDF;
 
 impl PDF for IsotropicPDF {
-    fn value(&self, _direction: &Unit<V3>, _: &Hit) -> Probability {
+    fn value(&self, _direction: &Direction, _: &Hit) -> Probability {
         0.25 * FRAC_1_PI as Probability
     }
 
-    fn generate(&self) -> Unit<V3> {
-        Unit::new_unchecked(rand_in_unit_sphere().coords)
+    fn generate(&self) -> Direction {
+        Direction::new_unchecked(rand_in_unit_sphere().coords)
     }
 }
 
@@ -63,7 +63,7 @@ impl<'a> HittablePDF<'a> {
 }
 
 impl PDF for HittablePDF<'_> {
-    fn value(&self, direction: &Unit<V3>, hit: &Hit) -> Probability {
+    fn value(&self, direction: &Direction, hit: &Hit) -> Probability {
         let tmp_ray = RayCtx::new(hit.point, *direction, Color::from_element(0.0), 0.0, 1);
         if let Some(hit) = self.hittable.hit(&tmp_ray, 0.0001, Geometry::MAX){
             self.hittable.pdf_value(&self.origin, direction, &hit)
@@ -72,7 +72,7 @@ impl PDF for HittablePDF<'_> {
         }
     }
 
-    fn generate(&self) -> Unit<V3> {
+    fn generate(&self) -> Direction {
         self.hittable.random(&self.origin)
     }
 }
@@ -80,17 +80,17 @@ impl PDF for HittablePDF<'_> {
 pub struct MixturePDF<'a, A: ?Sized, B: ?Sized> {
     a: &'a A,
     b: &'a B,
-    a_weight: f64,
+    a_weight: Probability,
 }
 
 impl<'a, A: PDF + ?Sized, B: PDF + ?Sized> MixturePDF<'a, A, B> {
-    pub fn new(a: &'a A, b: &'a B, a_weight: f64) -> Self {
+    pub fn new(a: &'a A, b: &'a B, a_weight: Probability) -> Self {
         MixturePDF { a, b, a_weight }
     }
 }
 
 impl<A: PDF + ?Sized, B: PDF + ?Sized> PDF for MixturePDF<'_, A, B> {
-    fn value(&self, direction: &Unit<V3>, hit: &Hit) -> Probability {
+    fn value(&self, direction: &Direction, hit: &Hit) -> Probability {
         let a_value = self.a.value(direction, hit);
         let b_value = self.b.value(direction, hit);
         // assert!(0.0 <= a_value && a_value <= 1.0, "a = {}", a_value);
@@ -99,8 +99,8 @@ impl<A: PDF + ?Sized, B: PDF + ?Sized> PDF for MixturePDF<'_, A, B> {
         result
     }
 
-    fn generate(&self) -> Unit<V3> {
-        if next_std_f64() < self.a_weight {
+    fn generate(&self) -> Direction {
+        if next_std::<Probability>() < self.a_weight {
             self.a.generate()
         } else {
             self.b.generate()
@@ -109,11 +109,11 @@ impl<A: PDF + ?Sized, B: PDF + ?Sized> PDF for MixturePDF<'_, A, B> {
 }
 
 impl<T: Deref<Target = dyn PDF>> PDF for T {
-    fn value(&self, direction: &Unit<V3>, hit: &Hit) -> Probability {
+    fn value(&self, direction: &Direction, hit: &Hit) -> Probability {
         (**self).value(direction, hit)
     }
 
-    fn generate(&self) -> Unit<V3> {
+    fn generate(&self) -> Direction {
         (**self).generate()
     }
 }

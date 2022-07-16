@@ -1,6 +1,10 @@
+use nalgebra::{Isometry3, Matrix, Rotation3, Similarity3, UnitQuaternion};
+use crate::consts::PI;
+use crate::hittable::{AABoxMono, FlipNormals, IsometryOp, Positionable};
+use crate::hittable::IsometryT;
 use super::*;
 
-fn cornel_box_prototype() -> (HittableList<Box<dyn Hittable>>, Box<dyn Hittable>) {
+fn cornel_box_prototype() -> (HittableList<Box<dyn Hittable>>, impl Hittable + Clone) {
     let mut result: HittableList<Box<dyn Hittable>> = HittableList::empty();
     let red = Lambertian::<Color>::new(Color::new(0.65, 0.05, 0.05));
     let floor_white = Lambertian::<Color>::new(Color::new(0.73, 0.73, 0.73));
@@ -11,7 +15,12 @@ fn cornel_box_prototype() -> (HittableList<Box<dyn Hittable>>, Box<dyn Hittable>
 
     result.push(Box::new(YZRect::new(0.0..555.0, 0.0..555.0, 555.0, green).flip_normals()));
     result.push(Box::new(YZRect::new(0.0..555.0, 0.0..555.0, 0.0, red)));
-    let lamp = Box::new(XZRect::new(213.0..343.0, 227.0..332.0, 554.0, light).flip_normals());
+    // let lamp = Box::new(XZRect::new(213.0..343.0, 227.0..332.0, 554.0, light)
+    let lamp = XZRect::new(-65.0..65.0, -52.5..52.5, 0.0, light)
+        .flip_normals()
+        .rotate_y(180.0)
+        .translate(V3::new(278.0, 554.0, 279.5));
+    let lamp = Box::new(lamp.clone());
     result.push(lamp.clone());
     result.push(Box::new(XZRect::new(0.0..555.0, 0.0..555.0, 0.0, floor_white)));
     result.push(Box::new(XZRect::new(0.0..555.0, 0.0..555.0, 555.0, ceil_white).flip_normals()));
@@ -58,7 +67,7 @@ pub fn cornel_box_is_reflection(t_off: Time, t_span: Time, params: &Params) -> S
     objs.push(light3.clone());
     let objects: Vec<Box<dyn Hittable>> = vec![light1, light2, light3];
     Scene {
-        camera: cornel_box_cam(params.width, params.height, t_off, t_span, params.bounces as i32),
+        view: cornel_box_cam(params.width, params.height, t_off, t_span, params.bounces as i32),
         renderer: RendererImpl::pick_renderer(
             Box::new(HittableList::new(objs)),
             Box::new(HittableList::new(objects)),
@@ -72,27 +81,40 @@ pub fn cornel_box_is_reflection(t_off: Time, t_span: Time, params: &Params) -> S
 pub fn cornel_box_with_instances(t_off: Time, t_span: Time, params: &Params) -> Scene {
     let (mut objs, lamp) = cornel_box_prototype();
     let mut important: HittableList<Box<dyn Hittable>> = HittableList::empty();
+    let whitebox = AABox::mono(-62.5..62.5, -62.5..62.5, -62.5..62.5,
+                               Lambertian::<Color>::new(Color::from_element(0.73)))
+        .apply_rotation(Rotation3::from_scaled_axis(V3::y() + V3::x()))
+        .translate(V3::new(212.5, 112.5, 147.5))
+        // .apply(Isometry3::new(V3::new(212.5, 112.5, 147.5),
+        //                       V3::y() + V3::x(),
+        /*(UnitQuaternion::from_scaled_axis(V3::z() * (PI / 4.0))
+            * UnitQuaternion::from_scaled_axis(V3::y() * (PI / 4.0))
+            * UnitQuaternion::from_scaled_axis(V3::x() * (PI / 4.0))).scaled_axis()*/
+        // ))
+        ;
+    // objs.push(Box::new(whitebox.debug_aabb(Color::new(0.8, 0.8, 1.0))));
     objs.push(
-        Box::new(AABox::mono(0.0..165.0, 0.0..165.0, 0.0..165.0,
-                             Lambertian::<Color>::new(Color::from_element(0.73)))
-            .rotate_y(-18.0)
-            .translate(V3::new(130.0, 0.0, 65.0))
+        Box::new(whitebox
+                 // .rotate_y(-18.0)
+                 // .translate(V3::new(130.0, 0.0, 65.0))
         ));
 
-    let shiny_box = Box::new(AABox::mono(0.0..165.0, 0.0..330.0, 0.0..165.0,
-                                         // Lambertian::new(Color::from_element(0.73)))
-                                         Metal::new(Color::from_element(1.0)))
+
+    let shiny_box = Box::new(
+        AABox::mono(0.0..165.0, 0.0..330.0, 0.0..165.0, Metal::new(Color::from_element(0.8)))
+            // .apply(Isometry3::new(
+            //     V3::new(265.0, 0.0, 295.0),
+            //     V3::y() * (45.0 / 180.0),
+            // ))
         .rotate_y(15.0)
         .translate(V3::new(265.0, 0.0, 295.0))
     );
     objs.push(shiny_box.clone());
-    important.push(shiny_box);
-    important.push(lamp);
-
+    important.push(Box::new(lamp.clone()));
 
 
     Scene {
-        camera: cornel_box_cam(params.width, params.height, t_off, t_span, params.bounces as i32),
+        view: cornel_box_cam(params.width, params.height, t_off, t_span, params.bounces as i32),
         renderer: RendererImpl::pick_renderer(
             Box::new(objs),
             Box::new(important),
@@ -105,25 +127,24 @@ pub fn cornel_box_with_instances(t_off: Time, t_span: Time, params: &Params) -> 
 pub fn cornel_box_with_is(t_off: Time, t_span: Time, params: &Params) -> Scene {
     let (mut objs, lamp) = cornel_box_prototype();
     let mut important: HittableList<Box<dyn Hittable>> = HittableList::empty();
-    /*objs.push(
-        AABox::mono(0.0..165.0, 0.0..165.0, 0.0..165.0,
-                    Lambertian::new(Color::from_element(0.73)))
-            .rotate_y(-18.0)
-            .translate(V3::new(130.0, 0.0, 65.0))
-    );*/
+
     let fog = Box::new(ConstantMedium::new(
-        // Box::new(AABox::mono(0.0..165.0, 0.0..165.0, 0.0..165.0,
-        Box::new(AABox::mono(0.0..165.0, 0.0..165.0, 0.0..165.0,
-                             NoMat)
-            .translate(V3::new(130.0, 0.0, 65.0))
-            .rotate_y(-18.0)
+        Box::new(AABox::mono(-82.5..82.5, -82.5..82.5, -82.5..82.5, NoMat)
+                     // .rotate_y(30.0)
+                     // .translate(V3::new(212.5, 82.5, 147.5))
+                     .apply(Isometry3::new(
+                         V3::new(157.5, 82.5, 207.5),
+                         V3::y() * Geometry::to_radians(-18.0),
+                     ))
+                 // .translate(V3::new(130.0, 0.0, 65.0))
+                 // .rotate_y(18.0)
         ),
         0.01,
         Color::new(1.0, 1.0, 1.0))
     );
 
     let lamb = Lambertian::<Color>::new(Color::from_element(0.73));
-    let metal = Metal::new(Color::from_element(1.0));
+    let metal = Metal::new(Color::from_element(0.8));
     let shiny_box =
         AABox::new(0.0..165.0, 0.0..330.0, 0.0..165.0,
                    // AABox::new(265.0..(165.0+265.0), 0.0..330.0, 295.0..(165.0+265.0),
@@ -135,20 +156,18 @@ pub fn cornel_box_with_is(t_off: Time, t_span: Time, params: &Params) -> Scene {
                    // lamb.clone(),
                    lamb.clone(),
         )
-            .rotate_y(15.0)
-            // .rotate_y(-90.0)
-            // .translate(V3::new(265.0, 80.0, 295.0))
-            .translate(V3::new(265.0, 0.0, 295.0))
+            .apply(Isometry3::new(
+                V3::new(265.0, 0.0, 295.0),
+                V3::y() * Geometry::to_radians(15.0)))
+        // .rotate_y(-90.0)
+        // .translate(V3::new(265.0, 80.0, 295.0))
         ;
 
-    let sphere: Box<Translate<Sphere<Dielectric>>> = Box::new(
-        Sphere::new(
-            P3::new(-87.5, 87.5, -12.5),
-            88.5,
-            Dielectric::new(1.5),
-        )
-            .translate(V3::new(130.0, 0.0, 65.0))
-            .translate(V3::new(165.0, 165.0, 165.0))
+    let sphere: Box<Sphere<Dielectric>> = Box::new(
+        Sphere::radius(88.5, Dielectric::new(1.5))
+            .moved_by(&V3::new(-87.5, 88.5, -12.5))
+            .moved_by(&V3::new(130.0, 0.0, 65.0))
+            .moved_by(&V3::new(165.0, 165.0, 165.0))
     );
 
     objs.push(fog.clone());
@@ -157,12 +176,13 @@ pub fn cornel_box_with_is(t_off: Time, t_span: Time, params: &Params) -> Scene {
 
     // important.push(Box::new(shiny_box.clone()));
     // important.push(fog);
-    important.push(sphere);
-    important.push(lamp);
+
+    // important.push(sphere);
+    important.push(Box::new(lamp));
     let important = Box::new(important);
 
     Scene {
-        camera: cornel_box_cam(params.width, params.height, t_off, t_span, params.bounces as i32),
+        view: cornel_box_cam(params.width, params.height, t_off, t_span, params.bounces as i32),
         renderer: RendererImpl::pick_renderer(
             Box::new(objs),
             important,
@@ -173,13 +193,13 @@ pub fn cornel_box_with_is(t_off: Time, t_span: Time, params: &Params) -> Scene {
 }
 
 pub fn cornel_box_volumes(t_off: Time, t_span: Time, params: &Params) -> Scene {
-    let (mut objs, light) = cornel_box_prototype();
+    let (mut objs, lamp) = cornel_box_prototype();
     objs.push(Box::new(ConstantMedium::new(
         AABox::mono(0.0..165.0, 0.0..165.0, 0.0..165.0, NoMat)
             .rotate_y(-18.0)
             .translate(V3::new(130.0, 0.0, 65.0)),
         0.01,
-        Color::new(1.0, 1.0, 1.0)
+        Color::new(1.0, 1.0, 1.0),
     )));
 
     objs.push(Box::new(ConstantMedium::new(
@@ -187,17 +207,57 @@ pub fn cornel_box_volumes(t_off: Time, t_span: Time, params: &Params) -> Scene {
             .rotate_y(15.0)
             .translate(V3::new(265.0, 0.0, 295.0)),
         0.01,
-        Color::new(0.0, 0.0, 0.0)
+        Color::new(0.0, 0.0, 0.0),
     )));
 
     Scene {
-        camera: cornel_box_cam(params.width, params.height, t_off, t_span, params.bounces as i32),
+        view: cornel_box_cam(params.width, params.height, t_off, t_span, params.bounces as i32),
         renderer: RendererImpl::pick_renderer(
             Box::new(objs),
-            light,
+            Box::new(lamp),
             self::const_color_dark,
-            params
-        )
+            params,
+        ),
+    }
+}
+
+pub fn cornel_box_test(t_off: Time, t_span: Time, params: &Params) -> Scene {
+    let (mut objs, lamp) = cornel_box_prototype();
+    let white_fog = ConstantMedium::new(
+        AABox::mono(-82.5..82.5, -82.5..82.5, -82.5..82.5, NoMat)
+            .rotate_y(30.0)
+            .translate(V3::new(212.5, 82.5, 147.5)),
+        0.01,
+        Color::new(1.0, 1.0, 1.0),
+    );
+
+    let white_fog_debug: AABoxMono<_> = (
+        Dielectric::new_colored(Color::new(0.5, 0.5, 1.0), 1.0),
+        white_fog.bounding_box(0.0..1.0).unwrap()).into();
+
+    objs.push(Box::new(white_fog));
+    objs.push(Box::new(white_fog_debug));
+
+    objs.push(Box::new(ConstantMedium::new(
+        AABox::mono(0.0..165.0, 0.0..330.0, 0.0..165.0, NoMat)
+            .apply(Isometry3::new(
+                V3::new(265.0, 0.0, 295.0),
+                &V3::y() * (15 as Geometry).to_radians(),
+            )),
+        // .rotate_y(15.0)
+        // .translate(V3::new(265.0, 0.0, 295.0)),
+        0.01,
+        Color::new(0.0, 0.0, 0.0),
+    )));
+
+    Scene {
+        view: cornel_box_cam(params.width, params.height, t_off, t_span, params.bounces as i32),
+        renderer: RendererImpl::pick_renderer(
+            Box::new(objs),
+            Box::new(lamp),
+            self::const_color_dark,
+            params,
+        ),
     }
 }
 
@@ -228,10 +288,10 @@ pub fn cornel_box_perlin(t_off: Time, t_span: Time, params: &Params) -> Scene {
     objs.push(Box::new(cloud_bvh));
 
     Scene {
-        camera: cornel_box_cam(params.width, params.height, t_off, t_span, params.bounces as i32),
+        view: cornel_box_cam(params.width, params.height, t_off, t_span, params.bounces as i32),
         renderer: RendererImpl::pick_renderer(
             Box::new(objs),
-            lamp,
+            Box::new(lamp),
             self::const_color_dark,
             params,
         ),
@@ -239,7 +299,7 @@ pub fn cornel_box_perlin(t_off: Time, t_span: Time, params: &Params) -> Scene {
 }
 
 
-fn cornel_box_cam(nx: u32, ny: u32, t_off: Time, t_span: Time, ttl: i32) -> Camera {
+fn cornel_box_cam(nx: u32, ny: u32, t_off: Time, t_span: Time, ttl: i32) -> View {
     let aspect = (nx as Geometry) / (ny as Geometry);
     let from = V3::new(278.0, 278.0, -680.0);
     let at = V3::new(278.0, 278.0, 0.0);
@@ -247,7 +307,7 @@ fn cornel_box_cam(nx: u32, ny: u32, t_off: Time, t_span: Time, ttl: i32) -> Came
     let dist_to_focus = 2.0;
     let aperture = 0.00;
     let vfov = 80.0;
-    Camera::new_look(
+    View::new_look(
         from, at,
         /*    up*/ V3::new(0.0, 1.0, 0.0),
         vfov,

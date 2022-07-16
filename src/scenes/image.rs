@@ -13,7 +13,7 @@ pub fn img_scene(t_off: Time, t_span: Time, params: &Params) -> Scene {
                                    Lambertian::texture(ImageTexture::load("./textures/stone.png")))));
 
     Scene {
-        camera: get_cam(params.width, params.height, t_off, t_span, params.bounces as i32),
+        view: get_cam(params.width, params.height, t_off, t_span, params.bounces as i32),
         renderer: RendererImpl::pick_renderer(
             Box::new(HittableList::new(objs)),
             Box::new(NoHit),
@@ -36,7 +36,7 @@ pub fn img_lit_scene(t_off: Time, t_span: Time, params: &Params) -> Scene {
         Box::new(light),
     ];
     Scene {
-        camera: get_cam(params.width, params.height, t_off, t_span, params.bounces as i32),
+        view: get_cam(params.width, params.height, t_off, t_span, params.bounces as i32),
         renderer: RendererImpl::pick_renderer(
             Box::new(HittableList::new(objs)),
             Box::new(light1),
@@ -64,7 +64,7 @@ pub fn img_lit_rect_scene(t_off: Time, t_span: Time, params: &Params) -> Scene {
     ];
     let objects: Vec<Box<dyn Hittable>> = vec![l1, l2];
     Scene {
-        camera: get_cam(params.width, params.height, t_off, t_span, params.bounces as i32),
+        view: get_cam(params.width, params.height, t_off, t_span, params.bounces as i32),
         renderer: RendererImpl::pick_renderer(
             Box::new(HittableList::new(objs)),
             Box::new(HittableList::new(objects)),

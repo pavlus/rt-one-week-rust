@@ -5,7 +5,7 @@ use types::V3;
 use crate::renderer::RendererType;
 use crate::sampler::Sampler;
 use crate::scenes::*;
-use crate::types::Color;
+use crate::types::{Color, Probability};
 
 mod consts;
 mod types;
@@ -43,6 +43,8 @@ enum SceneType {
     CornelIsReflection,
     #[structopt(name = "cornel_volumes")]
     CornelVolumes,
+    #[structopt(name = "cornel_playground")]
+    CornelPlayground,
     #[structopt(name = "next_week_final")]
     NextWeekFinal,
 }
@@ -63,7 +65,7 @@ pub struct Params {
     #[structopt(short = "b", long = "bounces", default_value = "12")]
     pub(crate) bounces: u16,
     #[structopt(short = "i", long = "important-weight", default_value = "0.5")]
-    pub(crate) important_weight: f64,
+    pub(crate) important_weight: Probability,
 }
 
 fn main() {
@@ -83,6 +85,7 @@ fn main() {
         SceneType::CornelIs => cornel_box_with_is(0.0, 0.2, &params),
         SceneType::CornelIsReflection => cornel_box_is_reflection(0.0, 0.2, &params),
         SceneType::CornelVolumes => cornel_box_volumes(0.0, 0.2, &params),
+        SceneType::CornelPlayground => cornel_box_test(0.0, 0.2, &params),
         SceneType::NextWeekFinal => next_week(0.0, 0.2, &params),
         SceneType::Perlin => perlin_scene(0.0, 0.2, &params),
         // _ => weekend_final(renderer_type, 11, w, h, 0.0, 0.2, ttl),

@@ -4,7 +4,7 @@ pub use ttl_renderer::TtlRenderer;
 
 use crate::hittable::Hittable;
 use crate::ray::{RayCtx, Ray};
-use crate::types::Color;
+use crate::types::{Color, Probability};
 use std::str::FromStr;
 use crate::Params;
 
@@ -45,7 +45,7 @@ pub enum RendererImpl {
 }
 
 impl RendererImpl {
-    pub fn biased(scene_graph: Box<dyn Hittable>, important: Box<dyn Hittable>, miss_shader: fn(&Ray) -> Color, important_weight: f64) -> RendererImpl {
+    pub fn biased(scene_graph: Box<dyn Hittable>, important: Box<dyn Hittable>, miss_shader: fn(&Ray) -> Color, important_weight: Probability) -> RendererImpl {
         RendererImpl::RGB(RgbRenderer {
             hittable: scene_graph,
             important,

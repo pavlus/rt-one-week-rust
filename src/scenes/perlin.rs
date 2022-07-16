@@ -25,7 +25,7 @@ pub fn perlin_scene(t_off: Time, t_span: Time, params: &Params) -> Scene {
                         5.0,
                     )))));
     Scene {
-        camera: get_cam(params.width, params.height, t_off, t_span, params.bounces as i32),
+        view: get_cam(params.width, params.height, t_off, t_span, params.bounces as i32),
         renderer: RendererImpl::pick_renderer(
             Box::new(HittableList::new(objs)),
             Box::new(NoHit),

@@ -2,8 +2,9 @@ use std::ops::Range;
 
 use super::{AABB, Hit, Hittable, Material, RayCtx};
 use crate::random::next_std_in_range;
-use crate::types::{Geometry, P2, P3, Probability, Timespan, V3};
+use crate::types::{Direction, Geometry, P2, P3, Probability, Timespan, V3};
 use nalgebra::Unit;
+use crate::hittable::Positionable;
 
 #[derive(Clone, Debug)]
 pub struct AABox<
@@ -25,13 +26,15 @@ pub struct AABox<
     right: Right,
 }
 
-impl<'a, T: Material + Clone> AABox<T, T, T, T, T, T>
+pub type AABoxMono<M: Material> = AABox<M, M, M, M, M, M>;
+
+impl<'a, M: Material + Clone> AABoxMono<M>
 {
     pub fn mono(
         x: Range<Geometry>,
         y: Range<Geometry>,
         z: Range<Geometry>,
-        material: T,
+        material: M,
     ) -> Self {
         let Range { start: x_start, end: x_end } = x;
         let Range { start: y_start, end: y_end } = y;
@@ -161,7 +164,7 @@ Hittable for AABox<Front, Back, Top, Bottom, Left, Right> {
         Some(self.aabb)
     }
 
-    fn pdf_value(&self, origin: &P3, direction: &Unit<V3>, hit: &Hit) -> Probability {
+    fn pdf_value(&self, origin: &P3, direction: &Direction, hit: &Hit) -> Probability {
         // it's horribly wrong :(
         let width = self.x.end - self.x.start;
         let height = self.y.end - self.y.start;
@@ -189,7 +192,7 @@ Hittable for AABox<Front, Back, Top, Bottom, Left, Right> {
         sqr_dist as Probability / total_area as Probability
     }
 
-    fn random(&self, origin: &P3) -> Unit<V3> {
+    fn random(&self, origin: &P3) -> Direction {
         let x = next_std_in_range(&self.x);
         let y = next_std_in_range(&self.y);
         let z = next_std_in_range(&self.z);
@@ -197,6 +200,32 @@ Hittable for AABox<Front, Back, Top, Bottom, Left, Right> {
     }
 }
 
+impl<M: Material + Clone> From<(M, AABB)> for AABoxMono<M> {
+    fn from((material, aabb): (M, AABB)) -> Self {
+        AABox::mono(aabb.min.x..aabb.max.x, aabb.min.y..aabb.max.y, aabb.min.z..aabb.max.z, material)
+    }
+}
+
+impl<Front: Material, Back: Material, Top: Material, Bottom: Material, Left: Material, Right: Material>
+Positionable for AABox<Front, Back, Top, Bottom, Left, Right> {
+    fn move_by(&mut self, offset: &V3) {
+        self.x = (self.x.start + offset.x)..(self.x.end + offset.x);
+        self.y = (self.y.start + offset.y)..(self.y.end + offset.y);
+        self.z = (self.z.start + offset.z)..(self.z.end + offset.z);
+        self.aabb.move_by(offset);
+    }
+
+    fn moved_by(self, offset: &V3) -> Self {
+        AABox {
+            x: (self.x.start + offset.x)..(self.x.end + offset.x),
+            y: (self.y.start + offset.y)..(self.y.end + offset.y),
+            z: (self.z.start + offset.z)..(self.z.end + offset.z),
+            aabb: self.aabb.moved_by(offset),
+            ..self
+        }
+    }
+
+}
 
 #[cfg(test)]
 mod test {
@@ -211,7 +240,7 @@ mod test {
 
     #[test]
     fn test_box_rect_pdf_one_side_visible_eq_to_rect() {
-        let mat = Lambertian::<Color>::new(V3::new(1.0, 1.0, 1.0));
+        let mat = Lambertian::<Color>::new(Color::new(1.0, 1.0, 1.0));
         let aabox = AABox::mono(-1.0..1.0, -1.0..1.0, -1.0..1.0, mat.clone());
         let aarect = XYRect::new(-1.0..1.0, -1.0..1.0, -1.0, mat.clone());
         let origin = P3::new(0.0, 0.0, -2.0);
@@ -227,7 +256,7 @@ mod test {
 
     #[test]
     fn test_box_rect_pdf_smaller_than_rect_if_more_than_one_side_is_visible() {
-        let mat = Lambertian::<Color>::new(V3::new(1.0, 1.0, 1.0));
+        let mat = Lambertian::<Color>::new(Color::new(1.0, 1.0, 1.0));
         let aabox = AABox::mono(-1.0..1.0, -1.0..1.0, -1.0..1.0, mat.clone());
         let aarect = XYRect::new(-1.0..1.0, -1.0..1.0, -1.0, mat.clone())
             .flip_normals();
