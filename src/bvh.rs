@@ -1,78 +1,131 @@
 use std::fmt::Debug;
+use itertools::Itertools;
 use crate::aabb::AABB;
-use crate::hittable::{Hit, HittableList, Hittable};
+use crate::hittable::{Hit, Hittable, Bounded};
 use crate::ray::RayCtx;
 use crate::types::{Geometry, Timespan};
-use crate::V3;
 
 #[derive(Debug)]
-pub struct BVH {
-    left: Box<dyn Hittable>,
-    right: Box<dyn Hittable>,
-    aabb: Option<AABB>,
+pub struct BVHIndexed<T> {
+    objects: Vec<T>,
+    nodes: Vec<BVHNode>,
 }
 
-impl BVH {
-    pub(crate) fn new(objs: Vec<Box<dyn Hittable>>) -> Box<dyn Hittable> {
-        BVH::construct(objs)
-    }
-    fn construct(mut objs: Vec<Box<dyn Hittable>>) -> Box<dyn Hittable> {
-        if objs.len() == 1 { return objs.remove(0); }
-        if objs.len() <= 8 { return Box::new(HittableList::new(objs)); }
-        let axis = Self::pick_axis(&mut objs);
-        objs.sort_by(|a, b| {
-            // TIME!!!!
-            a.bounding_box(0.0..1.0).unwrap().min[axis]
-                .partial_cmp(&b.bounding_box(0.0..1.0).unwrap().min[axis])
-                .unwrap()
-        });
-        let mut a = objs;
-        let b = a.split_off(Self::pick_split(&a));
-        let left = BVH::construct(a);
-        let right = BVH::construct(b);
-        let aabb = match (left.bounding_box(0.0..1.0), right.bounding_box(0.0..1.0)) {
-            (Some(l), Some(r)) => Some(l + r),
-            (None, Some(r)) => Some(r),
-            (Some(l), None) => Some(l),
-            _ => None
-        };
-        Box::new(BVH { left, right, aabb })
-    }
-
-    fn pick_split(a: &Vec<Box<dyn Hittable>>) -> usize {
-        a.len() / 2
-    }
-
-    fn pick_axis(objs: &mut Vec<Box<dyn Hittable>>) -> usize {
-        let aabb = objs.iter()
-            .map(|h| h.bounding_box(0.0..1.0))
-            .filter_map(|x| x)
-            .sum::<AABB>();
-        let span: V3 = (aabb.max.coords - aabb.min.coords).map(Geometry::abs);
-        span.iamax()
-    }
+#[derive(Debug)]
+enum BVHNode {
+    Node {
+        // nodes idx
+        left: usize,
+        // nodes idx
+        right: usize,
+        aabb: AABB,
+    },
+    Leaf {
+        obj_indices: Vec<usize>,
+        aabb: AABB,
+    },
 }
 
-impl Hittable for BVH {
-    fn hit(&self, ray_ctx: &RayCtx, dist_min: Geometry, dist_max: Geometry) -> Option<Hit> {
-        if !self.aabb.unwrap().hit(&ray_ctx.ray, dist_min, dist_max) { return None; }
-        let left = self.left.hit(ray_ctx, dist_min, dist_max);
-        let right = self.right.hit(ray_ctx, dist_min, dist_max);
-        match (left, right) {
-            (Some(hit), None) => Some(hit),
-            (None, Some(hit)) => Some(hit),
-            (Some(l_hit), Some(r_hit)) => if l_hit.dist < r_hit.dist {
-                left
-            } else {
-                right
-            },
-            _ => None
+impl Bounded for BVHNode {
+    fn bounding_box(&self, _timespan: Timespan) -> AABB {
+        match &self {
+            BVHNode::Node { aabb, .. } => { *aabb }
+            BVHNode::Leaf { aabb, .. } => { *aabb }
         }
     }
+}
 
-    fn bounding_box(&self, _: Timespan) -> Option<AABB> {
-        self.aabb
+impl<T> Bounded for BVHIndexed<T> {
+    fn bounding_box(&self, timespan: Timespan) -> AABB {
+        self.nodes.last().unwrap().bounding_box(timespan)
+    }
+}
+
+pub trait BoundedHittable: Hittable + Bounded {}
+
+impl<T: Hittable + Bounded + ?Sized + 'static> BoundedHittable for T {}
+
+const CUTOFF: usize = 8;
+
+impl<T: Bounded> BVHIndexed<T> {
+    pub(crate) fn new(objects: Vec<T>, timespan: Timespan) -> BVHIndexed<T> {
+        let mut nodes: Vec<BVHNode> = Vec::new();
+        let mut indices = (0..objects.len()).collect_vec();
+        BVHIndexed::construct(&objects, indices.as_mut_slice(), &mut nodes, timespan);
+        BVHIndexed {
+            objects,
+            nodes,
+        }
+    }
+    fn construct(objs: &Vec<T>, indices: &mut [usize], nodes: &mut Vec<BVHNode>, timespan: Timespan) -> usize {
+        if indices.len() <= CUTOFF {
+            let aabb = indices.iter().filter_map(|&i| objs.get(i))
+                .map(|h| h.bounding_box(timespan.clone()))
+                .sum1().unwrap();
+            nodes.push(BVHNode::Leaf {
+                obj_indices: indices.into(),
+                aabb,
+            });
+            return nodes.len() - 1;
+        }
+        let axis = Self::pick_axis(&objs);
+        indices.sort_by(|&a, &b| {
+            let a = objs.get(a).unwrap().bounding_box(timespan.clone());
+            let b = objs.get(b).unwrap().bounding_box(timespan.clone());
+            a.center()[axis]
+                .partial_cmp(&b.center()[axis])
+                .unwrap()
+        });
+        let (a, b) = indices.split_at_mut(indices.len() / 2);
+        let left = BVHIndexed::construct(objs, a, nodes, timespan.clone());
+        let right = BVHIndexed::construct(objs, b, nodes, timespan.clone());
+        let aabb = nodes.get(left).unwrap().bounding_box(timespan.clone())
+            + nodes.get(right).unwrap().bounding_box(timespan.clone());
+        nodes.push(BVHNode::Node { left, right, aabb });
+        return nodes.len() - 1;
     }
 
-    //todo: random and PDF
+    fn pick_axis(objs: &Vec<T>) -> usize {
+        objs.iter()
+            .map(|h| Bounded::bounding_box(h, 0.0..1.0))
+            .sum::<AABB>()
+            .max_axis()
+    }
 }
+
+impl<T: Hittable + Bounded> BVHIndexed<T> {
+    fn hit(&self, node_idx: usize, ray_ctx: &RayCtx, dist_min: Geometry, dist_max: Geometry) -> Option<Hit> {
+        match self.nodes.get(node_idx).unwrap() {
+            BVHNode::Node { left, right, aabb } => {
+                if aabb.hit(&ray_ctx.ray, dist_min, dist_max) {
+                    let left = self.hit(*left, ray_ctx, dist_min, dist_max);
+                    let right = self.hit(*right, ray_ctx, dist_min, dist_max);
+                    left.zip(right).map(|(left, right)| if left.dist < right.dist { left } else { right })
+                        .or(left).or(right)
+                } else { None }
+            }
+            BVHNode::Leaf { aabb, obj_indices } => {
+                if aabb.hit(&ray_ctx.ray, dist_min, dist_max) {
+                    let mut selected: (Geometry, Option<Hit>) = (dist_max, None);
+
+                    for &i in obj_indices.iter() {
+                        if let Some(hit) = self.objects.get(i).unwrap().hit(ray_ctx, dist_min, selected.0) {
+                            if hit.dist < selected.0 {
+                                selected = (hit.dist, Some(hit))
+                            }
+                        }
+                    }
+                    selected.1
+                } else { None }
+            }
+        }
+    }
+}
+
+impl<T: Hittable + Bounded> Hittable for BVHIndexed<T> {
+    fn hit(&self, ray_ctx: &RayCtx, dist_min: Geometry, dist_max: Geometry) -> Option<Hit> {
+        BVHIndexed::hit(self, self.nodes.len() - 1, ray_ctx, dist_min, dist_max)
+    }
+}
+
+

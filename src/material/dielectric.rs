@@ -1,9 +1,10 @@
 use nalgebra::{Reflection, Unit};
 
 use crate::random;
+use crate::scatter::Scatter;
 use crate::types::{Color, Direction, Scale};
 
-use super::{Hit, Material, RayCtx, V3};
+use super::{Hit, Material, RayCtx};
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub struct Dielectric {
@@ -34,7 +35,8 @@ impl Dielectric {
 }
 
 impl Material for Dielectric {
-    fn scatter(&self, ray_ctx: &RayCtx, &hit: &Hit) -> Option<RayCtx> {
+
+    fn scatter_with_pdf(&self, ray_ctx: RayCtx, hit: &Hit) -> Option<Scatter> {
         let unit_direction = ray_ctx.ray.direction;
 
         let cosine: Scale;
@@ -52,14 +54,22 @@ impl Material for Dielectric {
             cosine = -vector_cosine;
         }
 
-        Dielectric::refract(&unit_direction, &outward_normal, ni_over_nt)
-            .filter(|_| self.schlick(cosine) < random::next_std())
-            .map(|refracted| ray_ctx.produce(hit.point, refracted, self.albedo))
-            .or_else(|| {
+        let refracted = Dielectric::refract(&unit_direction, &outward_normal, ni_over_nt);
+        Some(match refracted {
+            Some(refracted) if self.schlick(cosine) < random::next_std() => {
+                // transmitted
+                Scatter::Specular(ray_ctx.produce(hit.point, refracted), self.albedo)
+            }
+            _ => {
+                // specular highlight
                 let mut reflected = ray_ctx.ray.direction.clone_owned();
                 Reflection::new(outward_normal, 0.0)
                     .reflect(&mut reflected);
-                Some(ray_ctx.produce(hit.point, Unit::new_unchecked(reflected), Color::from_element(1.0)))
-            })
+                Scatter::Specular(
+                    ray_ctx.produce(hit.point, Direction::new_unchecked(reflected)),
+                    Color::from_element(1.0)
+                )
+            }
+        })
     }
 }

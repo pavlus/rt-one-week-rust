@@ -1,10 +1,12 @@
-use nalgebra::{Rotation3, Unit, UnitQuaternion};
-use crate::aabb::AABB;
-use crate::hittable::{Hit, Hittable, MovingSphere, Orientable, Positionable, Scalable};
-use crate::random::rand_in_unit_sphere;
+use nalgebra::{Rotation3, UnitQuaternion};
+use rand::prelude::Distribution;
+use rand_distr::UnitSphere;
+
+use crate::hittable::{Hit, Hittable, Important, Orientable, Positionable, Scalable};
 use crate::ray::RayCtx;
-use crate::types::{Direction, Geometry, P3, Probability, Timespan};
+use crate::types::{Direction, Geometry, P3, Probability};
 use crate::V3;
+use crate::random2::DefaultRng;
 
 #[derive(Debug)]
 pub struct NoHit;
@@ -12,18 +14,6 @@ pub struct NoHit;
 impl Hittable for NoHit {
     fn hit(&self, _ray: &RayCtx, _dist_min: Geometry, _dist_max: Geometry) -> Option<Hit> {
         None
-    }
-
-    fn bounding_box(&self, _: Timespan) -> Option<AABB> {
-        None
-    }
-
-    fn pdf_value(&self, origin: &P3, direction: &Direction, hit: &Hit) -> Probability {
-        1.0
-    }
-
-    fn random(&self, origin: &P3) -> Direction {
-        Unit::new_unchecked(rand_in_unit_sphere().coords)
     }
 }
 
@@ -45,4 +35,14 @@ impl Positionable for NoHit {
 
 impl Scalable for NoHit {
     fn scale(self, _factor: Geometry) -> Self { self }
+}
+
+impl Important for NoHit {
+    fn pdf_value(&self, _origin: &P3, _direction: &Direction, _hit: &Hit) -> Probability {
+        0.0
+    }
+
+    fn random(&self, _origin: &P3, rng: &mut DefaultRng) -> Direction {
+        Direction::new_unchecked(UnitSphere.sample(rng).into())
+    }
 }

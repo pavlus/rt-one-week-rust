@@ -1,13 +1,11 @@
 use std::fmt::Debug;
 
-use super::{AABB, Hit, Hittable, Material, RayCtx, V3};
-use crate::random::rand_in_unit_sphere;
-use crate::types::{P3, Time, Geometry, Timespan, Scale, P2, Probability, Direction};
-use crate::consts::{FRAC_PI_2, PI, TAU};
 use nalgebra::Unit;
-use crate::hittable::{Positionable, Scalable};
-use crate::material::NoMat;
 
+use crate::hittable::Bounded;
+use crate::types::{Geometry, P3, Scale, Time, Timespan};
+
+use super::{AABB, Hit, Hittable, Material, RayCtx, V3};
 
 #[derive(Debug)]
 pub struct MovingSphere<M> {
@@ -19,7 +17,7 @@ pub struct MovingSphere<M> {
     material: M,
 }
 
-impl<M :Material> MovingSphere<M> {
+impl<M> MovingSphere<M> {
     pub fn new(center_t0: P3, center_t1: P3, timespan: Timespan, radius: Geometry, material: M) -> Self {
         MovingSphere {
             center_t0,
@@ -74,21 +72,21 @@ impl<M: Material> Hittable for MovingSphere<M> {
             None
         }
     }
+}
 
-    fn bounding_box(&self, timespan: Timespan) -> Option<AABB> {
-        Some(self.aabb(timespan.start) + self.aabb(timespan.end))
+impl<M> Bounded for MovingSphere<M> {
+    fn bounding_box(&self, timespan: Timespan) -> AABB {
+        self.aabb(timespan.start) + self.aabb(timespan.end)
     }
 }
 
 
-
 #[cfg(test)]
 mod test {
-    use crate::random::next_std_f64;
     use crate::hittable::Sphere;
-    use crate::material::NoMat;
     use crate::hittable::test::test_pdf_integration;
-    use crate::types::P3;
+    use crate::material::NoMat;
+    use crate::random::next_std_f64;
 
     #[test]
     fn test_pdf() {
@@ -96,7 +94,7 @@ mod test {
         // let count = 10;
 
         let radius = 3.0 * (1.0 + next_std_f64());
-        let sphere = Sphere::new(P3::default(), radius, NoMat);
+        let sphere = Sphere::radius(radius, NoMat);
 
         test_pdf_integration(sphere, count);
     }

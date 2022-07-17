@@ -1,3 +1,5 @@
+use crate::ray::RayCtx;
+use crate::scatter::Scatter;
 use crate::types::ColorComponent;
 use super::{Color, Texture};
 use super::{Hit, Material};
@@ -18,6 +20,10 @@ impl<T: Texture> DiffuseLight<T> {
 impl<T: Texture> Material for DiffuseLight<T> {
     fn emmit(&self, hit: &Hit) -> Color {
         self.intensity_scale * self.texture.value(&hit.uv, &hit.point)
+    }
+
+    fn scatter_with_pdf(&self, _ray_ctx: RayCtx, _hit: &Hit) -> Option<Scatter> {
+        None
     }
 }
 

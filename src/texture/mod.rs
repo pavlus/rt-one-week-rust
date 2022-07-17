@@ -20,4 +20,3 @@ pub fn clamp<T: PartialOrd>(this: T, lo: T, hi: T) -> T {
     if this < lo { lo } else if this > hi { hi } else { this }
 }
 
-

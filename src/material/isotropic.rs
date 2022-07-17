@@ -1,12 +1,8 @@
-use crate::random::rand_in_unit_sphere;
-
 use super::Texture;
 use super::{Hit, Material, RayCtx};
 use crate::scatter::Scatter;
 use crate::scatter::Scatter::Diffuse;
 use crate::pdf::IsotropicPDF;
-use nalgebra::Unit;
-use crate::types::Direction;
 
 #[derive(Debug)]
 pub struct Isotropic<T> {
@@ -26,21 +22,9 @@ impl<T: Clone> Clone for Isotropic<T> {
 }
 
 impl<T: Texture> Material for Isotropic<T> {
-    /// Isotropic material has a unit-sphere BSDF,
-    /// this means that amount of reflected light
-    /// is equal to the amount of transmitted light
-    /// probability of reflection in any direction is the same
-    fn scatter(&self, ray_ctx: &RayCtx, hit: &Hit) -> Option<RayCtx> {
-        Some(
-            ray_ctx.produce(
-                hit.point,
-                Direction::new_unchecked(rand_in_unit_sphere().coords),
-                self.albedo.value(&hit.uv, &hit.point))
-        )
-    }
 
     #[inline]
-    fn scatter_with_pdf(&self, _: &RayCtx, hit: &Hit) -> Option<Scatter> {
+    fn scatter_with_pdf(&self, _: RayCtx, hit: &Hit) -> Option<Scatter> {
         Some(Diffuse(
             Box::new(IsotropicPDF),
             self.albedo.value(&hit.uv, &hit.point))

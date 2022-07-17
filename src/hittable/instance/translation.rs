@@ -1,4 +1,3 @@
-use nalgebra::Translation;
 use super::*;
 
 pub trait TranslateOp<I, O> {
@@ -29,6 +28,7 @@ impl<T: Hittable + Sized> TranslateOp<T, Translate<T>> for Translate<T> {
         }
     }
 }
+
 /*
 impl<T: Hittable> TranslateOp<Rotate<T>, IsometryT<T>> for Rotate<T> {
     fn translate(self, offset: V3) -> IsometryT<T> {
@@ -63,17 +63,23 @@ impl<T: Hittable> Hittable for Translate<T> {
             .map(|hit| Hit { point: hit.point + &self.offset, ..hit })
     }
 
-    fn bounding_box(&self, timespan: Timespan) -> Option<AABB> {
+}
+
+
+impl<B: Bounded> Bounded for Translate<B>{
+    fn bounding_box(&self, timespan: Timespan) -> AABB {
         self.target
             .bounding_box(timespan)
-            .map(|aabb| aabb.moved_by(&self.offset))
+            .moved_by(&self.offset)
     }
+}
 
+impl<I: Important> Important for Translate<I> {
     fn pdf_value(&self, origin: &P3, direction: &Direction, hit: &Hit) -> Probability {
         self.target.pdf_value(&(*origin - self.offset), direction, &hit)
     }
 
-    fn random(&self, origin: &P3) -> Direction {
-        self.target.random(&(*origin - self.offset))
+    fn random(&self, origin: &P3, rng: &mut DefaultRng) -> Direction {
+        self.target.random(&(*origin - self.offset), rng)
     }
 }

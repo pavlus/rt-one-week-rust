@@ -1,21 +1,24 @@
 use std::fmt::Debug;
-use std::ops::Deref;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use crossbeam::atomic::AtomicConsume;
+
+use nalgebra::{Rotation3, UnitQuaternion};
+
 pub use aabox::*;
 pub use aarect::*;
 pub use constant_medium::*;
 pub use instance::*;
 pub use list::*;
-pub use sphere::*;
 pub use moving_sphere::*;
 pub use no_hit::*;
+pub use sphere::*;
 
 use crate::aabb::AABB;
+use crate::Color;
 use crate::material::{Dielectric, Material};
+use crate::random2::DefaultRng;
 use crate::ray::RayCtx;
 use crate::types::{Direction, Geometry, P2, P3, Probability, Timespan, V3};
-use crate::random::rand_in_unit_sphere;
-use nalgebra::{AbstractRotation, Rotation3, Unit, UnitQuaternion};
-use crate::Color;
 
 mod sphere;
 mod aarect;
@@ -36,29 +39,24 @@ pub struct Hit<'a> {
     pub material: &'a dyn Material,
 }
 
+#[allow(non_upper_case_globals)]
+#[cfg(feature = "metrics")]
+static hit_cnt: AtomicUsize = AtomicUsize::new(0);
+#[cfg(feature = "metrics")]
+pub fn total_hits() -> usize{
+    hit_cnt.load_consume()
+}
+
 impl<'a> Hit<'a> {
     pub fn new(dist: Geometry, p: P3, n: Direction, material: &'a dyn Material, uv: P2) -> Hit<'a> {
+        #[cfg(feature = "metrics")]
+        hit_cnt.fetch_add(1, Ordering::Relaxed);
         return Hit { dist, point: p, normal: n, material, uv };
     }
 }
 
-#[allow(unused_variables)]
-pub trait Hittable: Sync + Debug {
+pub trait Hittable: Send + Sync + Debug {
     fn hit(&self, ray: &RayCtx, dist_min: Geometry, dist_max: Geometry) -> Option<Hit>;
-
-    #[deprecated]
-    fn bounding_box(&self, timespan: Timespan) -> Option<AABB> { None }
-
-    #[deprecated]
-    fn pdf_value(&self, origin: &P3, direction: &Direction, hit: &Hit) -> Probability {
-        1.0
-    }
-
-    #[deprecated]
-    fn random(&self, origin: &P3) -> Direction {
-        Direction::new_unchecked(V3::new(0.0, 1.0, 0.0))
-    }
-
 }
 
 pub trait Bounded {
@@ -69,52 +67,45 @@ pub trait Bounded {
     }
 }
 
-impl<T: Hittable> Bounded for T {
-    fn bounding_box(&self, timespan: Timespan) -> AABB {
-        Hittable::bounding_box(self, timespan).unwrap()
-    }
+pub trait Important: Send + Sync {
+    fn pdf_value(&self, _origin: &P3, _direction: &Direction, _hit: &Hit) -> Probability;
+
+    fn random(&self, origin: &P3, rng: &mut DefaultRng) -> Direction;
 }
 
-pub trait Important {
-    fn pdf_value(&self, origin: &P3, direction: &Direction, hit: &Hit) -> Probability {
-        1.0
-    }
+pub trait ImportantHittable: Important + Hittable {}
 
-    fn random(&self, origin: &P3) -> Direction {
-        Direction::new_unchecked(V3::new(0.0, 1.0, 0.0))
-    }
-}
-
-// todo: remove this blanket later
-impl<T: Hittable> Important for T {
-    fn pdf_value(&self, origin: &P3, direction: &Direction, hit: &Hit) -> Probability {
-        Hittable::pdf_value(self, origin, direction, hit)
-    }
-
-    fn random(&self, origin: &P3) -> Direction {
-        Hittable::random(self, origin)
-    }
-}
+impl<H: Important + Hittable> ImportantHittable for H {}
 
 
-
-impl<H: Hittable + ?Sized + 'static, T: Deref<Target=H> + Sync + Debug + ?Sized> Hittable for T {
+impl<H: Hittable + ?Sized> Hittable for Box<H> {
     fn hit(&self, ray: &RayCtx, dist_min: Geometry, dist_max: Geometry) -> Option<Hit> {
         (**self).hit(ray, dist_min, dist_max)
     }
+}
 
-    fn bounding_box(&self, timespan: Timespan) -> Option<AABB> {
+impl<H: Hittable + ?Sized> Hittable for &H {
+    fn hit(&self, ray: &RayCtx, dist_min: Geometry, dist_max: Geometry) -> Option<Hit> {
+        (**self).hit(ray, dist_min, dist_max)
+    }
+}
+
+impl<B: Bounded + ?Sized> Bounded for Box<B> {
+    fn bounding_box(&self, timespan: Timespan) -> AABB {
         (**self).bounding_box(timespan)
     }
+}
 
+impl<I: Important + ?Sized> Important for Box<I> {
     fn pdf_value(&self, origin: &P3, direction: &Direction, hit: &Hit) -> Probability {
         (**self).pdf_value(origin, direction, hit)
     }
 
-    fn random(&self, origin: &P3) -> Direction {
-        (**self).random(origin)
+    fn random(&self, origin: &P3, rng: &mut DefaultRng) -> Direction {
+        (**self).random(origin, rng)
     }
 }
+
 
 pub trait Positionable: Sized {
     fn move_by(&mut self, offset: &V3);
@@ -141,21 +132,19 @@ pub trait Scalable: Sized {
 
 #[cfg(test)]
 mod test {
-    use nalgebra::Unit;
-    use crate::{Color, Probability};
-    use crate::hittable::Hittable;
+    use crate::Probability;
+    use crate::consts::TAU;
+    use crate::hittable::{Hittable, Important};
     use crate::random::rand_in_unit_sphere;
     use crate::ray::RayCtx;
-    use crate::consts::TAU;
     use crate::types::{Direction, Geometry};
 
-
-    pub fn test_pdf_integration<T: Hittable>(hittable: T, count: usize) {
+    pub fn test_pdf_integration<T: Hittable + Important>(hittable: T, count: usize) {
         let origin = 10.0 * rand_in_unit_sphere();
         let integral = (0..count).into_iter()
             .map(|_| {
                 let dir = Direction::new_unchecked(rand_in_unit_sphere().coords);
-                let ray = RayCtx::new(origin, dir, Color::zeros(), 1.0, 2);
+                let ray = RayCtx::new(origin, dir, 1.0);
                 if let Some(hit) = hittable.hit(&ray, -99999.0, 99999.0) {
                     hittable.pdf_value(&origin, &dir, &hit)
                 } else { 0.0 }

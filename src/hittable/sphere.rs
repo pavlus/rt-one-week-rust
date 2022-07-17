@@ -1,44 +1,33 @@
 use std::fmt::Debug;
-use std::ops::Bound;
 
 use super::{AABB, Hit, Hittable, Material, RayCtx, V3};
-use crate::random::rand_in_unit_sphere;
-use crate::types::{P3, Time, Geometry, Timespan, Scale, P2, Probability, Direction};
+use crate::types::{P3, Geometry, Timespan, P2, Probability, Direction};
 use crate::consts::{FRAC_PI_2, PI, TAU};
 use nalgebra::Unit;
-use crate::hittable::{Bounded, Positionable, Scalable};
-use crate::material::NoMat;
+use rand::prelude::Distribution;
+use rand_distr::UnitSphere;
+use crate::hittable::{Bounded, Important, Positionable};
+use crate::random2::DefaultRng;
 
 #[derive(Debug, Clone)]
 pub struct Sphere<M> {
     pub center: P3,
     pub radius: Geometry,
-    pub aabb: AABB,
     pub material: M,
 }
 
 impl<M: Material> Sphere<M> {
     pub fn new(center: P3, radius: Geometry, material: M) -> Self {
-        let radius_vec = V3::from_element(radius);
-        let aabb = AABB::new((&center.coords - &radius_vec).into(), (&center.coords + &radius_vec).into());
-        Sphere { center, radius, aabb, material }
+        Sphere { center, radius, material }
     }
 
     pub fn radius(radius: Geometry, material: M) -> Self {
         Sphere::new(P3::default(), radius, material)
     }
 
+
     pub fn unit(material: M) -> Self {
         Sphere::radius(1.0, material)
-    }
-
-    #[inline]
-    fn center(&self, _: Time) -> &P3 {
-        &self.center
-    }
-
-    fn aabb(&self, _: Timespan) -> AABB {
-        self.aabb
     }
 }
 
@@ -46,13 +35,11 @@ impl<M: Material> Sphere<M> {
 impl<M: Material> Positionable for Sphere<M> {
     fn move_by(&mut self, offset: &V3) {
         self.center += offset;
-        self.aabb.move_by(offset);
     }
 
     fn moved_by(self, offset: &V3) -> Self {
-        Sphere{
+        Sphere {
             center: self.center + offset,
-            aabb: self.aabb.moved_by(offset),
             ..self
         }
     }
@@ -61,7 +48,7 @@ impl<M: Material> Positionable for Sphere<M> {
 
 impl<M: Material> Hittable for Sphere<M> {
     fn hit(&self, ray_ctx: &RayCtx, dist_min: Geometry, dist_max: Geometry) -> Option<Hit> {
-        let center = self.center(ray_ctx.time);
+        let center = self.center;
         let radius = self.radius;
         let oc = &ray_ctx.ray.origin - center;
         let b = oc.dot(&ray_ctx.ray.direction);
@@ -73,6 +60,7 @@ impl<M: Material> Hittable for Sphere<M> {
         let tmp = discr_sqr.sqrt();
         let x1 = -b - tmp;
         let x2 = -b + tmp;
+
         let x = if dist_min <= x1 && x1 <= dist_max {
             Some(x1)
         } else if dist_min <= x2 && x2 <= dist_max {
@@ -86,12 +74,10 @@ impl<M: Material> Hittable for Sphere<M> {
             Some(Hit::new(dist, p, n, &self.material, uv))
         } else { None }
     }
+}
 
-    fn bounding_box(&self, timespan: Timespan) -> Option<AABB> {
-        Some(self.aabb(timespan))
-    }
-
-    fn pdf_value(&self, origin: &P3, direction: &Direction, hit: &Hit) -> Probability {
+impl<M: Send + Sync> Important for Sphere<M> {
+    fn pdf_value(&self, origin: &P3, _direction: &Direction, _hit: &Hit) -> Probability {
         let sqr_r = self.radius * self.radius;
         let direction = &self.center - origin;
         let squared = 1.0 - sqr_r / direction.norm_squared();
@@ -111,8 +97,15 @@ impl<M: Material> Hittable for Sphere<M> {
         (1.0 / solid_angle) as Probability
     }
 
-    fn random(&self, origin: &P3) -> Direction {
-        Unit::new_normalize(self.radius * rand_in_unit_sphere().coords + (&self.center - origin))
+    fn random(&self, origin: &P3, rng: &mut DefaultRng) -> Direction {
+        Unit::new_normalize(self.radius * V3::from(UnitSphere.sample(rng)) + (&self.center - origin))
+    }
+}
+
+impl<M> Bounded for Sphere<M> {
+    fn bounding_box(&self, _timespan: Timespan) -> AABB {
+        let radius = V3::from_element(self.radius);
+        AABB::new((&self.center.coords - &radius).into(), (&self.center.coords + &radius).into())
     }
 }
 
@@ -126,13 +119,13 @@ pub(super) fn uv(unit_point: &Unit<V3>) -> P2 {
     P2::new(u, v)
 }
 
+
 #[cfg(test)]
 mod test {
     use crate::random::next_std_f64;
     use crate::hittable::Sphere;
     use crate::material::NoMat;
     use crate::hittable::test::test_pdf_integration;
-    use crate::types::P3;
 
     #[test]
     fn test_pdf() {
@@ -140,7 +133,7 @@ mod test {
         // let count = 10;
 
         let radius = 3.0 * (1.0 + next_std_f64());
-        let sphere = Sphere::new(P3::default(), radius, NoMat);
+        let sphere = Sphere::radius(radius, NoMat);
 
         test_pdf_integration(sphere, count);
     }

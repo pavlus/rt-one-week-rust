@@ -2,8 +2,8 @@ use structopt::StructOpt;
 
 use types::V3;
 
-use crate::renderer::RendererType;
-use crate::sampler::Sampler;
+use crate::renderer::{RendererImpl, RendererType};
+use crate::sampler::SceneSampler;
 use crate::scenes::*;
 use crate::types::{Color, Probability};
 
@@ -28,6 +28,7 @@ mod sampler;
 
 #[allow(dead_code)]
 mod scenes;
+mod random2;
 
 #[derive(Debug, StructOpt, Clone, Copy)]
 enum SceneType {
@@ -66,36 +67,51 @@ pub struct Params {
     pub(crate) bounces: u16,
     #[structopt(short = "i", long = "important-weight", default_value = "0.5")]
     pub(crate) important_weight: Probability,
+
+    // todo: seed random
 }
 
 fn main() {
     let params: Params = Params::from_args();
-    let cfg = Sampler {
+    let cfg = SceneSampler {
         width: params.width as u32,
         height: params.height as u32,
         samples: params.samples as usize,
         max_ray_bounces: params.bounces as i32,
-        pixel_postprocessor: crate::postprocess,
+        pixel_postprocessor: postprocess,
     };
 
-
-    let scene: Scene = match params.scene.unwrap_or(SceneType::WeekendFinal) {
-        SceneType::WeekendFinal => weekend_final(11, 0.0, 0.2, &params),
-        SceneType::CornelInstances => cornel_box_with_instances(0.0, 0.2, &params),
-        SceneType::CornelIs => cornel_box_with_is(0.0, 0.2, &params),
-        SceneType::CornelIsReflection => cornel_box_is_reflection(0.0, 0.2, &params),
-        SceneType::CornelVolumes => cornel_box_volumes(0.0, 0.2, &params),
-        SceneType::CornelPlayground => cornel_box_test(0.0, 0.2, &params),
-        SceneType::NextWeekFinal => next_week(0.0, 0.2, &params),
-        SceneType::Perlin => perlin_scene(0.0, 0.2, &params),
+    let renderer = RendererImpl::pick_renderer(&params);
+    match params.scene.unwrap_or(SceneType::WeekendFinal) {
+        SceneType::WeekendFinal => {
+            cfg.do_render((weekend_final(11, 0.0..0.2, &params), renderer));
+        }
+        SceneType::CornelInstances => {
+            cfg.do_render((cornel_box_with_instances(0.0..0.2, &params), renderer));
+        }
+        SceneType::CornelIs => {
+            cfg.do_render((cornel_box_with_is(0.0..0.2, &params), renderer));
+        }
+        SceneType::CornelIsReflection => {
+            cfg.do_render((cornel_box_is_reflection(0.0..0.2, &params), renderer));
+        }
+        SceneType::CornelVolumes => {
+            cfg.do_render((cornel_box_volumes(0.0..0.2, &params), renderer));
+        }
+        SceneType::CornelPlayground => {
+            cfg.do_render((cornel_box_test(0.0..0.2, &params), renderer));
+        }
+        SceneType::NextWeekFinal => {
+            cfg.do_render((next_week(0.0..0.2, &params), renderer));
+        }
+        SceneType::Perlin => {
+            cfg.do_render((perlin_scene(0.0..0.2, &params), renderer));
+        }
         // _ => weekend_final(renderer_type, 11, w, h, 0.0, 0.2, ttl),
-
     };
 //    let scene = img_scene(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces);
 //    let scene = img_lit_scene(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces);
 //    let scene = img_lit_rect_scene(cfg.width, cfg.height, 0.0, 0.2, cfg.max_ray_bounces);
-
-    cfg.do_render(scene);
 }
 
 pub fn postprocess(color: Color) -> Color {

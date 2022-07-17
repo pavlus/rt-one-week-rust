@@ -12,19 +12,18 @@ pub trait RotateOp<I, O> {
     fn apply_rotation(self, rotation: Rotation3<Geometry>) -> O;
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct Rotate<T> {
     pub(super) target: T,
     pub(super) transform: Rotation3<Geometry>,
-    pub(super) aabb: Option<AABB>,
 }
-
+/*
 impl<T> Rotate<T> {
     pub fn into_inner(self) -> T {
         self.target
     }
 }
-
+*/
 
 impl<I: Hittable> RotateOp<I, Rotate<I>> for I {
     fn rotate_x(self, angle_degrees: Geometry) -> Rotate<I> {
@@ -40,9 +39,7 @@ impl<I: Hittable> RotateOp<I, Rotate<I>> for I {
     }
 
     fn apply_rotation(self, rotation: Rotation3<Geometry>) -> Rotate<I> {
-        let aabb = self.bounding_box(0.0..1.0)
-            .map(|aabb| aabb.by_rotation(&rotation));
-        Rotate { target: self, transform: rotation, aabb }
+        Rotate { target: self, transform: rotation }
     }
 }
 
@@ -71,12 +68,12 @@ impl<T: Hittable> Hittable for Rotate<T> {
     fn hit(&self, ray_ctx: &RayCtx, dist_min: Geometry, dist_max: Geometry) -> Option<Hit> {
         let ray = ray_ctx.ray;
         let origin = self.transform.inverse_transform_point(&ray.origin);
-        let direction =  self.transform.inverse_transform_unit_vector(&ray.direction);
+        let direction = self.transform.inverse_transform_unit_vector(&ray.direction);
         let rotated_ray = RayCtx { ray: Ray { origin, direction }, ..*ray_ctx };
 
         self.target.hit(&rotated_ray, dist_min, dist_max)
             .map(|hit| {
-                let point =  self.transform * hit.point;
+                let point = self.transform * hit.point;
                 let normal = self.transform * &hit.normal;
 
                 Hit {
@@ -86,36 +83,44 @@ impl<T: Hittable> Hittable for Rotate<T> {
                 }
             })
     }
+}
 
-    fn bounding_box(&self, _: Timespan) -> Option<AABB> {
-        self.aabb
-    }
-
+impl<I: Important> Important for Rotate<I> {
     fn pdf_value(&self, origin: &P3, direction: &Direction, hit: &Hit) -> Probability {
         let origin = self.transform.inverse_transform_point(origin);
         let direction = self.transform.inverse_transform_unit_vector(direction);
-        let hit = Hit{
+        let hit = Hit {
             point: origin,
-                ..*hit
+            ..*hit
         };
         self.target.pdf_value(&origin, &direction, &hit)
     }
 
-    fn random(&self, origin: &P3) -> Direction {
-            self.transform *
-                &self.target.random(
-                    &self.transform.inverse_transform_point(&origin))
+    fn random(&self, origin: &P3, rng: &mut DefaultRng) -> Direction {
+        self.transform *
+            &self.target.random(
+                &self.transform.inverse_transform_point(&origin), rng)
+    }
+}
+
+impl<B: Bounded> Bounded for Rotate<B> {
+    fn bounding_box(&self, timespan: Timespan) -> AABB {
+        self.target.bounding_box(timespan)
+            .by_rotation(&self.transform)
     }
 }
 
 #[cfg(test)]
 mod test {
     use nalgebra::Unit;
+    use rand::distributions::uniform::SampleRange;
+    use rand::prelude::Distribution;
+    use rand_distr::UnitSphere;
     use crate::hittable::{AABox, Hittable, RotateOp, Sphere};
-    use crate::types::{Color, Geometry, P3};
+    use crate::types::P3;
     use crate::material::NoMat;
     use crate::hittable::test::test_pdf_integration;
-    use crate::random::{next_std, next_std_in_range, rand_in_unit_sphere};
+    use crate::random2::DefaultRng;
     use crate::ray::RayCtx;
     use crate::types::V3;
 
@@ -130,13 +135,14 @@ mod test {
     }
 
     #[test]
-    fn test_sphere_rotation_pdf_converges(){
+    fn test_sphere_rotation_pdf_converges() {
         let count = 5_000;
+        let mut rng = DefaultRng::default();
 
-        let radius = 4.0 * (1.0 + next_std::<Geometry>());
-        let sphere = Sphere::new(P3::default(), radius, NoMat);
+        let radius = (4.0..8.0).sample_single(&mut rng);
+        let sphere = Sphere::radius(radius, NoMat);
 
-        let angle = next_std_in_range(&(-180.0..180.0));
+        let angle = (-180.0..180.0).sample_single(&mut rng);
         let rotated = sphere.clone()
             .rotate_y(angle);
         test_pdf_integration(rotated, count);
@@ -145,11 +151,12 @@ mod test {
     #[test]
     fn test_offset_aabox_rotation_pdf_converges() {
         let count = 5_000;
+        let mut rng = DefaultRng::default();
 
-        let center: P3 = 5.0 * rand_in_unit_sphere();
-        let h_width = 1.0 + next_std::<Geometry>();
-        let h_height = 1.0 + next_std::<Geometry>();
-        let h_depth = 1.0 + next_std::<Geometry>();
+        let center: P3 = (5.0 * V3::from(UnitSphere.sample(&mut rng))).into();
+        let h_width = (1.0..2.0).sample_single(&mut rng);
+        let h_height = (1.0..2.0).sample_single(&mut rng);
+        let h_depth = (1.0..2.0).sample_single(&mut rng);
 
         let aabox = AABox::mono(
             (center.x - h_width)..(center.x + h_width),
@@ -157,9 +164,9 @@ mod test {
             (center.z - h_depth)..(center.z + h_depth),
             NoMat,
         );
-        let rot_range = (-180.0)..180.0;
         for _ in 0..50 {
-            let angle = next_std_in_range(&rot_range);
+            let rot_range = (-180.0)..180.0;
+            let angle = rot_range.sample_single(&mut rng);
             test_pdf_integration(aabox.clone().rotate_y(angle), count);
         }
     }
@@ -167,10 +174,11 @@ mod test {
     #[test]
     fn test_central_aabox_rotation_pdf_converges() {
         let count = 10_000;
+        let mut rng = DefaultRng::default();
 
-        let h_width = 1.0 + next_std::<Geometry>();
-        let h_height = 1.0 + next_std::<Geometry>();
-        let h_depth = 1.0 + next_std::<Geometry>();
+        let h_width = (1.0..2.0).sample_single(&mut rng);
+        let h_height = (1.0..2.0).sample_single(&mut rng);
+        let h_depth = (1.0..2.0).sample_single(&mut rng);
 
         let aabox = AABox::mono(
             -h_width..h_width,
@@ -178,9 +186,9 @@ mod test {
             -h_depth..h_depth,
             NoMat,
         );
-        let rot_range = (-180.0)..180.0;
         for _ in 0..50 {
-            let angle = next_std_in_range(&rot_range);
+            let rot_range = (-180.0)..180.0;
+            let angle = rot_range.sample_single(&mut rng);
             test_pdf_integration(aabox.clone().rotate_y(angle), count);
         }
     }
@@ -197,8 +205,8 @@ mod test {
         let rot_origin = P3::new(5.0, 0.0, 0.0);
         let direction = Unit::new_unchecked(V3::new(0.0, 0.0, -1.0));
         let rot_direction = Unit::new_unchecked(V3::new(-1.0, 0.0, 0.0));
-        let ray = RayCtx::new(origin, direction, Color::zeros(), 1.0, 2);
-        let rotated_ray = RayCtx::new(rot_origin, rot_direction, Color::zeros(), 1.0, 2);
+        let ray = RayCtx::new(origin, direction, 1.0);
+        let rotated_ray = RayCtx::new(rot_origin, rot_direction, 1.0);
 
         let aabox_hit = aabox.hit(&ray, -100.0, 100.0).unwrap();
         let rotated_hit = rotated.hit(&ray, -100.0, 100.0).unwrap();
@@ -208,6 +216,4 @@ mod test {
         assert_eq_eps!(aabox_hit.normal.into_inner(), rotated_hit.normal.into_inner(), epsilon);
         assert_eq!(aabox_hit.dist, rotated_hit.dist);
     }
-
-
 }

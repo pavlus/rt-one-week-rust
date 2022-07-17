@@ -1,9 +1,10 @@
-use nalgebra::{Isometry3, Unit};
+use nalgebra::Isometry3;
+
 use crate::aabb::AABB;
-use crate::hittable::{Hit, Hittable, Orientable, Positionable};
+use crate::hittable::{Bounded, Hit, Hittable, Important, Orientable, Positionable};
+use crate::random2::DefaultRng;
 use crate::ray::{Ray, RayCtx};
 use crate::types::{Direction, Geometry, P3, Probability, Timespan};
-use crate::V3;
 
 pub trait IsometryOp<I, O> {
     fn apply(self, transform: Isometry3<Geometry>) -> O;
@@ -13,20 +14,12 @@ pub trait IsometryOp<I, O> {
 pub struct IsometryT<T> {
     target: T,
     transform: Isometry3<Geometry>,
-    aabb: Option<AABB>,
 }
 
 impl<I: Hittable> IsometryOp<I, IsometryT<I>> for I {
     fn apply(self, transform: Isometry3<Geometry>) -> IsometryT<I> {
-        let aabb = self.bounding_box(0.0..1.0)
-            .map(|aabb| aabb
-                .by_rotation_quat(&transform.rotation)
-                .moved_by(&transform.translation.vector)
-            );
-
         IsometryT {
             target: self,
-            aabb,
             transform,
         }
     }
@@ -59,11 +52,9 @@ impl<I: Hittable> Hittable for IsometryT<I> {
                 }
             })
     }
+}
 
-    fn bounding_box(&self, _timespan: Timespan) -> Option<AABB> {
-        self.aabb
-    }
-
+impl<I: Important> Important for IsometryT<I> {
     fn pdf_value(&self, origin: &P3, direction: &Direction, hit: &Hit) -> Probability {
         let origin = self.transform.inverse_transform_point(&origin);
         let direction = self.transform.inverse_transform_unit_vector(direction);
@@ -74,7 +65,16 @@ impl<I: Hittable> Hittable for IsometryT<I> {
         self.target.pdf_value(&origin, &direction, &hit)
     }
 
-    fn random(&self, origin: &P3) -> Direction {
-        self.transform * &self.target.random(&self.transform.inverse_transform_point(&origin))
+    fn random(&self, origin: &P3, rng: &mut DefaultRng) -> Direction {
+        self.transform * &self.target.random(&self.transform.inverse_transform_point(&origin), rng)
+    }
+}
+
+
+impl<B: Bounded> Bounded for IsometryT<B> {
+    fn bounding_box(&self, timespan: Timespan) -> AABB {
+        self.target.bounding_box(timespan)
+            .by_rotation_quat(&self.transform.rotation)
+            .moved_by(&self.transform.translation.vector)
     }
 }

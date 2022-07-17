@@ -1,44 +1,55 @@
+use crossbeam::atomic::AtomicConsume;
 use itertools::Itertools;
 use rand_distr::Normal;
 
-use crate::hittable::{AABox, ConstantMedium, FlipNormalsOp, Hittable, HittableList, MovingSphere, RotateOp, Sphere, XYRect, XZRect, YZRect};
-use crate::material::{Dielectric, DiffuseLight, Lambertian, Metal, NoMat};
-use crate::noise::Perlin;
-use crate::random::{next_color, next_std, next_std_distance, next_std_u32, with_rnd};
-use crate::texture::{Checker, ImageTexture, PerlinTexture};
-use crate::camera::View;
-use crate::types::{Color, ColorComponent, Geometry, P2, P3, Scale, Time, V3};
-use crate::renderer::{Renderer, RendererImpl};
-use crate::ray::Ray;
-use crate::bvh::BVH;
-use crate::{Params, random};
-
-pub mod perlin;
+pub use book::*;
+pub use cornel_box::*;
 pub use perlin::*;
 
-pub mod cornel_box;
-pub use cornel_box::*;
-
-pub mod image;
-pub use self::image::*;
-
-pub mod book;
-pub use book::*;
-use crate::hittable::{Translate, TranslateOp};
+use crate::Params;
+use crate::camera::View;
+use crate::hittable::{AABox, ConstantMedium, FlipNormalsOp, Hittable, Important, MovingSphere, RotateOp, Sphere, XYRect, XZRect, YZRect};
+use crate::hittable::TranslateOp;
 use crate::hittable::NoHit;
+use crate::material::{Dielectric, DiffuseLight, Lambertian, GlossyMetal, NoMat};
+use crate::noise::Perlin;
+use crate::random2::DefaultRng;
+use crate::ray::Ray;
+use crate::renderer::{Renderer};
+use crate::texture::{Checker, ImageTexture, PerlinTexture};
+use crate::types::{Color, ColorComponent, Geometry, P2, P3, Scale, Timespan, V3};
 
-pub struct Scene {
+
+pub mod perlin;
+pub mod cornel_box;
+pub mod book;
+
+pub struct SceneDesc<H, I> {
     pub view: View,
-    pub renderer: RendererImpl,
+    pub hittable: H,
+    pub important: I,
+    pub miss_shader: fn(&Ray) -> Color,
 }
 
-impl Scene {
-    pub fn color(&self, u: Geometry, v: Geometry) -> Color {
-        self.renderer.color(&self.view.get_ray(P2::new(u, v)))
+
+pub trait Scene: Send + Sync {
+    fn color(&self, u: Geometry, v: Geometry, rng: &mut DefaultRng) -> Color;
+
+    #[cfg(feature = "metrics")]
+    fn generated_rays(&self) -> usize;
+}
+
+impl<H: Hittable, I: Important, R: Renderer<SceneDesc<H, I>>> Scene for (SceneDesc<H, I>, R) {
+    fn color(&self, u: Geometry, v: Geometry, rng: &mut DefaultRng) -> Color {
+        self.1.color(&self.0, &self.0.view.get_ray(P2::new(u, v), rng), rng)
+    }
+
+    fn generated_rays(&self) -> usize {
+        self.0.view.ray_cnt.load_consume()
     }
 }
 
-pub fn get_cam(nx: u32, ny: u32, t_off: Time, t_span: Time, ttl: i32) -> View {
+pub fn get_cam(nx: u32, ny: u32, timespan: Timespan, ttl: i32) -> View {
     let aspect = (nx as Geometry) / (ny as Geometry);
     let from = V3::new(13.0, 2.0, 3.0);
     let at = V3::new(0.0, 0.0, 0.0);
@@ -53,12 +64,12 @@ pub fn get_cam(nx: u32, ny: u32, t_off: Time, t_span: Time, ttl: i32) -> View {
         aspect,
         dist_to_focus,
         aperture,
-        t_off..t_span,
+        timespan,
         ttl,
     )
 }
 
-fn closeup_cam(nx: u32, ny: u32, t_off: Time, t_span: Time, ttl: i32) -> View {
+fn closeup_cam(nx: u32, ny: u32, timespan: Timespan, ttl: i32) -> View {
     let aspect = (nx as Geometry) / (ny as Geometry);
     let from = V3::new(-3.0, 3.0, 2.0);
     let at = V3::new(0.0, 0.0, -1.0);
@@ -71,7 +82,7 @@ fn closeup_cam(nx: u32, ny: u32, t_off: Time, t_span: Time, ttl: i32) -> View {
         aspect,
         dist_to_focus,
         aperture,
-        t_off..t_span,
+        timespan,
         ttl,
     )
 }

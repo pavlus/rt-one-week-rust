@@ -1,23 +1,23 @@
 use std::ops::Range;
 
 use super::{AABB, Hit, Hittable, Material, RayCtx};
-use crate::random::next_std_in_range;
 use crate::types::{Direction, Geometry, P2, P3, Probability, Timespan, V3};
 use nalgebra::Unit;
-use crate::hittable::Positionable;
+use rand::distributions::uniform::SampleRange;
+use crate::hittable::{Bounded, Important, Positionable};
+use crate::random2::DefaultRng;
 
 #[derive(Clone, Debug)]
 pub struct AABox<
-    Front: Material,
-    Back: Material,
-    Top: Material,
-    Bottom: Material,
-    Left: Material,
-    Right: Material> {
+    Front,
+    Back,
+    Top,
+    Bottom,
+    Left,
+    Right> {
     x: Range<Geometry>,
     y: Range<Geometry>,
     z: Range<Geometry>,
-    aabb: AABB,
     front: Front,
     back: Back,
     top: Top,
@@ -26,7 +26,7 @@ pub struct AABox<
     right: Right,
 }
 
-pub type AABoxMono<M: Material> = AABox<M, M, M, M, M, M>;
+pub type AABoxMono<M> = AABox<M, M, M, M, M, M>;
 
 impl<'a, M: Material + Clone> AABoxMono<M>
 {
@@ -36,10 +36,6 @@ impl<'a, M: Material + Clone> AABoxMono<M>
         z: Range<Geometry>,
         material: M,
     ) -> Self {
-        let Range { start: x_start, end: x_end } = x;
-        let Range { start: y_start, end: y_end } = y;
-        let Range { start: z_start, end: z_end } = z;
-
         AABox {
             x,
             y,
@@ -50,8 +46,6 @@ impl<'a, M: Material + Clone> AABoxMono<M>
             bottom: material.clone(),
             left: material.clone(),
             right: material,
-            aabb: AABB::new(P3::new(x_start, y_start, z_start),
-                            P3::new(x_end, y_end, z_end)),
         }
     }
 }
@@ -69,9 +63,6 @@ AABox<Front, Back, Top, Bottom, Left, Right> {
         left: Left,
         right: Right,
     ) -> Self {
-        let Range { start: x_start, end: x_end } = x;
-        let Range { start: y_start, end: y_end } = y;
-        let Range { start: z_start, end: z_end } = z;
         AABox {
             x,
             y,
@@ -82,8 +73,6 @@ AABox<Front, Back, Top, Bottom, Left, Right> {
             bottom,
             left,
             right,
-            aabb: AABB::new(P3::new(x_start, y_start, z_start),
-                            P3::new(x_end, y_end, z_end)),
         }
     }
 }
@@ -159,12 +148,16 @@ Hittable for AABox<Front, Back, Top, Bottom, Left, Right> {
         }
         result
     }
+}
 
-    fn bounding_box(&self, _: Timespan) -> Option<AABB> {
-        Some(self.aabb)
-    }
-
-    fn pdf_value(&self, origin: &P3, direction: &Direction, hit: &Hit) -> Probability {
+impl<
+    A: Send + Sync,
+    B: Send + Sync,
+    C: Send + Sync,
+    D: Send + Sync,
+    E: Send + Sync,
+    F: Send + Sync> Important for AABox<A, B, C, D, E, F> {
+    fn pdf_value(&self, _origin: &P3, direction: &Direction, hit: &Hit) -> Probability {
         // it's horribly wrong :(
         let width = self.x.end - self.x.start;
         let height = self.y.end - self.y.start;
@@ -192,11 +185,19 @@ Hittable for AABox<Front, Back, Top, Bottom, Left, Right> {
         sqr_dist as Probability / total_area as Probability
     }
 
-    fn random(&self, origin: &P3) -> Direction {
-        let x = next_std_in_range(&self.x);
-        let y = next_std_in_range(&self.y);
-        let z = next_std_in_range(&self.z);
+    fn random(&self, origin: &P3, rng: &mut DefaultRng) -> Direction {
+        let x = self.x.clone().sample_single(rng);
+        let y = self.y.clone().sample_single(rng);
+        let z = self.z.clone().sample_single(rng);
         Unit::new_normalize(V3::new(x, y, z) - &origin.coords)
+    }
+}
+
+impl<Front, Back, Top, Bottom, Left, Right>
+Bounded for AABox<Front, Back, Top, Bottom, Left, Right> {
+    fn bounding_box(&self, _: Timespan) -> AABB {
+        AABB::new(P3::new(self.x.start, self.y.start, self.z.start),
+                  P3::new(self.x.end, self.y.end, self.z.end))
     }
 }
 
@@ -212,7 +213,6 @@ Positionable for AABox<Front, Back, Top, Bottom, Left, Right> {
         self.x = (self.x.start + offset.x)..(self.x.end + offset.x);
         self.y = (self.y.start + offset.y)..(self.y.end + offset.y);
         self.z = (self.z.start + offset.z)..(self.z.end + offset.z);
-        self.aabb.move_by(offset);
     }
 
     fn moved_by(self, offset: &V3) -> Self {
@@ -220,23 +220,21 @@ Positionable for AABox<Front, Back, Top, Bottom, Left, Right> {
             x: (self.x.start + offset.x)..(self.x.end + offset.x),
             y: (self.y.start + offset.y)..(self.y.end + offset.y),
             z: (self.z.start + offset.z)..(self.z.end + offset.z),
-            aabb: self.aabb.moved_by(offset),
             ..self
         }
     }
-
 }
 
 #[cfg(test)]
 mod test {
-    use crate::hittable::{AABox, XYRect, Hit, Hittable, FlipNormalsOp};
+    use crate::hittable::{AABox, XYRect, Hit, Hittable, FlipNormalsOp, Important};
     use crate::material::{Lambertian, NoMat};
-    use crate::V3;
     use nalgebra::Unit;
-    use crate::random::next_std;
+    use rand::distributions::uniform::SampleRange;
     use crate::hittable::test::test_pdf_integration;
+    use crate::random2::DefaultRng;
     use crate::ray::RayCtx;
-    use crate::types::{Color, Geometry, P2, P3};
+    use crate::types::{Color, P2, P3, V3};
 
     #[test]
     fn test_box_rect_pdf_one_side_visible_eq_to_rect() {
@@ -262,7 +260,7 @@ mod test {
             .flip_normals();
         let origin = P3::new(0.0, -1.5, -3.0);
         let direction = Unit::new_normalize(V3::new(0.0, 0.3, 0.9));
-        let ray = RayCtx::new(origin, direction, Color::zeros(), 1.0, 2);
+        let ray = RayCtx::new(origin, direction, 1.0);
         let aabox_hit = aabox.hit(&ray, -10.0, 10.0).unwrap();
         let aarect_hit = aarect.hit(&ray, -10.0, 10.0).unwrap();
         assert_eq!(aabox_hit.point, aarect_hit.point);
@@ -276,10 +274,11 @@ mod test {
     #[test]
     fn test_pdf_converges() {
         let count = 1000_000;
+        let mut rng = DefaultRng::default();
 
-        let h_width = 1.0 + next_std::<Geometry>();
-        let h_height = 1.0 + next_std::<Geometry>();
-        let h_depth = 1.0 + next_std::<Geometry>();
+        let h_width = (1.0..2.0).sample_single(&mut rng);
+        let h_height = (1.0..2.0).sample_single(&mut rng);
+        let h_depth = (1.0..2.0).sample_single(&mut rng);
 
         let aabox = AABox::mono(
             -h_width..h_width,
