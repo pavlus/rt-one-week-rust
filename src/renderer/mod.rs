@@ -6,6 +6,7 @@ use crate::hittable::Hittable;
 use crate::ray::{RayCtx, Ray};
 use crate::types::Color;
 use std::str::FromStr;
+use crate::Params;
 
 mod rgb_renderer;
 mod ttl_renderer;
@@ -44,21 +45,22 @@ pub enum RendererImpl {
 }
 
 impl RendererImpl {
-    pub fn biased(scene_graph: Box<dyn Hittable>, important: Box<dyn Hittable>, miss_shader: fn(&Ray) -> Color) -> RendererImpl{
+    pub fn biased(scene_graph: Box<dyn Hittable>, important: Box<dyn Hittable>, miss_shader: fn(&Ray) -> Color, important_weight: f64) -> RendererImpl {
         RendererImpl::RGB(RgbRenderer {
             hittable: scene_graph,
             important,
             miss_shader,
+            important_weight,
         })
     }
-    pub fn unbiased(scene_graph: Box<dyn Hittable>, miss_shader: fn(&Ray) -> Color) -> RendererImpl{
+    pub fn unbiased(scene_graph: Box<dyn Hittable>, miss_shader: fn(&Ray) -> Color) -> RendererImpl {
         RendererImpl::RGBUnbiased(RgbRendererUnbiased {
             hittable: scene_graph,
             miss_shader,
         })
     }
 
-    pub fn ray_ttl(scene_graph: Box<dyn Hittable>, ttl: i32) -> RendererImpl{
+    pub fn ray_ttl(scene_graph: Box<dyn Hittable>, ttl: i32) -> RendererImpl {
         RendererImpl::TTL(TtlRenderer {
             hittable: scene_graph,
             ttl,
@@ -66,21 +68,21 @@ impl RendererImpl {
     }
 
     pub fn pick_renderer(
-        renderer_type: RendererType, scene_graph: Box<dyn Hittable>,
+        scene_graph: Box<dyn Hittable>,
         important: Box<dyn Hittable>,
         miss_shader: fn(&Ray) -> Color,
-        ttl: i32
-    ) -> RendererImpl{
-        match renderer_type {
+        params: &Params
+    ) -> RendererImpl {
+        match params.renderer_type {
             RendererType::RGBBiased => {
-                RendererImpl::biased(scene_graph, important, miss_shader)
+                RendererImpl::biased(scene_graph, important, miss_shader, params.important_weight)
             },
             RendererType::RGBUnbiased => {
                 RendererImpl::unbiased(scene_graph, miss_shader)
-            },
+            }
             RendererType::TTL => {
-                RendererImpl::ray_ttl(scene_graph, ttl)
-            },
+                RendererImpl::ray_ttl(scene_graph, params.bounces as i32)
+            }
         }
     }
 }

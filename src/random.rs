@@ -1,5 +1,4 @@
 #[allow(dead_code)]
-
 use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::ops::Range;
@@ -10,8 +9,8 @@ use rand::seq::SliceRandom;
 use rand_distr::{UnitDisc, UnitSphere};
 use rand_xoshiro::Xoshiro256Plus;
 
-use crate::types::{V3, P3, Distance, Scale, Color};
-use crate::consts::{PI, TAU};
+use crate::types::{V3, P3, Geometry, Color, ColorComponent};
+use crate::consts::{TAU};
 use nalgebra::Unit;
 
 thread_local! {
@@ -20,13 +19,22 @@ thread_local! {
 }
 
 pub fn next_std_f64() -> f64 {
+
     RND.with(|rnd_cell|
         Standard.sample((*rnd_cell.borrow_mut()).borrow_mut()))
 }
 
-pub fn next_std() -> Distance {
+pub fn next_std<T>() -> T where Standard: Distribution<T>{
     RND.with(|rnd_cell|
         Standard.sample((*rnd_cell.borrow_mut()).borrow_mut()))
+}
+
+pub fn next_std_distance() -> Geometry {
+    next_std()
+}
+
+pub fn next_std_color_comp() -> ColorComponent {
+    next_std()
 }
 
 pub fn next_std_i32() -> i32 {
@@ -66,7 +74,7 @@ pub fn next_f32<D: Distribution<f32>>(d: D) -> f32 {
 }
 
 pub fn next_color() -> Color {
-    Color::new(next_std_f64(), next_std_f64(), next_std_f64())
+    Color::new(next_std(), next_std(), next_std())
 }
 
 pub fn random_axis() -> usize {
@@ -80,13 +88,13 @@ pub fn random_item<T>(from: &[T]) -> Option<&T> {
 }
 
 pub fn next_std_f64_in_range(range: &Range<f64>) -> f64 {
-    let value: f64 =  RND.with(|rnd_cell|
+    let value: f64 = RND.with(|rnd_cell|
         Standard.sample((*rnd_cell.borrow_mut()).borrow_mut()));
     value.mul_add(range.end - range.start, range.start)
 }
 
-pub fn next_std_in_range(range: &Range<Distance>) -> Distance {
-    let value: Distance =  RND.with(|rnd_cell|
+pub fn next_std_in_range(range: &Range<Geometry>) -> Geometry {
+    let value: Geometry = RND.with(|rnd_cell|
         Standard.sample((*rnd_cell.borrow_mut()).borrow_mut()));
     value.mul_add(range.end - range.start, range.start)
 }
@@ -101,13 +109,13 @@ pub fn rand_in_unit_hemisphere(normal: &V3) -> P3 {
 }
 
 pub fn rand_cosine_direction() -> Unit<V3> {
-    let r1 = next_std();
+    let r1: Geometry = next_std();
     let r2 = next_std();
-    let z = Scale::sqrt(1.0 - r2);
+    let z = Geometry::sqrt(1.0 - r2);
 
-    let phi = r1 * TAU;
-    let (sin, cos) = Scale::sin_cos(phi);
-    let sqrt_r2 = Scale::sqrt(r2);
+    let phi = r1 * TAU as Geometry;
+    let (sin, cos) = Geometry::sin_cos(phi);
+    let sqrt_r2 = Geometry::sqrt(r2);
 
     let x = cos * sqrt_r2;
     let y = sin * sqrt_r2;

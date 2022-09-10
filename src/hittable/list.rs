@@ -1,29 +1,52 @@
-use crate::types::{V3, P3, Distance, Time, Probability};
+use crate::types::{V3, P3, Geometry, Probability, Timespan};
 
 use super::{AABB, Hit, Hittable, RayCtx};
 use nalgebra::Unit;
 use itertools::Itertools;
 
 #[derive(Debug)]
-pub struct HittableList {
-    objects: Vec<Box<dyn Hittable>>,
-    aabb: Option<AABB>,
+pub struct HittableList<T> {
+    pub(crate) objects: Vec<T>,
+    pub(crate) aabb: Option<AABB>,
 }
 
-impl HittableList {
-    pub fn new(objects: Vec<Box<dyn Hittable>>) -> HittableList {
+impl <T: Hittable> HittableList<T> {
+    pub fn new(objects: Vec<T>) -> HittableList<T> {
         let aabb = objects.iter()
-            .flat_map(|o| o.bounding_box(0.0, 1.0))
+            .flat_map(|o| o.bounding_box(0.0..1.0))
             .sum1();
         HittableList { objects, aabb }
     }
+    pub fn empty() -> HittableList<T> {
+        return Self::new(vec![]);
+    }
+
+    pub fn len(&self) -> usize {
+        self.objects.len()
+    }
+
+    pub fn append(mut self, ref mut objects: Vec<T>) -> Self {
+        let aabb = objects.iter()
+            .flat_map(|o| o.bounding_box(0.0..1.0))
+            .sum1();
+        self.objects.append(objects);
+        self.aabb = aabb.map(|o: AABB| o.combine(self.aabb));
+        self
+    }
+
+    pub fn push(&mut self, object: T) {
+        let aabb = object.bounding_box(0.0..1.0);
+        self.objects.push(object);
+        self.aabb = aabb.map(|o| o.combine(self.aabb));
+    }
 }
 
-impl Hittable for HittableList {
-    fn hit(&self, ray: &RayCtx, dist_min: Distance, dist_max: Distance) -> Option<Hit> {
-        let mut selected: (Distance, Option<Hit>) = (Distance::MAX, None);
+impl <T: Hittable> Hittable for HittableList<T> {
+    fn hit(&self, ray: &RayCtx, dist_min: Geometry, dist_max: Geometry) -> Option<Hit> {
+        let mut selected: (Geometry, Option<Hit>) = (dist_max, None);
+
         for o in &self.objects {
-            if let Some(hit) = o.hit(ray, dist_min, dist_max) {
+            if let Some(hit) = o.hit(ray, dist_min, selected.0) {
                 if hit.dist < selected.0 {
                     selected = (hit.dist, Some(hit))
                 }
@@ -32,7 +55,7 @@ impl Hittable for HittableList {
         selected.1
     }
 
-    fn bounding_box(&self, _: Time, _: Time) -> Option<AABB> {
+    fn bounding_box(&self, _: Timespan) -> Option<AABB> {
         self.aabb
     }
 

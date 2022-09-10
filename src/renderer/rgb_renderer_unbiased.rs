@@ -10,7 +10,7 @@ pub struct RgbRendererUnbiased {
 
 impl Renderer for RgbRendererUnbiased {
     fn color(&self, ray_ctx: &RayCtx) -> Color {
-        match self.hittable.hit(&ray_ctx, 0.0001, 99999.0) {
+        match self.hittable.hit(&ray_ctx, 0.000_001, 99999.0) {
             Some(hit) => {
                 let emitted = if hit.normal.dot(&ray_ctx.ray.direction.normalize()) < 0.0 {
                     hit.material.emmit(&hit)

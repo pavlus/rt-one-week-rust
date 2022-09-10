@@ -1,5 +1,5 @@
 use super::{Hittable, RayCtx, Renderer};
-use crate::types::Color;
+use crate::types::{Color, ColorComponent};
 
 #[allow(dead_code)]
 pub struct TtlRenderer{
@@ -28,5 +28,5 @@ impl Renderer for TtlRenderer {
 }
 
 fn ttl_color(ray_ttl: i32, max_ttl:i32) -> Color {
-    (ray_ttl as f64 / max_ttl as f64) * Color::from_element(1.0)
+    (ray_ttl as ColorComponent / max_ttl as ColorComponent) * Color::from_element(1.0)
 }

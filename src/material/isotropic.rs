@@ -41,7 +41,7 @@ impl<T: Texture> Material for Isotropic<T> {
     #[inline]
     fn scatter_with_pdf(&self, _: &RayCtx, hit: &Hit) -> Option<Scatter> {
         Some(Diffuse(
-            Box::new(IsotropicPDF::from_w(hit.normal)),
+            Box::new(IsotropicPDF),
             self.albedo.value(&hit.uv, &hit.point))
         )
     }

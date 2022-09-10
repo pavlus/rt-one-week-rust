@@ -1,16 +1,16 @@
-use crate::texture::Sampler2D;
+use crate::types::ColorComponent;
 use super::{Color, Texture};
 use super::{Hit, Material};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct DiffuseLight<T> {
-    intensity_scale: f64,
+    intensity_scale: ColorComponent,
     texture: T,
 }
 
 
 impl<T: Texture> DiffuseLight<T> {
-    pub fn new(texture: T, scale: f64) -> DiffuseLight<T> {
+    pub fn new(texture: T, scale: ColorComponent) -> DiffuseLight<T> {
         DiffuseLight { intensity_scale: scale, texture }
     }
 }

@@ -10,11 +10,12 @@ pub struct RgbRenderer {
     pub hittable: Box<dyn Hittable>,
     pub important: Box<dyn Hittable>,
     pub miss_shader: fn(&Ray) -> Color,
+    pub important_weight: f64,
 }
 
 impl Renderer for RgbRenderer {
     fn color(&self, ray_ctx: &RayCtx) -> Color {
-        self.hittable.hit(&ray_ctx, 0.0001, 99999.0)
+        self.hittable.hit(&ray_ctx, 0.000_001, 99999.0)
             .map(|hit|{
 
                 let emitted = if hit.normal.dot(&ray_ctx.ray.direction.normalize()) < 0.0 {
@@ -46,9 +47,11 @@ impl Renderer for RgbRenderer {
 impl RgbRenderer {
     fn biased_diffuse<'a>(&self, ray_ctx: &RayCtx, hit: &Hit, attenuation: Color, mat_pdf: Box<dyn PDF>) -> Color {
         let mat_dir = mat_pdf.generate();  // unbiased sample, just in case we need it
+        let hittable_pdf = HittablePDF::new(&hit.point, &self.important);
         let pdf = MixturePDF::new(
+            &hittable_pdf,
             mat_pdf.as_ref(),
-            HittablePDF::new(hit.point, &self.important)
+            self.important_weight
         );
         if let Some(mut scattered) = ray_ctx.produce(
             hit.point,
@@ -80,13 +83,6 @@ impl RgbRenderer {
             Color::from_element(0.0) // max depth
         }
     }
-}
-
-/// fight fireflies by non-linear weight transformations,
-/// slightly affects material perception, though
-fn sigmoid(value: f64) -> f64 {
-    let x = value * 3.0;
-    x / (1.0 + x * x).sqrt()
 }
 
 impl RgbRenderer {

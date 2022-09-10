@@ -1,5 +1,5 @@
 use crate::ray::RayCtx;
-use crate::types::{V3, Distance, Timespan, P2, Scale, Color};
+use crate::types::{V3, Geometry, Timespan, P2, Scale, Color};
 use crate::random;
 use crate::onb::ONB;
 use nalgebra::Unit;
@@ -11,7 +11,7 @@ pub struct Camera {
     vertical: V3,
     origin: V3,
     onb: ONB,
-    lens_radius: Distance,
+    lens_radius: Geometry,
     timespan: Timespan,
     ttl: i32,
 }
@@ -20,7 +20,7 @@ impl Camera {
     pub fn new_look(
         from: V3, at: V3, up: V3,
         vfov: Scale, aspect: Scale,
-        focus_distance: Distance, aperture: Distance,
+        focus_distance: Geometry, aperture: Geometry,
         timespan: Timespan,
         ttl: i32
     ) -> Camera {
@@ -61,7 +61,7 @@ impl Camera {
             (&self.origin + &offset).into(),
             Unit::new_normalize(&self.lower_left + x + y - &offset),
             default_color,
-            interpolation::lerp(&self.timespan.start, &self.timespan.end, &random::next_std_f32()),
+            interpolation::lerp(&self.timespan.start, &self.timespan.end, &random::next_std()),
             self.ttl,
         )
     }

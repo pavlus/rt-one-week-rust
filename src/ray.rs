@@ -1,4 +1,4 @@
-use crate::types::{V3, P3, Distance, Time, Color};
+use crate::types::{V3, P3, Geometry, Time, Color};
 use nalgebra::Unit;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -8,7 +8,7 @@ pub struct Ray{
 }
 
 impl Ray {
-    pub fn point_at(self, p: Distance) -> P3 {
+    pub fn point_at(self, p: Geometry) -> P3 {
         (self.origin + p * self.direction.as_ref()).into()
     }
 }

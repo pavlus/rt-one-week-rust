@@ -1,5 +1,5 @@
 use crate::scenes::Scene;
-use crate::types::{Distance, Color, ColorComponent};
+use crate::types::{Geometry, Color, ColorComponent};
 use crate::random;
 use rayon::prelude::*;
 
@@ -22,12 +22,14 @@ impl Sampler {
         for j in (0..self.height).rev() {
             let scale = self.samples as ColorComponent;
             let aa = self.samples;
-            let row : Vec<(u32,u32,u32)> = (0..self.width).into_par_iter().map(|i| {
+            let row : Vec<(u32,u32,u32)> = (0..self.width)
+                .into_par_iter()
+                .map(|i| {
                 let col: Color = (0..aa).map(|_| {
                     // let col: V3 = rayon::iter::repeatn((), self.samples).map(|_| {
                     let offset = random::rand_in_unit_disc();
-                    let u = (i as Distance + &offset.x) / (self.width as Distance);
-                    let v = (j as Distance + &offset.y) / (self.height as Distance);
+                    let u = (i as Geometry + &offset.x) / (self.width as Geometry);
+                    let v = (j as Geometry + &offset.y) / (self.height as Geometry);
                     scene.color(u, v)
                 }).sum();
 

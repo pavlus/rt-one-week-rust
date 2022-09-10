@@ -4,7 +4,7 @@ pub use color::*;
 pub use perlin::*;
 
 pub use self::image::*;
-use crate::types::{P3, Distance, Color, P2};
+use crate::types::{P3, Color, P2};
 
 pub mod color;
 pub mod checker;

@@ -29,7 +29,7 @@ mod sampler;
 #[allow(dead_code)]
 mod scenes;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, StructOpt, Clone, Copy)]
 enum SceneType {
     #[structopt(name = "weekend_final")]
     WeekendFinal,
@@ -48,20 +48,22 @@ enum SceneType {
 }
 
 #[derive(Debug, StructOpt)]
-struct Params {
+pub struct Params {
     #[structopt(subcommand)]
     scene: Option<SceneType>,
-    #[structopt(short = "r", long = "renderer")]
-    renderer_type: Option<RendererType>,
+    #[structopt(short = "r", long = "renderer", default_value = "unbiased")]
+    pub(crate) renderer_type: RendererType,
 
     #[structopt(short = "w", long = "width", default_value = "512")]
-    width: u16,
+    pub(crate) width: u32,
     #[structopt(short = "h", long = "height", default_value = "512")]
-    height: u16,
+    pub(crate) height: u32,
     #[structopt(short = "s", long = "samples", default_value = "400")]
-    samples: u16,
+    pub(crate) samples: u16,
     #[structopt(short = "b", long = "bounces", default_value = "12")]
-    bounces: u16,
+    pub(crate) bounces: u16,
+    #[structopt(short = "i", long = "important-weight", default_value = "0.5")]
+    pub(crate) important_weight: f64,
 }
 
 fn main() {
@@ -74,19 +76,15 @@ fn main() {
         pixel_postprocessor: crate::postprocess,
     };
 
-    let w = cfg.width;
-    let h = cfg.height;
-    let ttl = cfg.max_ray_bounces;
-    let renderer_type = params.renderer_type.unwrap_or(RendererType::RGBBiased);
 
     let scene: Scene = match params.scene.unwrap_or(SceneType::WeekendFinal) {
-        SceneType::WeekendFinal => weekend_final(renderer_type, 11, w, h, 0.0, 0.2, ttl),
-        SceneType::CornelInstances => cornel_box_with_instances(renderer_type, w, h, 0.0, 0.2, ttl),
-        SceneType::CornelIs => cornel_box_with_is(renderer_type, w, h, 0.0, 0.2, ttl),
-        SceneType::CornelIsReflection => cornel_box_is_reflection(renderer_type, w, h, 0.0, 0.2, ttl),
-        SceneType::CornelVolumes => cornel_box_volumes(renderer_type, w, h, 0.0, 0.2, ttl),
-        SceneType::NextWeekFinal => next_week(renderer_type, w, h, 0.0, 0.2, ttl),
-        SceneType::Perlin => perlin_scene(renderer_type, w, h, 0.0, 0.2, ttl),
+        SceneType::WeekendFinal => weekend_final(11, 0.0, 0.2, &params),
+        SceneType::CornelInstances => cornel_box_with_instances(0.0, 0.2, &params),
+        SceneType::CornelIs => cornel_box_with_is(0.0, 0.2, &params),
+        SceneType::CornelIsReflection => cornel_box_is_reflection(0.0, 0.2, &params),
+        SceneType::CornelVolumes => cornel_box_volumes(0.0, 0.2, &params),
+        SceneType::NextWeekFinal => next_week(0.0, 0.2, &params),
+        SceneType::Perlin => perlin_scene(0.0, 0.2, &params),
         // _ => weekend_final(renderer_type, 11, w, h, 0.0, 0.2, ttl),
 
     };

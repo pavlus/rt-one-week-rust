@@ -1,20 +1,21 @@
-
 use crate::material::Isotropic;
 use crate::random::next;
 use crate::texture::Texture;
 
 use super::{AABB, Hit, Hittable, Material, RayCtx, V3};
-use crate::types::{P3, Distance, Time, Scale, Probability};
+use crate::types::{P3, Geometry, Scale, Probability, Timespan};
 use nalgebra::Unit;
+use crate::random;
 
 #[derive(Debug)]
-pub struct ConstantMedium<B,M> {
+pub struct ConstantMedium<B, M> {
     boundary: B,
     density: Scale,
     phase_function: M,
 }
+
 // todo: inject material
-impl<B:Hittable, T: Texture> ConstantMedium<B, Isotropic<T>> {
+impl<B: Hittable, T: Texture> ConstantMedium<B, Isotropic<T>> {
     pub fn new(boundary: B,
                density: Scale,
                texture: T,
@@ -28,17 +29,17 @@ impl<B:Hittable, T: Texture> ConstantMedium<B, Isotropic<T>> {
 }
 
 impl<B:Hittable, M: Material> Hittable for ConstantMedium<B,M> {
-    fn hit(&self, ray_ctx: &RayCtx, dist_min: Distance, dist_max: Distance) -> Option<Hit> {
-        let enter_hit = self.boundary.hit(ray_ctx, Distance::MIN, Distance::MAX)?;
-        let exit_hit = self.boundary.hit(ray_ctx, enter_hit.dist + 0.001, Distance::MAX)?;
-        let enter_dist = Distance::max(dist_min, enter_hit.dist);
-        let exit_dist = Distance::min(exit_hit.dist, dist_max);
+    fn hit(&self, ray_ctx: &RayCtx, dist_min: Geometry, dist_max: Geometry) -> Option<Hit> {
+        let enter_hit = self.boundary.hit(ray_ctx, Geometry::MIN, Geometry::MAX)?;
+        let exit_hit = self.boundary.hit(ray_ctx, enter_hit.dist + 0.001, Geometry::MAX)?;
+        let enter_dist = Geometry::max(dist_min, enter_hit.dist);
+        let exit_dist = Geometry::min(exit_hit.dist, dist_max);
         if enter_dist >= exit_dist {
             return None
         }
 
         // random walk which follows Poisson point process, using exponential distribution
-        let hit_dist: Distance = next::<Distance, rand_distr::Exp1>(rand_distr::Exp1) / self.density;
+        let hit_dist: Geometry = next::<Geometry, rand_distr::Exp1>(rand_distr::Exp1) / self.density as Geometry;
         let inner_travel_distance = exit_dist - enter_dist;
         if hit_dist < inner_travel_distance {
             let dist = enter_dist + hit_dist;
@@ -46,7 +47,7 @@ impl<B:Hittable, M: Material> Hittable for ConstantMedium<B,M> {
             Some(Hit::new(
                 dist,
                 ray.point_at(dist),
-                Unit::new_unchecked(V3::x()),
+                Unit::new_unchecked(random::rand_in_unit_sphere().coords),
                 &self.phase_function,
                 enter_hit.uv
             ))
@@ -54,10 +55,39 @@ impl<B:Hittable, M: Material> Hittable for ConstantMedium<B,M> {
             None
         }
     }
+/*
+
+impl<B: Hittable, M: Material> Hittable for ConstantMedium<B, M> {
+    fn hit(&self, ray_ctx: &RayCtx, dist_min: Geometry, dist_max: Geometry) -> Option<Hit> {
+        let enter_hit = self.boundary.hit(ray_ctx, dist_min, dist_max)?;
+        let exit_hit = self.boundary.hit(ray_ctx, enter_hit.dist + 0.000001, dist_max)?;
+
+        let uv = enter_hit.uv;
+        let (enter_dist, exit_dist) = sort(enter_hit.dist, exit_hit.dist);
+
+        // random walk which follows Poisson point process, using exponential distribution
+        let hit_dist: Geometry = next::<Geometry, rand_distr::Exp1>(rand_distr::Exp1) / self.density as Geometry;
+        let inner_travel_distance = exit_dist - enter_dist;
+        if hit_dist < inner_travel_distance {
+            let dist = enter_dist + hit_dist;
+            let ray = &ray_ctx.ray;
+            Some(Hit::new(
+                dist,
+                ray.point_at(dist),
+                Unit::new_unchecked(random::rand_in_unit_sphere().coords),
+                &self.phase_function,
+                uv,
+            ))
+        } else {
+            None
+        }
+    }
+
+*/
 
     #[inline]
-    fn bounding_box(&self, t_min: Time, t_max: Time) -> Option<AABB> {
-        self.boundary.bounding_box(t_min, t_max)
+    fn bounding_box(&self, timespan: Timespan) -> Option<AABB> {
+        self.boundary.bounding_box(timespan)
     }
 
     #[inline]
@@ -69,12 +99,11 @@ impl<B:Hittable, M: Material> Hittable for ConstantMedium<B,M> {
     fn random(&self, origin: &P3) -> Unit<V3> {
         self.boundary.random(origin)
     }
-
 }
 
-impl<B: Clone, M: Clone> Clone for ConstantMedium<B, M>{
+impl<B: Clone, M: Clone> Clone for ConstantMedium<B, M> {
     fn clone(&self) -> Self {
-        ConstantMedium{
+        ConstantMedium {
             boundary: self.boundary.clone(),
             density: self.density,
             phase_function: self.phase_function.clone(),
