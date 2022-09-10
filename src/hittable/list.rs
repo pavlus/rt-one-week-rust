@@ -1,62 +1,50 @@
+use itertools::Itertools;
+use rand::prelude::IteratorRandom;
 
-use crate::vec::V3;
+use crate::hittable::{Bounded, Important};
+use crate::random2::DefaultRng;
+use crate::types::{Direction, Geometry, P3, Probability, Timespan};
 
-use super::{AABB, Hit, Hittable, Ray};
+use super::{AABB, Hit, Hittable, RayCtx};
 
-#[derive(Debug)]
-pub struct HittableList {
-    objects: Vec<Box<dyn Hittable>>,
-    aabb: AABB,
-}
 
-impl HittableList {
-    pub fn new(objects: Vec<Box<dyn Hittable>>) -> HittableList {
-        let aabb = (|| {
-            let mut aabbs = objects.iter().flat_map(|o| o.bounding_box(0.0, 1.0));
-            let first = aabbs.next()?;
-            Some(aabbs.fold(first, |a, b| a + b))
-        })();
-        HittableList { objects, aabb: aabb.unwrap() }
-    }
-}
+impl<T: Hittable> Hittable for Vec<T> {
+    fn hit(&self, ray: &RayCtx, dist_min: Geometry, dist_max: Geometry) -> Option<Hit> {
+        let mut selected: (Geometry, Option<Hit>) = (dist_max, None);
 
-impl Hittable for HittableList {
-    fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
-        let mut selected: (f64, Option<Hit>) = (f64::MAX, None);
-        for o in &self.objects {
-            if let Some(hit) = o.hit(ray, dist_min, dist_max){
+        for o in self {
+            if let Some(hit) = o.hit(ray, dist_min, selected.0) {
                 if hit.dist < selected.0 {
                     selected = (hit.dist, Some(hit))
                 }
             }
         }
         selected.1
-        /*self.objects
-            .iter()
-            // todo[performance]: try enabling again after implementing heavier object
-//            .filter(|h| h.bounding_box(ray.time, ray.time)
-//                .map(|aabb| aabb.hit(ray, dist_min, dist_max))
-//                .unwrap_or(true)
-//            )
-            .map(|h| h.hit(ray, dist_min, dist_max))
-            .filter_map(std::convert::identity)
-            .min_by(|s, o| s.dist.partial_cmp(&o.dist).unwrap())*/
     }
 
-    fn bounding_box(&self, _: f32, _: f32) -> Option<AABB> {
-        Some(self.aabb)
-    }
+}
 
-    fn pdf_value(&self, origin: &V3, direction: &V3, hit: &Hit) -> f64 {
-        self.objects
-            .iter()
+
+impl<T: Bounded> Bounded for Vec<T> {
+    fn bounding_box(&self, timespan: Timespan) -> AABB {
+        self.iter()
+            .map(|o| o.bounding_box(timespan.clone()))
+            .sum1().unwrap()
+    }
+}
+
+
+impl<I: Important> Important for Vec<I> {
+    fn pdf_value(&self, origin: &P3, direction: &Direction, hit: &Hit) -> Probability {
+        self.iter()
             .map(|o| o.pdf_value(origin, direction, hit))
-            .sum::<f64>() / self.objects.len() as f64
+            .sum::<Probability>() / self.len() as Probability
     }
 
-    fn random(&self, origin: &V3) -> V3 {
-        crate::random::random_item(&self.objects)
+    fn random(&self, origin: &P3, rng: &mut DefaultRng) -> Direction {
+        self.iter()
+            .choose(rng)
             .unwrap()
-            .random(origin)
+            .random(origin, rng)
     }
 }

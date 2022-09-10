@@ -1,28 +1,34 @@
-use crate::vec::V3;
+use crate::types::{P3, Geometry, Time, Direction};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub struct Ray {
-    pub origin: V3,
-    pub direction: V3,
-    pub attenuation: V3,
-    pub time: f32,
-    pub ttl: i32,
+pub struct Ray{
+    pub origin: P3,
+    pub direction: Direction,
 }
 
 impl Ray {
-    pub fn new(origin: V3, direction: V3, attenuation: V3, time: f32, ttl: i32) -> Ray {
-        Ray { origin, direction, attenuation, time, ttl }
+    pub fn point_at(self, p: Geometry) -> P3 {
+        (self.origin + (p * self.direction.as_ref())).into()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RayCtx {
+    pub ray: Ray,
+    pub time: Time,
+}
+
+impl RayCtx {
+    pub fn new(origin: P3, direction: Direction, time: Time) -> RayCtx {
+
+        RayCtx { ray: Ray { origin, direction }, time }
+    }
+    pub fn from_ray(ray: Ray, time: Time) -> RayCtx {
+        RayCtx { ray, time}
     }
 
-    pub fn produce(self, origin: V3, direction: V3, attenuation: V3) -> Ray {
-        Ray::new(origin, direction, attenuation, self.time, self.ttl - 1)
+    pub fn produce(self, origin: P3, direction: Direction) -> RayCtx {
+        RayCtx::new(origin, direction, self.time)
     }
 
-    pub fn validate(self) -> Option<Ray> {
-        if self.ttl > 0 { Some(self) } else { None }
-    }
-
-    pub fn point_at(self, p: f64) -> V3 {
-        self.origin + p * self.direction
-    }
 }

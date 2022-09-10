@@ -1,27 +1,34 @@
+use crate::ray::RayCtx;
+use crate::scatter::Scatter;
+use crate::types::ColorComponent;
 use super::{Color, Texture};
 use super::{Hit, Material};
-use crate::vec::V3;
 
-#[derive(Debug)]
-pub struct DiffuseLight {
-    texture: Box<dyn Texture>,
-    intensity_scale: f64,
+#[derive(Clone, Debug)]
+pub struct DiffuseLight<T> {
+    intensity_scale: ColorComponent,
+    texture: T,
 }
 
-impl DiffuseLight {
-    pub fn new(texture: Box<dyn Texture>, scale: f64) -> DiffuseLight {
-        DiffuseLight { texture, intensity_scale: scale }
+
+impl<T: Texture> DiffuseLight<T> {
+    pub fn new(texture: T, scale: ColorComponent) -> DiffuseLight<T> {
+        DiffuseLight { intensity_scale: scale, texture }
     }
 }
 
-impl Material for DiffuseLight {
+impl<T: Texture> Material for DiffuseLight<T> {
     fn emmit(&self, hit: &Hit) -> Color {
-        Color(self.intensity_scale * self.texture.value(hit.u, hit.v, hit.point).0)
+        self.intensity_scale * self.texture.value(&hit.uv, &hit.point)
+    }
+
+    fn scatter_with_pdf(&self, _ray_ctx: RayCtx, _hit: &Hit) -> Option<Scatter> {
+        None
     }
 }
 
-impl Default for DiffuseLight{
+impl Default for DiffuseLight<Color> {
     fn default() -> Self {
-        DiffuseLight::new(Box::new(Color(V3::ones())), 0.5)
+        DiffuseLight::new(Color::from_element(1.0), 0.5)
     }
 }

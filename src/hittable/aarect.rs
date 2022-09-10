@@ -1,91 +1,125 @@
-use std::borrow::Borrow;
+use std::fmt::Debug;
 use std::ops::Range;
-use std::sync::Arc;
+use rand::distributions::uniform::SampleRange;
 
-use super::{AABB, Hit, Hittable, Material, Ray, V3};
-use crate::random::next_std_f64_in_range;
+use super::{AABB, Hit, Hittable, Material, RayCtx, P2, P3, V3};
+use crate::types::{Direction, Geometry, Probability, Timespan};
+use crate::hittable::{Bounded, Important, Positionable};
+use crate::random2::DefaultRng;
 
-macro_rules! aarect_aabb {
-    {$slf:ident, $a:tt, $b:tt, $off:expr} => {
-        AABB::new(
-            aarect_aabb!($slf, start, $a, $b, $off - 0.001),
-            aarect_aabb!($slf, end  , $a, $b, $off + 0.001)
+
+const X: usize = 0;
+const Y: usize = 1;
+const Z: usize = 2;
+
+#[derive(Clone, Debug)]
+pub struct AARect<T, const A: usize, const B: usize, const K: usize> {
+    a: Range<Geometry>,
+    b: Range<Geometry>,
+    k: Geometry,
+    material: T,
+}
+
+impl<T, const A: usize, const B: usize, const K: usize> AARect<T, A, B, K> {
+    pub fn new(a: Range<Geometry>, b: Range<Geometry>, k: Geometry, material: T) -> Self {
+        Self { a, b, k, material }
+    }
+
+    fn uv(&self, a: Geometry, b: Geometry) -> P2 {
+        let u = (a - self.a.start) / (self.a.end - self.a.start);
+        let v = (b - self.b.start) / (self.b.end - self.b.start);
+        P2::new(u, v)
+    }
+
+    const fn axis<const AXIS: usize>() -> Direction {
+        let result = V3::new(
+            if AXIS == X { 1.0 } else { 0.0 },
+            if AXIS == Y { 1.0 } else { 0.0 },
+            if AXIS == Z { 1.0 } else { 0.0 },
+        );
+        Direction::new_unchecked(result)
+    }
+}
+
+impl<T: Material, const A: usize, const B: usize, const K: usize> Hittable for AARect<T, A, B, K> {
+    fn hit(&self, ray_ctx: &RayCtx, dist_min: Geometry, dist_max: Geometry) -> Option<Hit> {
+        let ray = &ray_ctx.ray;
+        let dist = (self.k - ray.origin[K]) / ray.direction[K];
+        if !(dist_min..=dist_max).contains(&dist) { return None; };
+
+        let a = ray.origin[A] + dist * ray.direction[A];
+        let b = ray.origin[B] + dist * ray.direction[B];
+
+        if !(self.a.contains(&a) && self.b.contains(&b)) {
+            return None;
+        };
+
+        let uv = self.uv(a, b);
+        Some(Hit::new(dist, ray.point_at(dist), Self::axis::<K>(), &self.material, uv))
+    }
+
+}
+
+
+impl<T, const A: usize, const B: usize, const K: usize> Bounded for AARect<T, A, B, K> {
+    fn bounding_box(&self, _: Timespan) -> AABB {
+        let a = Self::axis::<A>();
+        let b = Self::axis::<B>();
+        let k = Self::axis::<K>();
+        let min = a.as_ref() * self.a.start + b.as_ref() * self.b.start + k.as_ref() * (self.k - 0.00001);
+        let max = a.as_ref() * self.a.end + b.as_ref() * self.b.end + k.as_ref() * (self.k - 0.00001);
+        AABB::new(min.into(), max.into())
+
+    }
+}
+
+
+impl<T: Send + Sync, const A: usize, const B: usize, const K: usize> Important for AARect<T, A, B, K> {
+
+    fn pdf_value(&self, _origin: &P3, direction: &Direction, hit: &Hit) -> Probability {
+        let area = (self.a.end - self.a.start) * (self.b.end - self.b.start);
+        let sqr_dist = hit.dist * hit.dist;
+        let cosine = direction[K];
+        let cos_area = Geometry::abs(cosine * area);
+
+        if false && cfg!(test) {
+            eprintln!("area: {}", area);
+            eprintln!("sqr_dist: {}", sqr_dist);
+            eprintln!("cosine: {}", cosine);
+            eprintln!("cos_area: {}", cos_area);
+
+            eprintln!("----------------------------");
+        }
+        sqr_dist as Probability / cos_area as Probability
+    }
+
+    fn random(&self, origin: &P3, rng: &mut DefaultRng) -> Direction {
+        let mut random_point = V3::from_element(1.0);
+        random_point[A] = self.a.clone().sample_single(rng);
+        random_point[B] = self.b.clone().sample_single(rng);
+        random_point[K] = self.k;
+        Direction::new_normalize(&random_point - origin.coords)
+    }
+}
+
+
+pub type XYRect<T> = AARect<T, X, Y, Z>;
+pub type XZRect<T> = AARect<T, X, Z, Y>;
+pub type YZRect<T> = AARect<T, Y, Z, X>;
+
+impl<T, const A: usize, const B: usize, const K: usize> Positionable for AARect<T, A, B, K>{
+    fn move_by(&mut self, offset: &V3) {
+        self.a = (self.a.start+offset[A])..(self.a.end + offset[A]);
+        self.b = (self.b.start+offset[A])..(self.b.end + offset[B]);
+        self.k = self.k + offset[K];
+    }
+
+    fn moved_by(self, offset: &V3) -> Self {
+        AARect::<T, A, B, K>::new(
+            (self.a.start+offset[A])..(self.a.end + offset[A]),
+            (self.b.start+offset[A])..(self.b.end + offset[B]),
+            self.k + offset[K],
+            self.material
         )
-    };
-    {$slf:ident, $bound:ident, x, y, $off:expr} => {V3::new($slf.x.$bound, $slf.y.$bound, $off)};
-    {$slf:ident, $bound:ident, x, z, $off:expr} => {V3::new($slf.x.$bound, $off, $slf.z.$bound)};
-    {$slf:ident, $bound:ident, y, z, $off:expr} => {V3::new($off, $slf.y.$bound, $slf.z.$bound)};
+    }
 }
-
-macro_rules! norm_vec {
-    {x, y} => {V3::new(0.0,0.0,1.0)};
-    {x, z} => {V3::new(0.0,1.0,0.0)};
-    {y, z} => {V3::new(1.0,0.0,0.0)};
-}
-
-macro_rules! aarect {
-    {$name:tt, $a:tt, $b:tt, normal: $k:tt} =>{
-        #[derive(Debug, Clone)]
-        pub struct $name {
-            $a: Range<f64>,
-            $b: Range<f64>,
-            k: f64,
-            material: Arc<dyn Material>
-        }
-        impl $name {
-            pub fn new($a: Range<f64>, $b:Range<f64>, k:f64, material: Arc<dyn Material>) -> $name {
-                $name { $a, $b, k, material }
-            }
-
-            fn uv(&self, $a:f64, $b: f64) -> (f64, f64) {
-                let u = ($a - self.$a.start)/(self.$a.end-self.$a.start);
-                let v = ($b - self.$b.start)/(self.$b.end-self.$b.start);
-                (u, v)
-            }
-        }
-
-        impl Hittable for $name {
-            fn hit(&self, ray: &Ray, dist_min: f64, dist_max: f64) -> Option<Hit> {
-                let dist = (self.k - ray.origin.$k) / ray.direction.$k;
-                if !(dist_min..dist_max).contains(&dist) { return None; };
-
-                let $a = ray.origin.$a + dist * ray.direction.$a;
-                let $b = ray.origin.$b + dist * ray.direction.$b;
-
-                if !(self.$a.contains(&$a) && self.$b.contains(&$b)) {
-                    return None;
-                };
-
-                let (u, v) = self.uv($a, $b);
-                Some(Hit::new(dist, ray.point_at(dist), norm_vec!($a, $b), self.material.borrow(), u, v))
-            }
-
-            fn bounding_box(&self, _: f32, _: f32) -> Option<AABB> {
-                Some(aarect_aabb!(self, $a, $b, self.k))
-            }
-
-            fn pdf_value(&self, _origin: &V3, direction: &V3, hit: &Hit) -> f64 {
-                let area = (self.$a.end - self.$a.start) * (self.$b.end - self.$b.start);
-                let sqr_dist = (hit.dist * hit.dist);
-                let cosine = direction.$k;
-                let cos_area = f64::abs(cosine * area);
-                sqr_dist / cos_area
-            }
-
-            fn random(&self, origin: &V3) -> V3 {
-                let random_point = V3{
-                    $a: next_std_f64_in_range(&self.$a),
-                    $b: next_std_f64_in_range(&self.$b),
-                    $k: self.k
-                 };
-                (random_point - *origin)
-            }
-
-        }
-
-    };
-}
-
-aarect!(XYRect, x, y, normal: z);
-aarect!(XZRect, x, z, normal: y);
-aarect!(YZRect, y, z, normal: x);

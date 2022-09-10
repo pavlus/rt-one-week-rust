@@ -1,23 +1,21 @@
-pub use rgb_renderer::RgbRenderer;
-pub use rgb_renderer_unbiased::RgbRendererUnbiased;
-pub use ttl_renderer::TtlRenderer;
+pub use monte_carlo_importance::MonteCarlo;
+pub use monte_carlo_brure_force::BruteForce;
 
-use crate::hittable::Hittable;
-use crate::ray::Ray;
-use crate::vec::V3;
+use crate::hittable::{Hittable, Important};
+use crate::ray::{RayCtx};
+use crate::types::{Color, Probability};
 use std::str::FromStr;
+use crate::{Params, SceneDesc};
+use crate::random2::DefaultRng;
 
-mod rgb_renderer;
-mod ttl_renderer;
-mod rgb_renderer_unbiased;
-
+mod monte_carlo_brure_force;
+mod monte_carlo_importance;
 
 
 #[derive(Debug)]
 pub enum RendererType {
     RGBBiased,
     RGBUnbiased,
-    TTL
 }
 
 impl FromStr for RendererType{
@@ -27,70 +25,45 @@ impl FromStr for RendererType{
         match s {
             "biased" => Result::Ok(RendererType::RGBBiased),
             "unbiased" => Result::Ok(RendererType::RGBUnbiased),
-            "bounces-heatmap" => Result::Ok(RendererType::TTL),
             other => Result::Err(format!("Unknown variant: '{}'", other))
         }
     }
 }
 
-pub trait Renderer {
-    fn color(&self, r: &Ray) -> V3;
+pub trait Renderer<S>: Sync + Send {
+    fn color(&self, scene: &S, r: &RayCtx, rng: &mut DefaultRng) -> Color;
 }
 
 pub enum RendererImpl {
-    RGB(RgbRenderer),
-    RGBUnbiased(RgbRendererUnbiased),
-    TTL(TtlRenderer),
+    RGB(MonteCarlo),
+    RGBUnbiased(BruteForce),
 }
 
 impl RendererImpl {
-    pub fn biased(scene_graph: Box<dyn Hittable>, important: Box<dyn Hittable>, miss_shader: fn(&Ray) -> V3) -> RendererImpl{
-        RendererImpl::RGB(RgbRenderer {
-            hittable: scene_graph,
-            important,
-            miss_shader,
-        })
+    pub fn biased(important_weight: Probability) -> Self {
+        RendererImpl::RGB(MonteCarlo { important_weight})
     }
-    pub fn unbiased(scene_graph: Box<dyn Hittable>, miss_shader: fn(&Ray) -> V3) -> RendererImpl{
-        RendererImpl::RGBUnbiased(RgbRendererUnbiased {
-            hittable: scene_graph,
-            miss_shader,
-        })
+    pub fn unbiased() -> Self {
+        RendererImpl::RGBUnbiased(BruteForce)
     }
 
-    pub fn ray_ttl(scene_graph: Box<dyn Hittable>, ttl: i32) -> RendererImpl{
-        RendererImpl::TTL(TtlRenderer {
-            hittable: scene_graph,
-            ttl,
-        })
-    }
-
-    pub fn pick_renderer(
-        renderer_type: RendererType, scene_graph: Box<dyn Hittable>,
-        important: Box<dyn Hittable>,
-        miss_shader: fn(&Ray) -> V3,
-        ttl: i32
-    ) -> RendererImpl{
-        match renderer_type {
+    pub fn pick_renderer(params: &Params) -> Self {
+        match params.renderer_type {
             RendererType::RGBBiased => {
-                RendererImpl::biased(scene_graph, important, miss_shader)
+                RendererImpl::biased(params.important_weight)
             },
             RendererType::RGBUnbiased => {
-                RendererImpl::unbiased(scene_graph, miss_shader)
-            },
-            RendererType::TTL => {
-                RendererImpl::ray_ttl(scene_graph, ttl)
-            },
+                RendererImpl::unbiased()
+            }
         }
     }
 }
 
-impl Renderer for RendererImpl {
-    fn color(&self, ray: &Ray) -> V3 {
+impl<H: Hittable, I: Hittable + Important> Renderer<SceneDesc<H, I>> for RendererImpl {
+    fn color(&self, scene: &SceneDesc<H, I>, ray_ctx: &RayCtx, rng: &mut DefaultRng) -> Color {
         match self {
-            RendererImpl::RGB(renderer) => renderer.color(ray),
-            RendererImpl::RGBUnbiased(renderer) => renderer.color(ray),
-            RendererImpl::TTL(renderer) => renderer.color(ray),
+            RendererImpl::RGB(renderer) => renderer.color(scene, ray_ctx, rng),
+            RendererImpl::RGBUnbiased(renderer) => renderer.color(scene, ray_ctx, rng),
         }
     }
 }
